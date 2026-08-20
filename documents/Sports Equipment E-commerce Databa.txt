@@ -1,0 +1,655 @@
+// ==========================
+// ENUMS
+// ==========================
+
+Enum user_role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+Enum user_status {
+  PENDING
+  ACTIVE
+  LOCKED
+  DELETED
+}
+
+Enum gender_type {
+  MALE
+  FEMALE
+}
+
+Enum address_type {
+  SHIPPING
+  BILLING
+}
+
+Enum product_status {
+  DRAFT
+  ACTIVE
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+Enum order_status {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELED
+  RETURN_REQUESTED
+  RETURNED
+}
+
+Enum payment_method {
+  COD
+  CREDIT_CARD
+  BANK_TRANSFER
+  E_WALLET
+}
+
+Enum payment_status {
+  PENDING
+  PAID
+  FAILED
+}
+
+Enum shipment_status {
+  PENDING
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
+Enum discount_type {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+Enum review_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum notification_type {
+  ORDER_UPDATE
+  PROMOTION
+  REVIEW_REPLY
+  SYSTEM
+}
+
+Enum otp_purpose {
+  REGISTER
+  RESET_PASSWORD
+  CHANGE_PHONE
+  CHANGE_EMAIL
+  LOGIN_2FA
+}
+
+Enum otp_channel {
+  EMAIL
+  SMS
+}
+
+Enum otp_status {
+  PENDING
+  VERIFIED
+  EXPIRED
+  FAILED
+}
+
+
+// ==========================
+// USER & AUTH MODULE
+// ==========================
+
+Table users {
+  id uuid [primary key]
+
+  email varchar(255) [not null, unique]
+  phone_number varchar(20) [unique]
+  password_hash text [not null]
+
+  full_name varchar(150) [not null]
+  avatar_url text
+  gender gender_type
+  date_of_birth date
+
+  role user_role [default: 'CUSTOMER']
+  status user_status [default: 'PENDING']
+
+  email_verified_at timestamptz
+  phone_verified_at timestamptz
+
+  last_login_at timestamptz
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  deleted_at timestamptz
+}
+
+Table user_addresses {
+  id uuid [primary key]
+
+  user_id uuid [not null]
+
+  recipient_name varchar(150) [not null]
+  phone_number varchar(20) [not null]
+
+  address_line text [not null]
+  ward varchar(100)
+  district varchar(100)
+  city varchar(100) [not null]
+  country varchar(100) [default: 'Vietnam']
+
+  type address_type [default: 'SHIPPING']
+  is_default boolean [default: false]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table refresh_tokens {
+  id uuid [primary key]
+
+  user_id uuid [not null]
+  device_id uuid
+
+  token_hash text [not null, unique]
+
+  expires_at timestamptz [not null]
+  revoked_at timestamptz
+
+  created_at timestamptz [default: `now()`]
+}
+
+Table otp_verifications {
+  id uuid [primary key]
+
+  user_id uuid [not null]
+
+  purpose otp_purpose [not null]
+  channel otp_channel [not null]
+  target varchar(255) [not null]
+
+  otp_hash text [not null]
+
+  status otp_status [default: 'PENDING']
+
+  attempt_count integer [default: 0]
+  max_attempts integer [default: 5]
+
+  expires_at timestamptz [not null]
+  verified_at timestamptz
+
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (user_id, purpose)
+    (target)
+  }
+}
+
+
+// ==========================
+// CATALOG MODULE
+// ==========================
+
+Table categories {
+  id uuid [primary key]
+
+  parent_id uuid
+
+  name varchar(150) [not null]
+  slug varchar(180) [not null, unique]
+  description text
+  image_url text
+
+  is_active boolean [default: true]
+  sort_order integer [default: 0]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table brands {
+  id uuid [primary key]
+
+  name varchar(150) [not null, unique]
+  slug varchar(180) [not null, unique]
+  logo_url text
+  description text
+
+  is_active boolean [default: true]
+
+  created_at timestamptz [default: `now()`]
+}
+
+Table products {
+  id uuid [primary key]
+
+  category_id uuid [not null]
+  brand_id uuid
+
+  name varchar(255) [not null]
+  slug varchar(280) [not null, unique]
+  description text
+  sport_type varchar(100)
+
+  status product_status [default: 'DRAFT']
+
+  base_price numeric(12,2) [not null]
+  sale_price numeric(12,2)
+
+  is_featured boolean [default: false]
+  avg_rating numeric(2,1) [default: 0]
+  review_count integer [default: 0]
+  sold_count integer [default: 0]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (category_id)
+    (brand_id)
+  }
+}
+
+Table product_images {
+  id uuid [primary key]
+
+  product_id uuid [not null]
+
+  image_url text [not null]
+  is_primary boolean [default: false]
+  sort_order integer [default: 0]
+
+  created_at timestamptz [default: `now()`]
+}
+
+Table product_attributes {
+  id uuid [primary key]
+
+  product_id uuid [not null]
+
+  attribute_name varchar(100) [not null]
+  attribute_value varchar(255) [not null]
+
+  indexes {
+    (product_id, attribute_name)
+  }
+}
+
+Table product_variants {
+  id uuid [primary key]
+
+  product_id uuid [not null]
+
+  sku varchar(100) [not null, unique]
+  size varchar(50)
+  color varchar(50)
+
+  price numeric(12,2) [not null]
+  sale_price numeric(12,2)
+  stock integer [not null, default: 0]
+
+  weight_gram integer
+  image_url text
+
+  is_active boolean [default: true]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  indexes {
+    (product_id)
+  }
+}
+
+Table tags {
+  id uuid [primary key]
+
+  name varchar(100) [not null, unique]
+  slug varchar(120) [not null, unique]
+}
+
+Table product_tags {
+  id uuid [primary key]
+
+  product_id uuid [not null]
+  tag_id uuid [not null]
+
+  indexes {
+    (product_id, tag_id) [unique]
+  }
+}
+
+
+// ==========================
+// CART & WISHLIST MODULE
+// ==========================
+
+Table carts {
+  id uuid [primary key]
+
+  user_id uuid [not null, unique]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table cart_items {
+  id uuid [primary key]
+
+  cart_id uuid [not null]
+  variant_id uuid [not null]
+
+  quantity integer [not null, default: 1]
+  price_at_added numeric(12,2) [not null]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  indexes {
+    (cart_id, variant_id) [unique]
+  }
+}
+
+Table wishlists {
+  id uuid [primary key]
+
+  user_id uuid [not null]
+  product_id uuid [not null]
+
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (user_id, product_id) [unique]
+  }
+}
+
+
+// ==========================
+// ORDER MODULE
+// ==========================
+
+Table orders {
+  id uuid [primary key]
+
+  order_code varchar(50) [not null, unique]
+  user_id uuid [not null]
+
+  status order_status [default: 'PENDING']
+
+  subtotal numeric(12,2) [not null]
+  discount_amount numeric(12,2) [default: 0]
+  shipping_fee numeric(12,2) [default: 0]
+  tax_amount numeric(12,2) [default: 0]
+  total_amount numeric(12,2) [not null]
+
+  shipping_address_id uuid [not null]
+  shipping_address_snapshot varchar(255) [not null]
+  coupon_id uuid
+
+  note text
+  cancel_reason text
+
+  placed_at timestamptz [default: `now()`]
+  confirmed_at timestamptz
+  canceled_at timestamptz
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  indexes {
+    (user_id)
+    (status)
+  }
+}
+
+Table order_items {
+  id uuid [primary key]
+
+  order_id uuid [not null]
+  variant_id uuid [not null]
+
+  product_name_snapshot varchar(255) [not null]
+  sku_snapshot varchar(100) [not null]
+  variant_snapshot varchar(150)
+
+  unit_price numeric(12,2) [not null]
+  quantity integer [not null]
+  subtotal numeric(12,2) [not null]
+
+  created_at timestamptz [default: `now()`]
+}
+
+Table order_status_histories {
+  id uuid [primary key]
+
+  order_id uuid [not null]
+
+  status order_status [not null]
+  note text
+  changed_by uuid
+
+  created_at timestamptz [default: `now()`]
+}
+
+
+// ==========================
+// PAYMENT MODULE
+// ==========================
+
+Table payments {
+  id uuid [primary key]
+
+  order_id uuid [not null]
+
+  method payment_method [not null]
+  status payment_status [default: 'PENDING']
+
+  amount numeric(12,2) [not null]
+  transaction_code varchar(150)
+
+  paid_at timestamptz
+  created_at timestamptz [default: `now()`]
+}
+
+
+// ==========================
+// SHIPPING MODULE
+// ==========================
+
+Table shipping_providers {
+  id uuid [primary key]
+
+  name varchar(150) [not null]
+  code varchar(50) [not null, unique]
+  is_active boolean [default: true]
+}
+
+Table shipments {
+  id uuid [primary key]
+
+  order_id uuid [not null, unique]
+  provider_id uuid [not null]
+
+  tracking_number varchar(150)
+  status shipment_status [default: 'PENDING']
+
+  shipping_fee numeric(12,2) [default: 0]
+  estimated_delivery_date date
+  delivered_at timestamptz
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+
+// ==========================
+// PROMOTION MODULE
+// ==========================
+
+Table coupons {
+  id uuid [primary key]
+
+  code varchar(50) [not null, unique]
+
+  discount_type discount_type [not null]
+  discount_value numeric(12,2) [not null]
+
+  min_order_amount numeric(12,2) [default: 0]
+  max_discount_amount numeric(12,2)
+
+  usage_limit integer
+  used_count integer [default: 0]
+
+  start_date timestamptz [not null]
+  end_date timestamptz [not null]
+
+  is_active boolean [default: true]
+
+  created_at timestamptz [default: `now()`]
+}
+
+Table coupon_usages {
+  id uuid [primary key]
+
+  coupon_id uuid [not null]
+  user_id uuid [not null]
+  order_id uuid [not null, unique]
+
+  used_at timestamptz [default: `now()`]
+
+  indexes {
+    (coupon_id, user_id, order_id) [unique]
+  }
+}
+
+
+// ==========================
+// REVIEW MODULE
+// ==========================
+
+Table reviews {
+  id uuid [primary key]
+
+  product_id uuid [not null]
+  user_id uuid [not null]
+  order_item_id uuid [not null, unique]
+
+  rating integer [not null]
+  comment text
+
+  status review_status [default: 'PENDING']
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table review_images {
+  id uuid [primary key]
+
+  review_id uuid [not null]
+  image_url text [not null]
+}
+
+Table review_replies {
+  id uuid [primary key]
+
+  review_id uuid [not null, unique]
+  admin_id uuid [not null]
+
+  reply_text text [not null]
+
+  created_at timestamptz [default: `now()`]
+}
+
+
+// ==========================
+// NOTIFICATION MODULE
+// ==========================
+
+Table notifications {
+  id uuid [primary key]
+
+  user_id uuid [not null]
+
+  type notification_type [not null]
+  title varchar(255) [not null]
+  content text
+
+  reference_id uuid
+  data jsonb
+
+  is_read boolean [default: false]
+  read_at timestamptz
+
+  created_at timestamptz [default: `now()`]
+}
+
+// ==========================
+// RELATIONSHIPS
+// ==========================
+
+// User & Auth
+Ref: users.id < user_addresses.user_id
+Ref: users.id < refresh_tokens.user_id
+Ref: users.id < otp_verifications.user_id
+
+// Catalog
+Ref: categories.id ?< categories.parent_id
+Ref: categories.id < products.category_id
+Ref: brands.id ?< products.brand_id
+Ref: products.id < product_images.product_id
+Ref: products.id < product_attributes.product_id
+Ref: products.id < product_variants.product_id
+Ref: products.id < product_tags.product_id
+Ref: tags.id < product_tags.tag_id
+
+// Cart & Wishlist
+Ref: users.id - carts.user_id
+Ref: carts.id < cart_items.cart_id
+Ref: product_variants.id < cart_items.variant_id
+Ref: users.id < wishlists.user_id
+Ref: products.id < wishlists.product_id
+
+// Order
+Ref: users.id < orders.user_id
+Ref: user_addresses.id < orders.shipping_address_id
+Ref: coupons.id ?< orders.coupon_id
+Ref: orders.id < order_items.order_id
+Ref: product_variants.id < order_items.variant_id
+Ref: orders.id < order_status_histories.order_id
+Ref: users.id ?< order_status_histories.changed_by
+
+// Payment
+Ref: orders.id < payments.order_id
+
+// Shipping
+Ref: orders.id - shipments.order_id
+Ref: shipping_providers.id < shipments.provider_id
+
+// Promotion
+Ref: coupons.id < coupon_usages.coupon_id
+Ref: users.id < coupon_usages.user_id
+Ref: orders.id - coupon_usages.order_id
+
+// Review (Giữ lại phản hồi đánh giá)
+Ref: products.id < reviews.product_id
+Ref: users.id < reviews.user_id
+Ref: order_items.id - reviews.order_item_id
+Ref: reviews.id < review_images.review_id
+Ref: reviews.id - review_replies.review_id
+Ref: users.id < review_replies.admin_id
+
+// Notification
+Ref: users.id < notifications.user_id
