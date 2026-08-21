@@ -1,0 +1,134 @@
+
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+    <meta charset='utf-8'>
+    <title>Tài liệu Nghiệp vụ Hệ thống E-Commerce</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; padding: 20px; }
+        h1 { color: #2C3E50; font-size: 18pt; text-align: center; margin-bottom: 20px; }
+        h2 { color: #2980B9; font-size: 14pt; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 25px; }
+        h3 { color: #16A085; font-size: 12pt; margin-top: 15px; }
+        .highlight { background-color: #f8f9fa; padding: 10px; border-left: 4px solid #2980B9; margin-bottom: 15px; font-family: 'Courier New', monospace; font-size: 10.5pt;}
+        ul { margin-top: 5px; margin-bottom: 10px; }
+        li { margin-bottom: 5px; }
+        .bold { font-weight: bold; }
+    </style>
+    </head>
+    <body>
+
+    <h1>TÀI LIỆU NGHIỆP VỤ & XỬ LÝ LOGIC BACKEND<br>HỆ THỐNG E-COMMERCE</h1>
+    <p style="text-align: center;"><strong>Dự án:</strong> Hệ thống E-Commerce (Backend: Spring Boot + Hibernate | Frontend: React + Tailwind)</p>
+    
+    <h2>Quy ước API Response Chung</h2>
+    <div class="highlight">
+        <strong>Thành công:</strong><br>
+        { "success": true, "message": "Thao tác thành công", "data": { ... } }<br><br>
+        <strong>Thất bại:</strong><br>
+        { "success": false, "message": "Mô tả lỗi ngắn gọn", "errors": null }
+    </div>
+
+    <!-- MODULE 1 -->
+    <h2>1. CATALOG MODULE (Quản lý Danh mục & Sản phẩm)</h2>
+    <p><strong>Tables liên quan:</strong> categories, brands, products, product_images, product_attributes, product_variants, tags, product_tags</p>
+    <h3>Nghiệp vụ chính: Thêm mới Sản phẩm (Create Product)</h3>
+    <ul>
+        <li><span class="bold">Client (React) gửi lên:</span>
+            <ul>
+                <li><code>category_id</code>, <code>brand_id</code>, <code>name</code>, <code>sport_type</code>, <code>description</code>, <code>base_price</code>, <code>sale_price</code>.</li>
+                <li>Danh sách biến thể (Variants): Array các object chứa <code>sku</code>, <code>size</code>, <code>color</code>, <code>price</code>, <code>stock</code>, <code>image_url</code>.</li>
+                <li>Danh sách ảnh (Images): Array các url ảnh kèm <code>is_primary</code>.</li>
+            </ul>
+        </li>
+        <li><span class="bold">Backend (Spring Boot + Hibernate) xử lý:</span>
+            <ul>
+                <li>Mở <code>@Transactional</code> để đảm bảo tính toàn vẹn dữ liệu.</li>
+                <li><strong>Validate:</strong> Check <code>category_id</code> và <code>brand_id</code> có tồn tại không. Tạo <code>slug</code> từ <code>name</code> và kiểm tra duy nhất.</li>
+                <li><strong>Insert Products:</strong> Khởi tạo Entity Product (mặc định <code>status = DRAFT</code>), gọi Repository save xuống DB, lấy <code>product_id</code>.</li>
+                <li><strong>Insert Variants & Images:</strong> Duyệt qua danh sách biến thể và ảnh, map <code>product_id</code> vào các Entity <code>ProductVariant</code> và <code>ProductImage</code>, sau đó insert batch xuống DB.</li>
+                <li>Nếu có lỗi xảy ra (ví dụ trùng SKU), Rollback toàn bộ dữ liệu. Nếu thành công, Commit transaction.</li>
+            </ul>
+        </li>
+        <li><span class="bold">Response trả về:</span> Trả về chuẩn JSON thành công kèm DTO của sản phẩm vừa tạo.</li>
+    </ul>
+
+    <!-- MODULE 2 -->
+    <h2>2. ORDER + SHIPPING MODULES (Đặt hàng & Giao hàng)</h2>
+    <p><strong>Tables liên quan:</strong> orders, order_items, order_status_histories, shipping_providers, shipments</p>
+    <h3>Nghiệp vụ chính: Khách hàng Đặt hàng (Place Order / Checkout)</h3>
+    <ul>
+        <li><span class="bold">Client (React) gửi lên:</span>
+            <ul>
+                <li><code>user_id</code> (thường lấy từ JWT Token), <code>shipping_address_id</code>.</li>
+                <li>Danh sách items đang chọn mua: Array các <code>cart_item_id</code> hoặc (<code>variant_id</code> + <code>quantity</code>).</li>
+                <li><code>coupon_id</code> (nếu có áp dụng), <code>payment_method</code>, <code>note</code>.</li>
+            </ul>
+        </li>
+        <li><span class="bold">Backend (Spring Boot + Hibernate) xử lý:</span>
+            <ul>
+                <li>Mở <code>@Transactional</code>.</li>
+                <li><strong>Validate Giỏ hàng & Tồn kho:</strong> Truy vấn bảng <code>product_variants</code> để check <code>stock</code>. Báo lỗi ngay nếu <code>quantity</code> > <code>stock</code>.</li>
+                <li><strong>Tính toán số tiền:</strong> Backend tự động nhân <code>quantity</code> với <code>price</code> của variant lấy từ DB (tuyệt đối không tin cậy tổng tiền client gửi lên). Trừ tiền discount nếu có <code>coupon_id</code> hợp lệ. Cộng phí ship. Ra được <code>total_amount</code>.</li>
+                <li><strong>Trừ Tồn kho:</strong> Cập nhật giảm <code>stock</code> trong <code>product_variants</code>.</li>
+                <li><strong>Insert Orders & Order Items:</strong> Tạo Entity Order (<code>status = PENDING</code>). Insert các Entity OrderItem (lưu snapshot của <code>product_name</code>, <code>sku</code>, <code>unit_price</code> tại thời điểm mua).</li>
+                <li><strong>Xóa Cart:</strong> Xóa các items đã mua khỏi bảng <code>cart_items</code> của user.</li>
+                <li><strong>Ghi Log:</strong> Insert 1 dòng vào <code>order_status_histories</code> trạng thái PENDING.</li>
+            </ul>
+        </li>
+        <li><span class="bold">Response trả về:</span> JSON thành công chứa <code>order_id</code>, <code>order_code</code> và <code>total_amount</code> để client điều hướng thanh toán.</li>
+    </ul>
+
+    <!-- MODULE 3 -->
+    <h2>3. PAYMENT + PROMOTION MODULES (Thanh toán & Khuyến mãi)</h2>
+    <p><strong>Tables liên quan:</strong> payments, coupons, coupon_usages</p>
+    <h3>Nghiệp vụ chính: Áp dụng Mã giảm giá & Xử lý Thanh toán</h3>
+    <ul>
+        <li><span class="bold">Client (React) gửi lên:</span> <code>coupon_code</code> và <code>order_id</code> (hoặc giỏ hàng hiện tại) để tính giá, hoặc yêu cầu thanh toán với <code>payment_method</code> (ví dụ: VNPay, CREDIT_CARD).</li>
+        <li><span class="bold">Backend (Spring Boot + Hibernate) xử lý:</span>
+            <ul>
+                <li><strong>Với Promotion (Coupon):</strong> Truy vấn <code>coupons</code> bằng <code>code</code>. Check <code>is_active</code>, thời hạn (<code>start_date</code>, <code>end_date</code>), <code>usage_limit</code> và <code>min_order_amount</code>. Tính toán <code>discount_amount</code> dựa trên loại (PERCENTAGE / FIXED_AMOUNT). Khi đơn hàng chốt thành công, insert vào <code>coupon_usages</code> và update tăng <code>used_count</code> trong bảng <code>coupons</code>.</li>
+                <li><strong>Với Payment:</strong> Insert record vào bảng <code>payments</code> (<code>status = PENDING</code>). 
+                    Nếu là ví điện tử/thẻ ngân hàng, BE gọi API sang 3rd party (như VNPay) để tạo URL thanh toán, trả về cho Client.
+                    Khi khách thanh toán xong, 3rd party gọi Webhook về BE. BE check chữ ký, cập nhật <code>payment_status = PAID</code> và tự động cập nhật <code>orders.status = CONFIRMED</code>.</li>
+            </ul>
+        </li>
+        <li><span class="bold">Response trả về:</span> URL chuyển hướng thanh toán hoặc JSON xác nhận áp dụng mã thành công.</li>
+    </ul>
+
+    <!-- MODULE 4 -->
+    <h2>4. USER & AUTH + NOTIFICATION MODULES (Tài khoản & Thông báo)</h2>
+    <p><strong>Tables liên quan:</strong> users, user_addresses, refresh_tokens, otp_verifications, notifications</p>
+    <h3>Nghiệp vụ chính: Đăng ký tài khoản (Register) & Xác thực OTP</h3>
+    <ul>
+        <li><span class="bold">Client (React) gửi lên:</span> <code>email</code> (hoặc phone), <code>password</code>, <code>full_name</code>.</li>
+        <li><span class="bold">Backend (Spring Boot + Hibernate) xử lý:</span>
+            <ul>
+                <li><strong>Đăng ký:</strong> Check email đã tồn tại chưa. Hash mật khẩu (dùng BCrypt). Insert vào bảng <code>users</code> với <code>status = PENDING</code> và <code>role = CUSTOMER</code>.</li>
+                <li><strong>Sinh OTP:</strong> Sinh mã OTP ngẫu nhiên, hash OTP, insert vào bảng <code>otp_verifications</code> (gắn với <code>user_id</code>, thời gian hết hạn <code>expires_at</code>). Dùng service gửi Email (hoặc SMS) cho user.</li>
+                <li><strong>Xác thực OTP:</strong> Khi client gửi lên OTP, BE query bảng <code>otp_verifications</code>. So sánh mã, check chưa hết hạn và chưa vượt quá <code>max_attempts</code>. Nếu hợp lệ, update <code>users.status = ACTIVE</code>, update <code>otp_verifications.status = VERIFIED</code>.</li>
+                <li><strong>Cấp Token:</strong> Sau khi active, BE sinh Access Token (JWT) và Refresh Token (lưu vào <code>refresh_tokens</code>) trả cho client.</li>
+            </ul>
+        </li>
+        <li><span class="bold">Response trả về:</span> Thông báo yêu cầu nhập mã OTP (lúc đăng ký) và Token + thông tin User (lúc xác thực thành công).</li>
+    </ul>
+
+    <!-- MODULE 5 -->
+    <h2>5. CART & WISHLIST + REVIEW (Giỏ hàng & Đánh giá)</h2>
+    <p><strong>Tables liên quan:</strong> carts, cart_items, wishlists, reviews, review_images, review_replies</p>
+    <h3>Nghiệp vụ chính: Thêm sản phẩm vào giỏ hàng (Add to Cart)</h3>
+    <ul>
+        <li><span class="bold">Client (React) gửi lên:</span> <code>variant_id</code>, <code>quantity</code>.</li>
+        <li><span class="bold">Backend (Spring Boot + Hibernate) xử lý:</span>
+            <ul>
+                <li>Lấy <code>user_id</code> từ Context (chứa trong JWT Token).</li>
+                <li>Kiểm tra xem User đã có <code>carts</code> chưa. Nếu chưa, tạo mới bản ghi <code>carts</code>. Lấy <code>cart_id</code>.</li>
+                <li>Kiểm tra biến thể (Variant) có đang hoạt động không và <code>stock</code> có đủ không.</li>
+                <li>Truy vấn bảng <code>cart_items</code>: Nếu <code>variant_id</code> này đã tồn tại trong giỏ, cập nhật <code>quantity = quantity + số_lượng_mới</code>. Nếu chưa tồn tại, insert dòng mới.</li>
+                <li>Cập nhật trường <code>price_at_added</code> lấy giá mới nhất từ bảng <code>product_variants</code>.</li>
+            </ul>
+        </li>
+        <li><span class="bold">Response trả về:</span> Tổng số lượng items hiện có trong giỏ hàng để client update icon Header.</li>
+    </ul>
+
+    </body>
+    </html>
+    
