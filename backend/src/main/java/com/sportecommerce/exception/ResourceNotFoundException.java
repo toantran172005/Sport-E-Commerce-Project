@@ -1,4 +1,4 @@
-﻿package com.sportecommerce.exception;
+package com.sportecommerce.exception;
 
 public class ResourceNotFoundException extends RuntimeException {
     public ResourceNotFoundException(String message) {

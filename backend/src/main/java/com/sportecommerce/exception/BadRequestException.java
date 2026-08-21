@@ -1,4 +1,4 @@
-﻿package com.sportecommerce.exception;
+package com.sportecommerce.exception;
 
 public class BadRequestException extends RuntimeException {
     public BadRequestException(String message) {
