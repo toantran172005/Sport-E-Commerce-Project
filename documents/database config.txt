@@ -1,0 +1,9 @@
+Host: aws-0-ap-northeast-1.pooler.supabase.com
+Port: 5432
+Database: postgres
+Username: postgres.exrunkqnaxuwnvpczumz
+Password: sapasswordfitiuh
+
+- Click vào tab +SSH, Proxy ở dưới Icon góc trên phải 
+- Chọn SSL, Mục SSL Mode chọn require
+- Bấm Test connection góc dưới trái để test
