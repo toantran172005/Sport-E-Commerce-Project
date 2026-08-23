@@ -388,7 +388,7 @@ Table orders {
 
   status order_status [default: 'PENDING']
 
-  subtotal numeric(12,2) [not null]
+  sub_total numeric(12,2) [not null]
   discount_amount numeric(12,2) [default: 0]
   shipping_fee numeric(12,2) [default: 0]
   tax_amount numeric(12,2) [default: 0]
