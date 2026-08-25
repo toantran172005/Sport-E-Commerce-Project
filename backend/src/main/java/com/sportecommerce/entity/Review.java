@@ -2,6 +2,7 @@ package com.sportecommerce.entity;
 
 import com.sportecommerce.enums.ReviewStatus;
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,20 +10,15 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "reviews")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
-
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
-
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
-
-    @Column(name = "order_item_id", nullable = false, unique = true)
-    private Long orderItemId;
 
     @Column(name = "rating", nullable = false)
     private Integer rating;
@@ -32,13 +28,14 @@ public class Review {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
+    @Builder.Default
     private ReviewStatus status = ReviewStatus.PENDING;
 
-    @Column(name = "created_at")
     @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at")
     @UpdateTimestamp
+    @Column(name = "updated_at")
     private Instant updatedAt;
 }
