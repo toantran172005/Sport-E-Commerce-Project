@@ -1,40 +1,32 @@
 package com.sportecommerce.entity;
 
-import com.sportecommerce.enums.ReviewStatus;
+import com.sportecommerce.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "reviews")
+@Table(name = "order_status_histories")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Review {
+public class OrderStatusHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Integer rating;
+    private OrderStatus status;
 
     @Column(columnDefinition = "TEXT")
-    private String comment;
-
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private ReviewStatus status = ReviewStatus.PENDING;
+    private String note;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private Instant updatedAt;
 }

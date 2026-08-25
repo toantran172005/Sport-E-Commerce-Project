@@ -1,34 +1,43 @@
 package com.sportecommerce.entity;
 
-import com.sportecommerce.enums.ReviewStatus;
+import com.sportecommerce.enums.ShipmentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
-@Table(name = "reviews")
+@Table(name = "shipments")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Review {
+public class Shipment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Integer rating;
-
-    @Column(columnDefinition = "TEXT")
-    private String comment;
+    @Column(name = "tracking_number", length = 150)
+    private String trackingNumber;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
     @Builder.Default
-    private ReviewStatus status = ReviewStatus.PENDING;
+    private ShipmentStatus status = ShipmentStatus.PENDING;
+
+    @Column(name = "shipping_fee")
+    @Builder.Default
+    private Double shippingFee = 0.0;
+
+    @Column(name = "estimated_delivery_date")
+    private LocalDate estimatedDeliveryDate;
+
+    @Column(name = "delivered_at")
+    private Instant deliveredAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

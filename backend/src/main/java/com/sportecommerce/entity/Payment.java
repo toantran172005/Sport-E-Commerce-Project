@@ -22,15 +22,15 @@ public class Payment {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "method", nullable = false, length = 50)
+    @Column(nullable = false, length = 50)
     private PaymentMethod method;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 50)
+    @Column(nullable = false, length = 50)
     @Builder.Default
     private PaymentStatus status = PaymentStatus.PENDING;
 
-    @Column(name = "amount", nullable = false)
+    @Column(nullable = false)
     private Double amount;
 
     @Column(name = "transaction_code", length = 150)
