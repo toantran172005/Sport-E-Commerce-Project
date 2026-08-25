@@ -5,9 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "coupons")
@@ -19,9 +17,8 @@ import java.util.UUID;
 public class Coupon {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "code", length = 50, nullable = false, unique = true)
     private String code;
@@ -30,15 +27,15 @@ public class Coupon {
     @Column(name = "discount_type", nullable = false, length = 50)
     private DiscountType discountType;
 
-    @Column(name = "discount_value", precision = 12, scale = 2, nullable = false)
-    private BigDecimal discountValue;
+    @Column(name = "discount_value", nullable = false)
+    private Double discountValue;
 
-    @Column(name = "min_order_amount", precision = 12, scale = 2)
+    @Column(name = "min_order_amount")
     @Builder.Default
-    private BigDecimal minOrderAmount = BigDecimal.ZERO;
+    private Double minOrderAmount = 0.0;
 
-    @Column(name = "max_discount_amount", precision = 12, scale = 2)
-    private BigDecimal maxDiscountAmount;
+    @Column(name = "max_discount_amount")
+    private Double maxDiscountAmount;
 
     @Column(name = "usage_limit")
     private Integer usageLimit;
