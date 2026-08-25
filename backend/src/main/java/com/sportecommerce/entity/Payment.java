@@ -6,9 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "payments")
@@ -20,14 +18,8 @@ import java.util.UUID;
 public class Payment {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
-
-//    @Column(name = "order_id", nullable = false)
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "order_id", nullable = false)
-//    private Order order;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "method", nullable = false, length = 50)
@@ -38,8 +30,8 @@ public class Payment {
     @Builder.Default
     private PaymentStatus status = PaymentStatus.PENDING;
 
-    @Column(name = "amount", precision = 12, scale = 2, nullable = false)
-    private BigDecimal amount;
+    @Column(name = "amount", nullable = false)
+    private Double amount;
 
     @Column(name = "transaction_code", length = 150)
     private String transactionCode;
