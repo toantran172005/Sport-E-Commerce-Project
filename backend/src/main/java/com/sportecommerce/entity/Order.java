@@ -24,9 +24,8 @@ public class Order {
     private String orderCode;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
     @Builder.Default
-    private OrderStatus orderStatus = OrderStatus.PENDING;
+    private OrderStatus status = OrderStatus.PENDING;
 
     @Column(name = "sub_total", nullable = false)
     private Double subTotal;

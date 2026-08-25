@@ -20,7 +20,7 @@ public class Coupon {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "code", length = 50, nullable = false, unique = true)
+    @Column(length = 50, nullable = false, unique = true)
     private String code;
 
     @Enumerated(EnumType.STRING)
