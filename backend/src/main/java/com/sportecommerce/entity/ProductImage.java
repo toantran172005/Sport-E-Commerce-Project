@@ -1,6 +1,5 @@
 package com.sportecommerce.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -17,10 +16,9 @@ import java.time.Instant;
 public class ProductImage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "image_url", nullable = false, columnDefinition = "text")
+    @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
     @Column(name = "is_primary", nullable = false)
@@ -31,11 +29,11 @@ public class ProductImage {
     @Builder.Default
     private Integer sortOrder = 0;
 
-    @Column(name = "created_at", nullable = false)
     @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
 
-    @ManyToOne()
-    @JoinColumn(name = "product_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 }

@@ -1,0 +1,150 @@
+
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+    <meta charset='utf-8'>
+    <title>Tài liệu Chi tiết CRUD & Nghiệp vụ Mở rộng</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; padding: 20px; }
+        h1 { color: #2C3E50; font-size: 18pt; text-align: center; margin-bottom: 20px; }
+        h2 { color: #2980B9; font-size: 14pt; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 25px; }
+        h3 { color: #16A085; font-size: 12pt; margin-top: 15px; }
+        .highlight { background-color: #f8f9fa; padding: 10px; border-left: 4px solid #2980B9; margin-bottom: 15px; font-family: 'Courier New', monospace; font-size: 10.5pt;}
+        ul { margin-top: 5px; margin-bottom: 10px; }
+        li { margin-bottom: 8px; }
+        .bold { font-weight: bold; }
+    </style>
+    </head>
+    <body>
+
+    <h1>TÀI LIỆU CHI TIẾT CÁC NGHIỆP VỤ CRUD BỔ SUNG & MỞ RỘNG<br>HỆ THỐNG E-COMMERCE</h1>
+    <p style="text-align: center;"><strong>(Luồng thao tác tổng hợp dành cho Admin CMS và Quản lý cá nhân của Khách hàng)</strong></p>
+    
+    <h2>Quy ước API Response Chung</h2>
+    <div class="highlight">
+        <strong>Thành công:</strong><br>
+        { "success": true, "message": "Thao tác thành công", "data": { ... } }<br><br>
+        <strong>Thất bại:</strong><br>
+        { "success": false, "message": "Mô tả lỗi chi tiết", "errors": [ ... ] }
+    </div>
+
+    <!-- MODULE 1 -->
+    <h2>1. CATALOG MODULE (Quản lý Danh mục, Sản phẩm & Thuộc tính)</h2>
+    
+    <h3>1.1. Admin Tạo mới / Cập nhật và Xóa Danh mục (Category)</h3>
+    <ul>
+        <li><span class="bold">Client gửi lên:</span> <code>name</code>, <code>parent_id</code>, <code>description</code>, <code>image_url</code>, <code>sort_order</code>. Hoặc <code>category_id</code> nếu xóa.</li>
+        <li><span class="bold">Backend xử lý:</span> 
+            <br>- <strong>Thêm/Sửa:</strong> Check <code>parent_id</code> tồn tại. Generate <code>slug</code> từ tên và check tính duy nhất. Save Entity <code>Category</code>.
+            <br>- <strong>Xóa:</strong> Soft delete bằng cách set <code>is_active = false</code> (kiểm tra không có Product nào đang gắn với Category này trước khi xóa).
+        </li>
+    </ul>
+
+    <h3>1.2. Admin Quản lý Biến thể Sản phẩm (Product Variants)</h3>
+    <ul>
+        <li><span class="bold">Client gửi lên:</span> <code>variant_id</code>, <code>price</code>, <code>sale_price</code>, <code>stock</code>, <code>is_active</code>.</li>
+        <li><span class="bold">Backend xử lý:</span>
+            <br>- Cho phép Admin cập nhật độc lập tồn kho hoặc giá của một biến thể cụ thể mà không cần sửa toàn bộ sản phẩm.
+            <br>- Truy vấn bảng <code>product_variants</code> bằng <code>variant_id</code>. Cập nhật các trường tương ứng. 
+            <br>- Nếu <code>stock</code> được cập nhật về 0, hệ thống tự động đổi (hoặc gợi ý đổi) <code>is_active = false</code> cho biến thể đó.
+        </li>
+    </ul>
+
+    <h3>1.3. Admin Quản lý Thuộc tính Động & Tags (Attributes & Tags)</h3>
+    <ul>
+        <li><span class="bold">Client gửi lên:</span> <code>product_id</code>, Array các Attributes (<code>attribute_name</code>, <code>attribute_value</code>) và Array các <code>tag_id</code>.</li>
+        <li><span class="bold">Backend xử lý:</span>
+            <br>- <strong>Attributes:</strong> Xóa các bản ghi cũ của <code>product_id</code> trong bảng <code>product_attributes</code> và insert batch các cặp Name-Value mới (VD: "Chất liệu" - "Carbon").
+            <br>- <strong>Tags:</strong> Tương tự, insert các liên kết vào bảng trung gian <code>product_tags</code>. Nếu Client gửi lên Tag mới (chưa có trong bảng <code>tags</code>), Backend tạo mới Tag đó (tạo slug tự động) rồi mới liên kết.
+        </li>
+    </ul>
+
+    <!-- MODULE 2 -->
+    <h2>2. ORDER + SHIPPING MODULES (Xử lý Đơn hàng & Vận chuyển)</h2>
+    
+    <h3>2.1. Admin Cập nhật Trạng thái Đơn hàng & Hoàn tồn kho</h3>
+    <ul>
+        <li><span class="bold">Client gửi lên:</span> <code>order_id</code>, <code>status</code> mới, <code>note</code>.</li>
+        <li><span class="bold">Backend xử lý:</span>
+            <br>- Validate State Machine (VD: Không cho phép chuyển từ DELIVERED về PENDING).
+            <br>- Gán <code>order.setStatus()</code>. Ghi log lịch sử vào <code>order_status_histories</code> kèm <code>user_id</code> của Admin.
+            <br>- <strong>Hoàn Tồn Kho:</strong> NẾU <code>status = CANCELED</code> hoặc <code>RETURNED</code>, lặp qua danh sách <code>order_items</code>, cộng trả lại số lượng (<code>quantity</code>) vào trường <code>stock</code> trong bảng <code>product_variants</code>.
+        </li>
+    </ul>
+
+    <h3>2.2. Tích hợp Đơn vị Vận chuyển (Tạo Shipment)</h3>
+    <ul>
+        <li><span class="bold">Client gửi lên:</span> <code>order_id</code>, <code>provider_id</code> (VD: GHTK, Viettel Post). Khi Admin bấm "Giao hàng".</li>
+        <li><span class="bold">Backend xử lý:</span>
+            <br>- Chuyển trạng thái Order sang <code>PROCESSING</code> hoặc <code>SHIPPED</code>.
+            <br>- Gọi API của bên Vận chuyển thứ 3 truyền thông tin địa chỉ lấy từ <code>shipping_address_snapshot</code>.
+            <br>- Nhận lại <code>tracking_number</code> từ API bên thứ 3 và insert một bản ghi mới vào bảng <code>shipments</code> (liên kết <code>order_id</code> và <code>provider_id</code>).
+        </li>
+    </ul>
+
+    <!-- MODULE 3 -->
+    <h2>3. PAYMENT + PROMOTION MODULES (Khuyến mãi)</h2>
+    
+    <h3>3.1. Admin Tạo mới / Chỉnh sửa Coupon</h3>
+    <ul>
+        <li><span class="bold">Client gửi lên:</span> <code>code</code>, <code>discount_type</code>, <code>value</code>, <code>min_order_amount</code>, <code>usage_limit</code>, <code>start_date</code>, <code>end_date</code>.</li>
+        <li><span class="bold">Backend xử lý:</span> Validate format code, ngày tháng hợp lệ. Insert/Update Entity <code>Coupon</code>. Mặc định khởi tạo <code>used_count = 0</code>.</li>
+    </ul>
+
+    <!-- MODULE 4 -->
+    <h2>4. USER & AUTH MODULES (Tài khoản, Xác thực & Hồ sơ)</h2>
+
+    <h3>4.1. Luồng Quên mật khẩu (Forgot Password via OTP)</h3>
+    <ul>
+        <li><span class="bold">Bước 1 (Yêu cầu OTP):</span> Client gửi <code>email</code>. Backend check tồn tại, sinh mã OTP 6 số ngẫu nhiên, hash OTP và lưu vào <code>otp_verifications</code> với <code>purpose = RESET_PASSWORD</code> (hạn 5 phút). Gọi Email Service gửi OTP cho user.</li>
+        <li><span class="bold">Bước 2 (Xác thực & Đổi Pass):</span> Client gửi <code>email</code>, <code>otp</code>, <code>new_password</code>. Backend query OTP hợp lệ (chưa hết hạn, chưa quá số lần thử). Nếu đúng, hash <code>new_password</code> bằng BCrypt, update bảng <code>users</code>. Đánh dấu OTP là <code>VERIFIED</code>.</li>
+    </ul>
+
+    <h3>4.2. User Cập nhật Hồ sơ & Avatar (Profile Update)</h3>
+    <ul>
+        <li><span class="bold">Client gửi lên:</span> <code>full_name</code>, <code>gender</code>, <code>date_of_birth</code>, File Ảnh Avatar.</li>
+        <li><span class="bold">Backend xử lý:</span> 
+            <br>- Nếu có file ảnh, Backend (Service) upload file lên Cloud Storage (AWS S3, Cloudinary, Firebase), lấy chuỗi URL trả về.
+            <br>- Lấy <code>user_id</code> từ Security Context. Cập nhật các trường thông tin và <code>avatar_url</code> vào bảng <code>users</code>.
+        </li>
+    </ul>
+
+    <h3>4.3. Quản lý Địa chỉ Giao hàng (User Address)</h3>
+    <ul>
+        <li><span class="bold">Logic Đặt mặc định:</span> Nếu User gửi lên yêu cầu tạo/sửa địa chỉ có <code>is_default = true</code>, Backend dùng lệnh Update để set tất cả địa chỉ của user này thành <code>is_default = false</code> trước, sau đó mới insert/update địa chỉ hiện tại thành <code>true</code>.</li>
+    </ul>
+
+    <h3>4.4. Admin Khóa tài khoản (Ban User)</h3>
+    <ul>
+        <li><span class="bold">Xử lý Backend:</span> Admin gửi <code>user_id</code>. Backend update <code>status = LOCKED</code> trong bảng <code>users</code>. ĐỒNG THỜI, query bảng <code>refresh_tokens</code> update <code>revoked_at = now()</code> để ép phiên đăng nhập hiện tại của User bị đăng xuất.</li>
+    </ul>
+
+    <!-- MODULE 5 -->
+    <h2>5. CART, WISHLIST & REVIEW (Giỏ hàng & Đánh giá)</h2>
+
+    <h3>5.1. User Cập nhật / Xóa Item Giỏ hàng</h3>
+    <ul>
+        <li><span class="bold">Backend xử lý (Update):</span> Khi User đổi số lượng (<code>quantity</code>), Backend phải lấy <code>stock</code> hiện tại từ bảng <code>product_variants</code>. Nếu <code>quantity > stock</code>, báo lỗi hết hàng. Nếu hợp lệ, update <code>cart_items</code>. Nếu <code>quantity = 0</code>, thực thi lệnh Delete.</li>
+    </ul>
+
+    <h3>5.2. Admin Duyệt và Trả lời Review</h3>
+    <ul>
+        <li><span class="bold">Backend xử lý:</span> Khi Admin đổi <code>status</code> của Review thành <code>APPROVED</code>, kích hoạt trigger hoặc logic tính toán lại trường <code>avg_rating</code> và <code>review_count</code> lưu thẳng vào bảng <code>products</code>. Nếu có <code>reply_text</code>, insert dòng mới vào bảng <code>review_replies</code>.</li>
+    </ul>
+
+    <!-- MODULE 6 -->
+    <h2>6. NOTIFICATION MODULE (Tự động hóa Thông báo)</h2>
+
+    <h3>6.1. Logic sinh Thông báo tự động (Event-Driven)</h3>
+    <ul>
+        <li><span class="bold">Mô tả:</span> Backend nên sử dụng cơ chế Event (ví dụ Spring <code>@EventListener</code> hoặc <code>@TransactionalEventListener</code>) để decouple logic.</li>
+        <li><span class="bold">Kịch bản kích hoạt:</span>
+            <br>- <strong>Khi Đơn hàng đổi trạng thái:</strong> Tự động insert bản ghi vào <code>notifications</code> (type = <code>ORDER_UPDATE</code>), báo cho <code>user_id</code> của đơn hàng.
+            <br>- <strong>Khi Admin duyệt/trả lời Review:</strong> Tự động insert thông báo type = <code>REVIEW_REPLY</code> cho khách hàng.
+            <br>- <strong>Khi Tạo Coupon mới:</strong> Nếu Coupon dạng Public, có thể chạy batch job insert thông báo type = <code>PROMOTION</code> cho tất cả User đang ACTIVE.
+        </li>
+        <li><span class="bold">Client xử lý:</span> Gọi API Read Notifications (truyền JWT), update badge số lượng chưa đọc. Gọi API Mark as Read để set <code>is_read = true</code>.</li>
+    </ul>
+
+    </body>
+    </html>
+    

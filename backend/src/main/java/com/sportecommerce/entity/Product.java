@@ -1,6 +1,5 @@
 package com.sportecommerce.entity;
 
-
 import com.sportecommerce.enums.ProductStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -21,23 +20,22 @@ import java.util.List;
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "name", length = 255, nullable = false)
+    @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(name = "slug", length = 280 , nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 280)
     private String slug;
 
-    @Column(name = "description", columnDefinition = "text")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "sport_type", length = 100)
     private String sportType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(nullable = false)
     @Builder.Default
     private ProductStatus status = ProductStatus.DRAFT;
 
@@ -63,22 +61,22 @@ public class Product {
     @Builder.Default
     private Integer soldCount = 0;
 
-    @Column(name = "created_at", nullable = false)
     @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp
+    @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @Column(name = "deleted_at", nullable = true)
+    @Column(name = "deleted_at")
     private Instant deletedAt;
 
-    @ManyToOne()
-    @JoinColumn(name = "category_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    @ManyToOne()
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "brand_id")
     private Brand brand;
 
@@ -88,7 +86,7 @@ public class Product {
 
     @OneToMany(mappedBy = "product")
     @Builder.Default
-    private List<ProductAttributes> productAttributes = new ArrayList<>();
+    private List<ProductAttribute> productAttributes = new ArrayList<>();
 
     @OneToMany(mappedBy = "product")
     @Builder.Default

@@ -18,27 +18,26 @@ import java.util.List;
 public class Brand {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "name", length = 150, nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 150)
     private String name;
 
-    @Column(name = "slug", length = 180 , nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 180)
     private String slug;
 
-    @Column(name = "logo_url", columnDefinition = "text")
+    @Column(name = "logo_url", columnDefinition = "TEXT")
     private String logoUrl;
 
-    @Column(name = "description", columnDefinition = "text")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
 
-    @Column(name = "created_at", nullable = false)
     @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
 
     @OneToMany(mappedBy = "brand")
