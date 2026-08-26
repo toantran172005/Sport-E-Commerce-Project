@@ -84,33 +84,13 @@ Enum notification_type {
   SYSTEM
 }
 
-Enum otp_purpose {
-  REGISTER
-  RESET_PASSWORD
-  CHANGE_PHONE
-  CHANGE_EMAIL
-  LOGIN_2FA
-}
-
-Enum otp_channel {
-  EMAIL
-  SMS
-}
-
-Enum otp_status {
-  PENDING
-  VERIFIED
-  EXPIRED
-  FAILED
-}
-
 
 // ==========================
 // USER & AUTH MODULE
 // ==========================
 
 Table users {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
   email varchar(255) [not null, unique]
   phone_number varchar(20) [unique]
@@ -135,9 +115,9 @@ Table users {
 }
 
 Table user_addresses {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  user_id uuid [not null]
+  user_id bigint [not null]
 
   recipient_name varchar(150) [not null]
   phone_number varchar(20) [not null]
@@ -156,10 +136,9 @@ Table user_addresses {
 }
 
 Table refresh_tokens {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  user_id uuid [not null]
-  device_id uuid
+  user_id bigint [not null]
 
   token_hash text [not null, unique]
 
@@ -169,32 +148,9 @@ Table refresh_tokens {
   created_at timestamptz [default: `now()`]
 }
 
-Table otp_verifications {
-  id uuid [primary key]
-
-  user_id uuid [not null]
-
-  purpose otp_purpose [not null]
-  channel otp_channel [not null]
-  target varchar(255) [not null]
-
-  otp_hash text [not null]
-
-  status otp_status [default: 'PENDING']
-
-  attempt_count integer [default: 0]
-  max_attempts integer [default: 5]
-
-  expires_at timestamptz [not null]
-  verified_at timestamptz
-
-  created_at timestamptz [default: `now()`]
-
-  indexes {
-    (user_id, purpose)
-    (target)
-  }
-}
+// Luu y: OTP (dang ky, reset mat khau, doi email/sdt, 2FA...) khong con luu trong
+// database. OTP duoc luu tam thoi trong Redis (key kem TTL), nen bang
+// otp_verifications va cac enum otp_purpose/otp_channel/otp_status da bi loai bo.
 
 
 // ==========================
@@ -202,9 +158,9 @@ Table otp_verifications {
 // ==========================
 
 Table categories {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  parent_id uuid
+  parent_id bigint
 
   name varchar(150) [not null]
   slug varchar(180) [not null, unique]
@@ -219,7 +175,7 @@ Table categories {
 }
 
 Table brands {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
   name varchar(150) [not null, unique]
   slug varchar(180) [not null, unique]
@@ -232,10 +188,10 @@ Table brands {
 }
 
 Table products {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  category_id uuid [not null]
-  brand_id uuid
+  category_id bigint [not null]
+  brand_id bigint
 
   name varchar(255) [not null]
   slug varchar(280) [not null, unique]
@@ -263,9 +219,9 @@ Table products {
 }
 
 Table product_images {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  product_id uuid [not null]
+  product_id bigint [not null]
 
   image_url text [not null]
   is_primary boolean [default: false]
@@ -275,9 +231,9 @@ Table product_images {
 }
 
 Table product_attributes {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  product_id uuid [not null]
+  product_id bigint [not null]
 
   attribute_name varchar(100) [not null]
   attribute_value varchar(255) [not null]
@@ -288,9 +244,9 @@ Table product_attributes {
 }
 
 Table product_variants {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  product_id uuid [not null]
+  product_id bigint [not null]
 
   sku varchar(100) [not null, unique]
   size varchar(50)
@@ -314,17 +270,17 @@ Table product_variants {
 }
 
 Table tags {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
   name varchar(100) [not null, unique]
   slug varchar(120) [not null, unique]
 }
 
 Table product_tags {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  product_id uuid [not null]
-  tag_id uuid [not null]
+  product_id bigint [not null]
+  tag_id bigint [not null]
 
   indexes {
     (product_id, tag_id) [unique]
@@ -337,19 +293,19 @@ Table product_tags {
 // ==========================
 
 Table carts {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  user_id uuid [not null, unique]
+  user_id bigint [not null, unique]
 
   created_at timestamptz [default: `now()`]
   updated_at timestamptz [default: `now()`]
 }
 
 Table cart_items {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  cart_id uuid [not null]
-  variant_id uuid [not null]
+  cart_id bigint [not null]
+  variant_id bigint [not null]
 
   quantity integer [not null, default: 1]
   price_at_added numeric(12,2) [not null]
@@ -363,10 +319,10 @@ Table cart_items {
 }
 
 Table wishlists {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  user_id uuid [not null]
-  product_id uuid [not null]
+  user_id bigint [not null]
+  product_id bigint [not null]
 
   created_at timestamptz [default: `now()`]
 
@@ -381,10 +337,10 @@ Table wishlists {
 // ==========================
 
 Table orders {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
   order_code varchar(50) [not null, unique]
-  user_id uuid [not null]
+  user_id bigint [not null]
 
   status order_status [default: 'PENDING']
 
@@ -394,9 +350,9 @@ Table orders {
   tax_amount numeric(12,2) [default: 0]
   total_amount numeric(12,2) [not null]
 
-  shipping_address_id uuid [not null]
+  shipping_address_id bigint [not null]
   shipping_address_snapshot varchar(255) [not null]
-  coupon_id uuid
+  coupon_id bigint
 
   note text
   cancel_reason text
@@ -415,10 +371,10 @@ Table orders {
 }
 
 Table order_items {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  order_id uuid [not null]
-  variant_id uuid [not null]
+  order_id bigint [not null]
+  variant_id bigint [not null]
 
   product_name_snapshot varchar(255) [not null]
   sku_snapshot varchar(100) [not null]
@@ -432,13 +388,13 @@ Table order_items {
 }
 
 Table order_status_histories {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  order_id uuid [not null]
+  order_id bigint [not null]
 
   status order_status [not null]
   note text
-  changed_by uuid
+  changed_by bigint
 
   created_at timestamptz [default: `now()`]
 }
@@ -449,9 +405,9 @@ Table order_status_histories {
 // ==========================
 
 Table payments {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  order_id uuid [not null]
+  order_id bigint [not null]
 
   method payment_method [not null]
   status payment_status [default: 'PENDING']
@@ -469,7 +425,7 @@ Table payments {
 // ==========================
 
 Table shipping_providers {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
   name varchar(150) [not null]
   code varchar(50) [not null, unique]
@@ -477,10 +433,10 @@ Table shipping_providers {
 }
 
 Table shipments {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  order_id uuid [not null, unique]
-  provider_id uuid [not null]
+  order_id bigint [not null, unique]
+  provider_id bigint [not null]
 
   tracking_number varchar(150)
   status shipment_status [default: 'PENDING']
@@ -499,7 +455,7 @@ Table shipments {
 // ==========================
 
 Table coupons {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
   code varchar(50) [not null, unique]
 
@@ -521,11 +477,11 @@ Table coupons {
 }
 
 Table coupon_usages {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  coupon_id uuid [not null]
-  user_id uuid [not null]
-  order_id uuid [not null, unique]
+  coupon_id bigint [not null]
+  user_id bigint [not null]
+  order_id bigint [not null, unique]
 
   used_at timestamptz [default: `now()`]
 
@@ -540,11 +496,11 @@ Table coupon_usages {
 // ==========================
 
 Table reviews {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  product_id uuid [not null]
-  user_id uuid [not null]
-  order_item_id uuid [not null, unique]
+  product_id bigint [not null]
+  user_id bigint [not null]
+  order_item_id bigint [not null, unique]
 
   rating integer [not null]
   comment text
@@ -556,17 +512,17 @@ Table reviews {
 }
 
 Table review_images {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  review_id uuid [not null]
+  review_id bigint [not null]
   image_url text [not null]
 }
 
 Table review_replies {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  review_id uuid [not null, unique]
-  admin_id uuid [not null]
+  review_id bigint [not null, unique]
+  admin_id bigint [not null]
 
   reply_text text [not null]
 
@@ -579,15 +535,15 @@ Table review_replies {
 // ==========================
 
 Table notifications {
-  id uuid [primary key]
+  id bigint [pk, increment]
 
-  user_id uuid [not null]
+  user_id bigint [not null]
 
   type notification_type [not null]
   title varchar(255) [not null]
   content text
 
-  reference_id uuid
+  reference_id bigint
   data jsonb
 
   is_read boolean [default: false]
@@ -603,7 +559,6 @@ Table notifications {
 // User & Auth
 Ref: users.id < user_addresses.user_id
 Ref: users.id < refresh_tokens.user_id
-Ref: users.id < otp_verifications.user_id
 
 // Catalog
 Ref: categories.id ?< categories.parent_id
@@ -643,7 +598,7 @@ Ref: coupons.id < coupon_usages.coupon_id
 Ref: users.id < coupon_usages.user_id
 Ref: orders.id - coupon_usages.order_id
 
-// Review (Giữ lại phản hồi đánh giá)
+// Review (Giu lai phan hoi danh gia)
 Ref: products.id < reviews.product_id
 Ref: users.id < reviews.user_id
 Ref: order_items.id - reviews.order_item_id
