@@ -1,6 +1,5 @@
 package com.sportecommerce.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,13 +16,12 @@ import java.util.List;
 public class Tag {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "name", length = 100, nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 100)
     private String name;
 
-    @Column(name = "slug", length = 120 , nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 120)
     private String slug;
 
     @OneToMany(mappedBy = "tag")
