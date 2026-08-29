@@ -55,6 +55,18 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Redis (OTP cache) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+
+		<!-- Mail (gui OTP qua email) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- Lombok -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

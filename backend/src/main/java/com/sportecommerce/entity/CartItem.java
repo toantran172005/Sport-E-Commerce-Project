@@ -8,7 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
 
 @Entity
-@Table(name = "cart_items")
+@Table(name = "cart_items", uniqueConstraints = @UniqueConstraint(columnNames = {"cart_id", "variant_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,4 +33,12 @@ public class CartItem {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cart_id", nullable = false)
+    private Cart cart;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "variant_id", nullable = false)
+    private ProductVariant variant;
 }
