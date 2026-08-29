@@ -3,6 +3,9 @@ package com.sportecommerce.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "shipping_providers")
 @Getter
@@ -24,4 +27,8 @@ public class ShippingProvider {
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+
+    @OneToMany(mappedBy = "provider")
+    @Builder.Default
+    private List<Shipment> shipments = new ArrayList<>();
 }

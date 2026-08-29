@@ -8,10 +8,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,7 +40,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"addresses", "refreshTokens"})
+@ToString(exclude = {
+        "addresses", "refreshTokens", "cart", "orders", "reviews",
+        "wishlists", "couponUsages", "orderStatusChanges", "reviewReplies"
+})
 @EqualsAndHashCode(of = "id")
 public class User {
 
@@ -112,4 +117,40 @@ public class User {
     @Builder.Default
     private List<RefreshToken> refreshTokens = new ArrayList<>();
 
+    // ---------------- Relationships (cac module khac tham chieu toi User) ----------------
+    // Khong dat cascade cho cac quan he ben duoi: cac entity nay thuoc "aggregate" rieng
+    // (Order, Review...), khong bi xoa theo khi User bi xoa/sua.
+
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
+    private Cart cart;
+
+    @OneToMany(mappedBy = "user")
+    @Builder.Default
+    private List<Order> orders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    @Builder.Default
+    private List<Review> reviews = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    @Builder.Default
+    private List<Wishlist> wishlists = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    @Builder.Default
+    private List<CouponUsage> couponUsages = new ArrayList<>();
+
+    /**
+     * Cac lan doi trang thai don hang ma user nay (thuong la STAFF/ADMIN) da thuc hien.
+     */
+    @OneToMany(mappedBy = "changedBy")
+    @Builder.Default
+    private List<OrderStatusHistory> orderStatusChanges = new ArrayList<>();
+
+    /**
+     * Cac phan hoi danh gia ma user nay (thuong la ADMIN) da tra loi.
+     */
+    @OneToMany(mappedBy = "admin")
+    @Builder.Default
+    private List<ReviewReply> reviewReplies = new ArrayList<>();
 }

@@ -95,4 +95,12 @@ public class Product {
     @OneToMany(mappedBy = "product")
     @Builder.Default
     private List<ProductTag> productTags = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product")
+    @Builder.Default
+    private List<Review> reviews = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product")
+    @Builder.Default
+    private List<Wishlist> wishlists = new ArrayList<>();
 }

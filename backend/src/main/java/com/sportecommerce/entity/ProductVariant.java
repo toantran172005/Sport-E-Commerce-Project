@@ -6,6 +6,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "product_variants")
@@ -59,4 +61,12 @@ public class ProductVariant {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
+
+    @OneToMany(mappedBy = "variant")
+    @Builder.Default
+    private List<CartItem> cartItems = new ArrayList<>();
+
+    @OneToMany(mappedBy = "variant")
+    @Builder.Default
+    private List<OrderItem> orderItems = new ArrayList<>();
 }

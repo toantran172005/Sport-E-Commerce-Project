@@ -6,6 +6,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "coupons")
@@ -57,4 +59,12 @@ public class Coupon {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
+
+    @OneToMany(mappedBy = "coupon")
+    @Builder.Default
+    private List<Order> orders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "coupon")
+    @Builder.Default
+    private List<CouponUsage> couponUsages = new ArrayList<>();
 }
