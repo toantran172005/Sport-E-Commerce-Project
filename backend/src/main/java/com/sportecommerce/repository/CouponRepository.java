@@ -1,9 +1,9 @@
 package com.sportecommerce.repository;
 
-import com.sportecommerce.entity.UserRepository;
+import com.sportecommerce.entity.CouponRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface UserRepositoryRepository extends JpaRepository<UserRepository, Long> {
+public interface CouponRepositoryRepository extends JpaRepository<CouponRepository, Long> {
 }
