@@ -1,9 +1,9 @@
 package com.sportecommerce.repository;
 
-import com.sportecommerce.entity.PaymentRepository;
+import com.sportecommerce.entity.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface PaymentRepositoryRepository extends JpaRepository<PaymentRepository, Long> {
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
 }

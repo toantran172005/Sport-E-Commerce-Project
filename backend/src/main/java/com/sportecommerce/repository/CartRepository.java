@@ -1,9 +1,9 @@
 package com.sportecommerce.repository;
 
-import com.sportecommerce.entity.CartRepository;
+import com.sportecommerce.entity.Cart;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface CartRepositoryRepository extends JpaRepository<CartRepository, Long> {
+public interface CartRepository extends JpaRepository<Cart, Long> {
 }
