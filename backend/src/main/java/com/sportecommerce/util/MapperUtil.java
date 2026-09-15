@@ -1,19 +1,18 @@
 package com.sportecommerce.util;
 
-import com.sportecommerce.dto.response.OrderResponse;
+import com.sportecommerce.dto.response.PlaceOrderResponse;
 import com.sportecommerce.entity.Order;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MapperUtil {
 
-    public OrderResponse mapOrderToOrderResponse(Order order) {
-        return OrderResponse
+    public PlaceOrderResponse mapOrderToPlaceOrderResponse(Order order) {
+        return PlaceOrderResponse
                 .builder()
-                .userName(order.getUser().getFullName())
+                .orderId(order.getId())
                 .orderCode(order.getOrderCode())
-                .status(order.getStatus())
-                .shippingAddressSnapshot(order.getShippingAddressSnapshot())
+                .totalAmount(order.getTotalAmount())
                 .build();
     }
 
