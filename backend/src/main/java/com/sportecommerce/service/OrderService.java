@@ -1,10 +1,11 @@
 package com.sportecommerce.service;
 
 import com.sportecommerce.common.ApiResponse;
-import com.sportecommerce.dto.response.OrderResponse;
+import com.sportecommerce.dto.request.PlaceOrderRequest;
+import com.sportecommerce.dto.response.PlaceOrderResponse;
+import jakarta.validation.Valid;
 
-import java.util.List;
 
 public interface OrderService {
-    ApiResponse<List<OrderResponse>> getAllOrdersByUserId(Long userId);
+    ApiResponse<PlaceOrderResponse> placeOrder(Long userId, @Valid PlaceOrderRequest request);
 }
