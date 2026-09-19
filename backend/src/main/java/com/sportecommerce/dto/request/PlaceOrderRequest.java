@@ -19,7 +19,7 @@ public class PlaceOrderRequest {
     private List<Long> cartItemIds;
 
     @Valid
-    private List<OrderItemRequest> items;
+    private OrderItemRequest items;
 
     private Long couponId;
 
@@ -27,4 +27,6 @@ public class PlaceOrderRequest {
     private PaymentMethod paymentMethod;
 
     private String note;
+
+    private String shippingProviderCode;
 }
