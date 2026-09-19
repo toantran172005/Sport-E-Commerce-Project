@@ -64,7 +64,7 @@ public class Coupon {
     @Builder.Default
     private List<Order> orders = new ArrayList<>();
 
-    @OneToMany(mappedBy = "coupon")
+    @OneToMany(mappedBy = "coupon", cascade = CascadeType.ALL)
     @Builder.Default
     private List<CouponUsage> couponUsages = new ArrayList<>();
 }

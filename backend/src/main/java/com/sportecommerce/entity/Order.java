@@ -95,13 +95,12 @@ public class Order {
     @Builder.Default
     private List<OrderStatusHistory> orderStatusHistories = new ArrayList<>();
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<Payment> payments = new ArrayList<>();
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Payment payment;
 
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
     private Shipment shipment;
 
-    @OneToOne(mappedBy = "order")
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
     private CouponUsage couponUsage;
 }
