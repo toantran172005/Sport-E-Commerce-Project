@@ -200,7 +200,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name(), user.getFullName());
         String rawRefreshToken = OtpGenerator.generateOpaqueToken();
 
         RefreshToken refreshToken = RefreshToken.builder()

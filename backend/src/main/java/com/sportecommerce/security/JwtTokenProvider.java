@@ -34,7 +34,7 @@ public class JwtTokenProvider {
         return accessTokenExpirationMs;
     }
 
-    public String generateAccessToken(Long userId, String email, String role) {
+    public String generateAccessToken(Long userId, String email, String role, String fullName) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessTokenExpirationMs);
 
@@ -42,6 +42,7 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("role", role)
+                .claim("full_name", fullName)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
