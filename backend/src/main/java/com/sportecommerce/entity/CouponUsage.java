@@ -19,6 +19,9 @@ public class CouponUsage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "discount_amount")
+    private double discountAmount;
+
     @CreationTimestamp
     @Column(name = "used_at", updatable = false, nullable = false)
     private Instant usedAt;
