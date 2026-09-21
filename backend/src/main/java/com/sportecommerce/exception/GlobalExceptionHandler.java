@@ -50,6 +50,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Bắt lỗi 400: Mã giảm giá không hợp lệ theo Sequence Diagram
+     */
+    @ExceptionHandler(InvalidCouponException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ApiResponse<Object>> handleInvalidCouponException(InvalidCouponException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
      * Bắt lỗi 400: Dữ liệu validate từ @Valid / @Validated không hợp lệ
      * Format errors thành Map: { "tên_field": "thông báo lỗi" }
      */

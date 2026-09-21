@@ -244,4 +244,29 @@ public class OrderServiceImpl implements OrderService {
 
         return ApiResponse.success("Đặt hàng thành công", mapperUtil.mapOrderToPlaceOrderResponse(completedOrder));
     }
+
+    @Override
+    @Transactional
+    public void confirmOrder(Long orderId) {
+        Order order = getOrderById(orderId);
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.setConfirmedAt(Instant.now());
+
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(order)
+                .status(OrderStatus.CONFIRMED)
+                .note("Xác nhận đơn hàng qua hệ thống thanh toán")
+                .changedBy(order.getUser())
+                .build();
+
+        order.getOrderStatusHistories().add(history);
+        orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Order getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với ID: " + orderId));
+    }
 }
