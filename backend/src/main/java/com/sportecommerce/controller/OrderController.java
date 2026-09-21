@@ -3,6 +3,7 @@ package com.sportecommerce.controller;
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.request.PlaceOrderRequest;
 import com.sportecommerce.dto.response.OrderDetailResponse;
+import com.sportecommerce.dto.request.UpdateOrderStatusRequest;
 import com.sportecommerce.dto.response.PlaceOrderResponse;
 import com.sportecommerce.entity.Order;
 import com.sportecommerce.security.UserPrincipal;
@@ -26,10 +27,23 @@ public class OrderController {
     public ResponseEntity<ApiResponse<PlaceOrderResponse>> placeOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody PlaceOrderRequest request) {
-        Long userId = userPrincipal.getId();
-        ApiResponse<PlaceOrderResponse> orderResponse = orderService.placeOrder(userId, request);
+//        Long userId = userPrincipal.getId();
+        Long userId = 10L;
+        ApiResponse<PlaceOrderResponse> response = orderService.placeOrder(userId, request);
 
-        return ResponseEntity.ok(orderResponse);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/update-order-status")
+    public ResponseEntity<?> updateOrderStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody UpdateOrderStatusRequest request
+            ) {
+//        Long userId = userPrincipal.getId();
+        Long userId = 1L;
+        ApiResponse<?> response = orderService.updateOrderStatus(userId, request);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")

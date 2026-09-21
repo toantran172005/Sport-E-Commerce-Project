@@ -13,5 +13,6 @@ public interface CouponUsageRepository extends JpaRepository<CouponUsage, Long> 
     Optional<CouponUsage> findByOrderId(Long orderId);
 
     boolean existsByOrderId(Long orderId);
+    void deleteByOrder_Id(Long orderId);
 }
 
