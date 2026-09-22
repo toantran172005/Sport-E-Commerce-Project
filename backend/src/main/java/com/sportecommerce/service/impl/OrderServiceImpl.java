@@ -259,6 +259,28 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    public void confirmOrder(Long orderId) {
+        Order order = getOrderById(orderId);
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.setConfirmedAt(Instant.now());
+
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(order)
+                .status(OrderStatus.CONFIRMED)
+                .note("Xác nhận đơn hàng qua hệ thống thanh toán")
+                .changedBy(order.getUser())
+                .build();
+
+        order.getOrderStatusHistories().add(history);
+        orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Order getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với ID: " + orderId));
+    }
     public ApiResponse<?> updateOrderStatus(Long userId, UpdateOrderStatusRequest request) {
 
         Long orderId = request.getOrderId();

@@ -16,4 +16,20 @@ public class MapperUtil {
                 .build();
     }
 
+    public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(Order order) {
+        return com.sportecommerce.dto.response.OrderDetailResponse.builder()
+                .id(order.getId())
+                .orderCode(order.getOrderCode())
+                .status(order.getStatus())
+                .subTotal(order.getSubTotal())
+                .discountAmount(order.getDiscountAmount())
+                .shippingFee(order.getShippingFee())
+                .totalAmount(order.getTotalAmount())
+                .recipientSnapshot(order.getShippingAddressSnapshot())
+                .note(order.getNote())
+                .placedAt(order.getPlacedAt())
+                .confirmedAt(order.getConfirmedAt())
+                .build();
+    }
+
 }
