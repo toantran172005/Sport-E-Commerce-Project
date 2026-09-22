@@ -11,6 +11,7 @@ import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.BadRequestException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.*;
+import com.sportecommerce.service.CouponService;
 import com.sportecommerce.service.OrderService;
 import com.sportecommerce.service.ShipmentService;
 import com.sportecommerce.util.MapperUtil;
@@ -38,6 +39,7 @@ public class OrderServiceImpl implements OrderService {
     private final MapperUtil mapperUtil;
     private final ShipmentService shipmentService;
     private final ShippingIntegrationService shippingIntegrationService;
+    private final CouponService couponService;
 
     @Override
     @Transactional
@@ -160,15 +162,6 @@ public class OrderServiceImpl implements OrderService {
         payment.setMethod(request.getPaymentMethod());
         payment.setOrder(order);
 
-        // Đợi bên Payment Modules tích hợp phương thức thanh toán Online
-        // Với các phương thức thanh toán Online (!COD), 
-        // mô phỏng thanh toán thành công ngay khi đặt hàng
-        if (!request.getPaymentMethod().equals(PaymentMethod.COD)) {
-            payment.setStatus(PaymentStatus.PAID);
-            payment.setPaidAt(Instant.now());
-            payment.setTransactionCode("TXN-" + System.currentTimeMillis());
-        }
-
         order.setPayment(payment);
 
         // ORDER STATUS HISTORY
@@ -188,57 +181,20 @@ public class OrderServiceImpl implements OrderService {
 
         // COUPON
         double discountAmount = 0.0;
+        Coupon coupon = null;
+
         if (request.getCouponId() != null) {
-            Coupon coupon = couponRepository
-                    .findById(request.getCouponId())
-                    .orElseThrow(() -> new BadRequestException("Mã giảm giá không hợp lệ!"));
+            Coupon foundCoupon = couponRepository.findById(request.getCouponId())
+                    .orElseThrow(() -> new BadRequestException("Mã giảm giá không tồn tại!"));
 
-            if (couponUsageRepository.existsByCouponIdAndUserId(coupon.getId(), userId)) {
-                throw new BadRequestException("Bạn đã sử dụng mã giảm giá này rồi!");
+            coupon = couponService.getValidCoupon(foundCoupon.getCode(), subTotal, userId);
+
+            if (coupon.getDiscountType() == DiscountType.FREE_SHIPPING) {
+                discountAmount = shipment.getShippingFee();
+            } else {
+                discountAmount = couponService.calculateDiscount(coupon, subTotal);
             }
 
-            if (!Boolean.TRUE.equals(coupon.getIsActive())) {
-                throw new BadRequestException("Mã giảm giá đã hết hạn sử dụng!");
-            }
-
-            if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-                throw new BadRequestException("Mã giảm giá đã hết lượt sử dụng!");
-            }
-
-            Instant now = Instant.now();
-            if (now.isBefore(coupon.getStartDate()) || now.isAfter(coupon.getEndDate())) {
-                throw new BadRequestException("Mã giảm giá không trong thời gian sử dụng!");
-            }
-
-            if (coupon.getMinOrderAmount() != null && subTotal < coupon.getMinOrderAmount()) {
-                throw new BadRequestException("Đơn hàng chưa đạt giá trị tối thiểu để dùng mã này!");
-            }
-
-            switch (coupon.getDiscountType()) {
-                case PERCENTAGE -> {
-                    discountAmount = (subTotal * coupon.getDiscountValue()) / 100.0;
-
-                    if (coupon.getMaxDiscountAmount() != null && discountAmount > coupon.getMaxDiscountAmount()) {
-                        discountAmount = coupon.getMaxDiscountAmount();
-                    }
-
-                    discountAmount = Math.min(discountAmount, subTotal);
-                }
-
-                case FIXED_AMOUNT -> discountAmount = Math.min(coupon.getDiscountValue(), subTotal);
-                case FREE_SHIPPING -> discountAmount = shipment.getShippingFee();
-            }
-            coupon.setUsedCount(coupon.getUsedCount() + 1);
-            couponRepository.save(coupon);
-
-            CouponUsage couponUsage = CouponUsage.builder()
-                    .coupon(coupon)
-                    .order(order)
-                    .user(user)
-                    .discountAmount(discountAmount)
-                    .build();
-
-            order.setCouponUsage(couponUsage);
             order.setCoupon(coupon);
         }
 
@@ -253,6 +209,10 @@ public class OrderServiceImpl implements OrderService {
         payment.setAmount(total);
 
         Order completedOrder = orderRepository.save(order);
+
+        if (coupon != null) {
+            couponService.recordUsage(coupon.getCode(), userId, completedOrder.getId(), discountAmount);
+        }
 
         return ApiResponse.success("Đặt hàng thành công", mapperUtil.mapOrderToPlaceOrderResponse(completedOrder));
     }
