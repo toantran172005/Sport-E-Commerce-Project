@@ -28,7 +28,7 @@ public class OrderController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody PlaceOrderRequest request) {
 //        Long userId = userPrincipal.getId();
-        Long userId = 10L;
+        Long userId = 7L;
         ApiResponse<PlaceOrderResponse> response = orderService.placeOrder(userId, request);
 
         return ResponseEntity.ok(response);
@@ -40,7 +40,7 @@ public class OrderController {
             @Valid @RequestBody UpdateOrderStatusRequest request
             ) {
 //        Long userId = userPrincipal.getId();
-        Long userId = 1L;
+        Long userId = 2L;
         ApiResponse<?> response = orderService.updateOrderStatus(userId, request);
 
         return ResponseEntity.ok(response);

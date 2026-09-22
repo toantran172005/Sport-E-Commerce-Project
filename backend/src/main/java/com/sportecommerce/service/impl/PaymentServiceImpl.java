@@ -16,6 +16,7 @@ import com.sportecommerce.repository.PaymentRepository;
 import com.sportecommerce.service.NotificationService;
 import com.sportecommerce.service.OrderService;
 import com.sportecommerce.service.PaymentService;
+import com.sportecommerce.util.MapperUtil;
 import com.sportecommerce.util.VNPayUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderService orderService;
     private final NotificationService notificationService;
     private final VNPayConfig vnPayConfig;
+    private final MapperUtil mapperUtil;
 
     private static final DateTimeFormatter VNPAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
@@ -72,13 +74,13 @@ public class PaymentServiceImpl implements PaymentService {
             orderService.confirmOrder(order.getId());
             notificationService.notifyOrderPlaced(order);
 
-            return mapToPaymentResponse(savedPayment, null,
+            return mapperUtil.mapToPaymentResponse(savedPayment, null,
                     "Đặt hàng thành công với hình thức thanh toán khi nhận hàng (COD).");
         }
 
         // Thanh toán online qua cổng thanh toán VNPay
         String paymentUrl = buildVNPayPaymentUrl(order, request.getBankCode(), httpRequest);
-        return mapToPaymentResponse(savedPayment, paymentUrl,
+        return mapperUtil.mapToPaymentResponse(savedPayment, paymentUrl,
                 "Tạo thông tin thanh toán thành công, vui lòng chuyển hướng đến URL thanh toán.");
     }
 
@@ -140,7 +142,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponse getPaymentByOrderId(Long orderId) {
         Payment payment = paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Chưa có thông tin thanh toán cho đơn hàng ID: " + orderId));
-        return mapToPaymentResponse(payment, null, "Lấy thông tin thanh toán thành công");
+        return mapperUtil.mapToPaymentResponse(payment, null, "Lấy thông tin thanh toán thành công");
     }
 
     @Override
@@ -148,7 +150,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponse getPaymentById(Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thanh toán với ID: " + paymentId));
-        return mapToPaymentResponse(payment, null, "Lấy thông tin thanh toán thành công");
+        return mapperUtil.mapToPaymentResponse(payment, null, "Lấy thông tin thanh toán thành công");
     }
 
     private String buildVNPayPaymentUrl(Order order, String bankCode, HttpServletRequest httpRequest) {
@@ -181,19 +183,4 @@ public class PaymentServiceImpl implements PaymentService {
         return vnPayConfig.getPayUrl() + "?" + queryUrl;
     }
 
-    private PaymentResponse mapToPaymentResponse(Payment payment, String paymentUrl, String message) {
-        Order order = payment.getOrder();
-        return PaymentResponse.builder()
-                .paymentId(payment.getId())
-                .orderId(order != null ? order.getId() : null)
-                .orderCode(order != null ? order.getOrderCode() : null)
-                .amount(payment.getAmount())
-                .method(payment.getMethod())
-                .status(payment.getStatus())
-                .transactionCode(payment.getTransactionCode())
-                .paidAt(payment.getPaidAt())
-                .paymentUrl(paymentUrl)
-                .message(message)
-                .build();
-    }
 }

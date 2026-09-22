@@ -13,6 +13,7 @@ import com.sportecommerce.repository.CouponUsageRepository;
 import com.sportecommerce.repository.OrderRepository;
 import com.sportecommerce.repository.UserRepository;
 import com.sportecommerce.service.CouponService;
+import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class CouponServiceImpl implements CouponService {
     private final CouponUsageRepository couponUsageRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final MapperUtil mapperUtil;
 
     @Override
     @Transactional(readOnly = true)
@@ -143,7 +145,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional(readOnly = true)
     public List<CouponResponse> getAvailableCoupons() {
         return couponRepository.findByIsActiveTrue().stream()
-                .map(this::mapToCouponResponse)
+                .map(mapperUtil::mapToCouponResponse)
                 .toList();
     }
 
@@ -152,23 +154,8 @@ public class CouponServiceImpl implements CouponService {
     public CouponResponse getCouponByCode(String code) {
         Coupon coupon = couponRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mã giảm giá!"));
-        return mapToCouponResponse(coupon);
+        return mapperUtil.mapToCouponResponse(coupon);
     }
 
-    private CouponResponse mapToCouponResponse(Coupon coupon) {
-        return CouponResponse.builder()
-                .id(coupon.getId())
-                .code(coupon.getCode())
-                .discountType(coupon.getDiscountType())
-                .discountValue(coupon.getDiscountValue())
-                .minOrderAmount(coupon.getMinOrderAmount())
-                .maxDiscountAmount(coupon.getMaxDiscountAmount())
-                .usageLimit(coupon.getUsageLimit())
-                .usedCount(coupon.getUsedCount())
-                .startDate(coupon.getStartDate())
-                .endDate(coupon.getEndDate())
-                .isActive(coupon.getIsActive())
-                .build();
-    }
 }
 
