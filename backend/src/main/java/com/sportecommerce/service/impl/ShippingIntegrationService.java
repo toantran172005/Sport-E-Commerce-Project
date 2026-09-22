@@ -62,8 +62,8 @@ public class ShippingIntegrationService {
     @Value("${shipping.ghtk.pick-tel:0123456789}")
     private String ghtkPickTel;
 
-    @Value("${shipping.ghtk.auto-cancel-after-create:true}")
-    private boolean ghtkAutoCancelAfterCreate;
+    @Value("${shipping.cancel-order:true}")
+    private boolean cancelOrder;
 
     public String createShippingOrder(Order order) {
         String providerCode = order.getShipment().getProvider().getCode().toUpperCase();
@@ -141,7 +141,13 @@ public class ShippingIntegrationService {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
                 if (data != null && data.get("order_code") != null) {
-                    return data.get("order_code").toString();
+                    String orderCode = data.get("order_code").toString();
+
+                    if (cancelOrder) {
+                        cancelOrderGHN(orderCode);
+                    }
+
+                    return orderCode;
                 }
             }
 
@@ -239,7 +245,7 @@ public class ShippingIntegrationService {
 
                         // Nếu bật chế độ test tự động hủy: gửi yêu cầu hủy ngay lập tức
                         // Giúp đơn vẫn xuất hiện trên web GHTK nhưng bưu tá không đến lấy thật
-                        if (ghtkAutoCancelAfterCreate) {
+                        if (cancelOrder) {
                             cancelOrderGHTK(label);
                         }
 
