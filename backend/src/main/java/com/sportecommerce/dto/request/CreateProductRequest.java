@@ -1,5 +1,6 @@
 package com.sportecommerce.dto.request;
 
+import com.sportecommerce.enums.ProductStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -31,6 +32,8 @@ public class CreateProductRequest {
     private Double basePrice;
 
     private Double salePrice;
+
+    private ProductStatus status;
 
     @NotEmpty(message = "Sản phẩm phải có ít nhất 1 biến thể (variant)")
     @Valid
