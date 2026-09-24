@@ -1,10 +1,6 @@
 package com.sportecommerce.service.impl;
 
-import com.sportecommerce.entity.Order;
-import com.sportecommerce.entity.OrderItem;
-import com.sportecommerce.entity.Product;
-import com.sportecommerce.entity.ProductAttribute;
-import com.sportecommerce.entity.UserAddress;
+import com.sportecommerce.entity.*;
 import com.sportecommerce.enums.PaymentMethod;
 import com.sportecommerce.enums.PaymentStatus;
 import com.sportecommerce.exception.AppException;
@@ -304,7 +300,7 @@ public class ShippingIntegrationService {
         if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
             Product product = order.getOrderItems().get(0).getVariant().getProduct();
 
-            for (ProductAttribute attr : product.getProductAttributes()) {
+            for (ProductAttributes attr : product.getProductAttributes()) {
                 String name = attr.getAttributeName().toLowerCase().trim();
                 try {
                     switch (name) {
