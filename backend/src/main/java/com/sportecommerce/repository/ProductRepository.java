@@ -6,4 +6,9 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
+    boolean existsBySlug(String slug);
+
+    boolean existsByCategory_Id(Long categoryId);
+
+    boolean existsByBrand_Id(Long brandId);
 }
