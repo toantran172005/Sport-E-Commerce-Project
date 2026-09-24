@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
@@ -30,10 +32,21 @@ public class CategoryController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật danh mục thành công", response));
     }
 
-    // Soft delete - set is_active = false, không xóa vật lý khỏi DB
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         categoryService.softDelete(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa danh mục thành công", null));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAll() {
+        List<CategoryResponse> response = categoryService.getAll();
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách danh mục thành công", response));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<CategoryResponse>> getById(@PathVariable Long id) {
+        CategoryResponse response = categoryService.getById(id);
+        return ResponseEntity.ok(ApiResponse.success("Lấy chi tiết danh mục thành công", response));
     }
 }

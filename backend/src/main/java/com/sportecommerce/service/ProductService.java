@@ -1,8 +1,15 @@
 package com.sportecommerce.service;
 
 import com.sportecommerce.dto.request.CreateProductRequest;
+import com.sportecommerce.dto.response.PageResponse;
 import com.sportecommerce.dto.response.ProductResponse;
+import com.sportecommerce.dto.response.ProductSummaryResponse;
+import com.sportecommerce.enums.ProductStatus;
+import org.springframework.data.domain.Pageable;
+
 
 public interface ProductService {
     ProductResponse createProduct(CreateProductRequest request);
+    PageResponse<ProductSummaryResponse> getAll(ProductStatus status, Pageable pageable);
+    ProductResponse getById(Long id);
 }

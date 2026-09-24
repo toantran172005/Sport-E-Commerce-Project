@@ -3,9 +3,7 @@ package com.sportecommerce.service.impl;
 import com.sportecommerce.dto.request.CreateProductRequest;
 import com.sportecommerce.dto.request.ProductImageRequest;
 import com.sportecommerce.dto.request.ProductVariantRequest;
-import com.sportecommerce.dto.response.ProductImageResponse;
-import com.sportecommerce.dto.response.ProductResponse;
-import com.sportecommerce.dto.response.ProductVariantResponse;
+import com.sportecommerce.dto.response.*;
 import com.sportecommerce.entity.*;
 import com.sportecommerce.enums.ProductStatus;
 import com.sportecommerce.exception.AppException;
@@ -16,8 +14,10 @@ import com.sportecommerce.repository.ProductRepository;
 import com.sportecommerce.repository.ProductVariantRepository;
 import com.sportecommerce.service.ProductService;
 import com.sportecommerce.util.SlugUtil;
-import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -35,8 +35,6 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponse createProduct(CreateProductRequest request) {
-
-        // 1. Kiểm tra Validate category_id, brand_id có tồn tại không
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy category_id: " + request.getCategoryId()));
@@ -48,10 +46,8 @@ public class ProductServiceImpl implements ProductService {
                             "Không tìm thấy brand_id: " + request.getBrandId()));
         }
 
-        // 2. Generate slug từ name, đảm bảo duy nhất
         String uniqueSlug = generateUniqueProductSlug(SlugUtil.toSlug(request.getName()));
 
-        // 3. Tạo Product với status mặc định là DRAFT
         Product product = Product.builder()
                 .category(category)
                 .brand(brand)
@@ -64,7 +60,6 @@ public class ProductServiceImpl implements ProductService {
                 .status(ProductStatus.DRAFT)
                 .build();
 
-        // 4. Kiểm tra SKU có trùng không trước khi gắn vào Product.
         for (ProductVariantRequest vReq : request.getVariants()) {
             if (variantRepository.existsBySku(vReq.getSku())) {
                 throw new AppException("SKU đã tồn tại trong hệ thống: " + vReq.getSku());
@@ -79,10 +74,9 @@ public class ProductServiceImpl implements ProductService {
                     .weightGram(vReq.getWeightGram())
                     .imageUrl(vReq.getImageUrl())
                     .build();
-            product.addVariant(variant); //tự gán product 2 chiều
+            product.addVariant(variant);
         }
 
-        // 5. Duyệt qua danh sách Images
         if (request.getImages() != null) {
             for (ProductImageRequest iReq : request.getImages()) {
                 ProductImage image = ProductImage.builder()
@@ -95,8 +89,36 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product saved = productRepository.save(product);
+        return toDetailResponse(saved);
+    }
 
-        return toResponse(saved);
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ProductSummaryResponse> getAll(ProductStatus status, Pageable pageable) {
+        ProductStatus effectiveStatus = status != null ? status : ProductStatus.ACTIVE;
+
+        Page<Product> page = productRepository.findByStatusAndDeletedAtIsNull(effectiveStatus, pageable);
+
+        List<ProductSummaryResponse> content = page.getContent().stream()
+                .map(this::toSummaryResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<ProductSummaryResponse>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductResponse getById(Long id) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
+        return toDetailResponse(product);
     }
 
     private String generateUniqueProductSlug(String baseSlug) {
@@ -108,7 +130,32 @@ public class ProductServiceImpl implements ProductService {
         return slug;
     }
 
-    private ProductResponse toResponse(Product p) {
+    private ProductSummaryResponse toSummaryResponse(Product p) {
+        String primaryImageUrl = p.getProductImages().stream()
+                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                .map(ProductImage::getImageUrl)
+                .findFirst()
+                .orElseGet(() -> p.getProductImages().isEmpty()
+                        ? null
+                        : p.getProductImages().get(0).getImageUrl());
+
+        return ProductSummaryResponse.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .slug(p.getSlug())
+                .status(p.getStatus())
+                .basePrice(p.getBasePrice())
+                .salePrice(p.getSalePrice())
+                .categoryName(p.getCategory() != null ? p.getCategory().getName() : null)
+                .brandName(p.getBrand() != null ? p.getBrand().getName() : null)
+                .primaryImageUrl(primaryImageUrl)
+                .avgRating(p.getAvgRating())
+                .reviewCount(p.getReviewCount())
+                .isFeatured(p.getIsFeatured())
+                .build();
+    }
+
+    private ProductResponse toDetailResponse(Product p) {
         List<ProductVariantResponse> variantResponses = p.getProductVariants().stream()
                 .map(v -> ProductVariantResponse.builder()
                         .id(v.getId())

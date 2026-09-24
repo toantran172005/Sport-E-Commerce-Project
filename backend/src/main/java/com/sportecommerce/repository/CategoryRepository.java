@@ -10,5 +10,10 @@ import java.util.List;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
     boolean existsBySlug(String slug);
+
     List<Category> findBySlug(String slug);
+
+    List<Category> findByIsActiveTrue();
+
+    boolean existsByParent_Id(Long parentId);
 }

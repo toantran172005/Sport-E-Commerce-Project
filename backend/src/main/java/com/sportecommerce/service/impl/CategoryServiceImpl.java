@@ -9,9 +9,12 @@ import com.sportecommerce.repository.CategoryRepository;
 import com.sportecommerce.repository.ProductRepository;
 import com.sportecommerce.service.CategoryService;
 import com.sportecommerce.util.SlugUtil;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +25,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
-        Category parent = resolveParent(request.getParentId());
+        Category parent = resolveParent(request.getParentId(), null);
 
         String uniqueSlug = generateUniqueSlug(SlugUtil.toSlug(request.getName()));
 
@@ -49,7 +52,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.getParentId() != null && request.getParentId().equals(id)) {
             throw new AppException("Category không thể là parent của chính nó");
         }
-        Category parent = resolveParent(request.getParentId());
+        Category parent = resolveParent(request.getParentId(), id);
 
         // Chỉ generate lại slug nếu tên thay đổi, tránh đổi URL không cần thiết
         if (!category.getName().equals(request.getName())) {
@@ -73,19 +76,42 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
 
-        // Nghiệp vụ: chặn xóa nếu vẫn còn Product gắn với Category này
+        // Không cho xóa nếu vẫn còn Product gắn với Category này
         if (productRepository.existsByCategory_Id(id)) {
             throw new AppException(
                     "Không thể xóa: vẫn còn sản phẩm thuộc category này");
+        }
+
+        if (categoryRepository.existsByParent_Id(id)) {
+            throw new AppException("Không thể xóa: category này vẫn còn category con");
         }
 
         category.setIsActive(false);
         categoryRepository.save(category);
     }
 
-    private Category resolveParent(Long parentId) {
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> getAll() {
+        return categoryRepository.findByIsActiveTrue().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CategoryResponse getById(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
+        return toResponse(category);
+    }
+
+    private Category resolveParent(Long parentId, Long currentId) {
         if (parentId == null) {
             return null;
+        }
+        if (currentId != null && parentId.equals(currentId)) {
+            throw new AppException("Category không thể là parent của chính nó");
         }
         return categoryRepository.findById(parentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy parent_id: " + parentId));
@@ -112,4 +138,5 @@ public class CategoryServiceImpl implements CategoryService {
                 .sortOrder(c.getSortOrder())
                 .build();
     }
+
 }
