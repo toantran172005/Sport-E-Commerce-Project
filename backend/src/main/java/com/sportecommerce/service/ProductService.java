@@ -10,6 +10,9 @@ import org.springframework.data.domain.Pageable;
 
 public interface ProductService {
     ProductResponse createProduct(CreateProductRequest request);
-    PageResponse<ProductSummaryResponse> getAll(ProductStatus status, Pageable pageable);
+    PageResponse<ProductSummaryResponse> getAll(ProductStatus status, Long categoryId, Long brandId, String keyword, Pageable pageable);
     ProductResponse getById(Long id);
+    ProductResponse updateProduct(Long id, CreateProductRequest request);
+    ProductResponse updateStatus(Long id, ProductStatus status);
+    void softDelete(Long id);
 }

@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -57,7 +58,7 @@ public class ProductServiceImpl implements ProductService {
                 .sportType(request.getSportType())
                 .basePrice(request.getBasePrice())
                 .salePrice(request.getSalePrice())
-                .status(ProductStatus.DRAFT)
+                .status(request.getStatus() != null ? request.getStatus() : ProductStatus.ACTIVE)
                 .build();
 
         for (ProductVariantRequest vReq : request.getVariants()) {
@@ -94,10 +95,20 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProductSummaryResponse> getAll(ProductStatus status, Pageable pageable) {
+    public PageResponse<ProductSummaryResponse> getAll(
+            ProductStatus status,
+            Long categoryId,
+            Long brandId,
+            String keyword,
+            Pageable pageable) {
         ProductStatus effectiveStatus = status != null ? status : ProductStatus.ACTIVE;
 
-        Page<Product> page = productRepository.findByStatusAndDeletedAtIsNull(effectiveStatus, pageable);
+        Page<Product> page = productRepository.findProductsWithFilter(
+                effectiveStatus,
+                categoryId,
+                brandId,
+                (keyword != null && !keyword.isBlank()) ? keyword.trim() : null,
+                pageable);
 
         List<ProductSummaryResponse> content = page.getContent().stream()
                 .map(this::toSummaryResponse)
@@ -119,6 +130,64 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
         return toDetailResponse(product);
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse updateProduct(Long id, CreateProductRequest request) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
+
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy category_id: " + request.getCategoryId()));
+
+        Brand brand = null;
+        if (request.getBrandId() != null) {
+            brand = brandRepository.findById(request.getBrandId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy brand_id: " + request.getBrandId()));
+        }
+
+        if (!product.getName().equals(request.getName())) {
+            product.setSlug(generateUniqueProductSlug(SlugUtil.toSlug(request.getName())));
+        }
+
+        product.setCategory(category);
+        product.setBrand(brand);
+        product.setName(request.getName());
+        product.setDescription(request.getDescription());
+        product.setSportType(request.getSportType());
+        product.setBasePrice(request.getBasePrice());
+        product.setSalePrice(request.getSalePrice());
+        if (request.getStatus() != null) {
+            product.setStatus(request.getStatus());
+        }
+
+        Product saved = productRepository.save(product);
+        return toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse updateStatus(Long id, ProductStatus status) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
+
+        product.setStatus(status);
+        Product saved = productRepository.save(product);
+        return toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void softDelete(Long id) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
+
+        product.setDeletedAt(Instant.now());
+        product.setStatus(ProductStatus.DISCONTINUED);
+        productRepository.save(product);
     }
 
     private String generateUniqueProductSlug(String baseSlug) {

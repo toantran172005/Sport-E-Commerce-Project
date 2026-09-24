@@ -40,6 +40,7 @@ public class OrderServiceImpl implements OrderService {
     private final ShipmentService shipmentService;
     private final ShippingIntegrationService shippingIntegrationService;
     private final CouponService couponService;
+    private final ProductRepository productRepository;
 
     @Override
     @Transactional
@@ -94,6 +95,11 @@ public class OrderServiceImpl implements OrderService {
                     throw new BadRequestException("Sản phẩm " + variant.getSku() + " đã ngưng hoạt động!");
                 }
 
+                Product product = variant.getProduct();
+                if (product == null || product.getDeletedAt() != null || product.getStatus() != ProductStatus.ACTIVE) {
+                    throw new BadRequestException("Sản phẩm " + (product != null ? product.getName() : variant.getSku()) + " hiện không mở bán!");
+                }
+
                 double actualPrice = variant.getPrice();
                 if (variant.getSalePrice() != null && variant.getSalePrice() > 0) {
                     actualPrice = variant.getSalePrice();
@@ -131,6 +137,11 @@ public class OrderServiceImpl implements OrderService {
 
             if (!Boolean.TRUE.equals(variant.getIsActive())) {
                 throw new BadRequestException("Sản phẩm " + variant.getSku() + " đã ngưng hoạt động!");
+            }
+
+            Product product = variant.getProduct();
+            if (product == null || product.getDeletedAt() != null || product.getStatus() != ProductStatus.ACTIVE) {
+                throw new BadRequestException("Sản phẩm " + (product != null ? product.getName() : variant.getSku()) + " hiện không mở bán!");
             }
 
             double actualPrice = variant.getPrice();
@@ -325,6 +336,17 @@ public class OrderServiceImpl implements OrderService {
             if (payment.getMethod().equals(PaymentMethod.COD)) {
                 payment.setStatus(PaymentStatus.PAID);
                 payment.setPaidAt(Instant.now());
+            }
+
+            if (order.getOrderItems() != null) {
+                for (OrderItem item : order.getOrderItems()) {
+                    if (item.getVariant() != null && item.getVariant().getProduct() != null) {
+                        Product product = item.getVariant().getProduct();
+                        int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                        product.setSoldCount(currentSold + item.getQuantity());
+                        productRepository.save(product);
+                    }
+                }
             }
 
             order.setStatus(OrderStatus.DELIVERED);
