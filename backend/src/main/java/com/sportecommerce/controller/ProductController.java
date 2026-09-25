@@ -2,6 +2,7 @@ package com.sportecommerce.controller;
 
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.request.CreateProductRequest;
+import com.sportecommerce.dto.request.UpdateProductRequest;
 import com.sportecommerce.dto.response.PageResponse;
 import com.sportecommerce.dto.response.ProductResponse;
 import com.sportecommerce.dto.response.ProductSummaryResponse;
@@ -30,6 +31,26 @@ public class ProductController {
                 .body(ApiResponse.success("Tạo sản phẩm thành công", response));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<ProductResponse>> update(
+            @PathVariable Long id, @Valid @RequestBody UpdateProductRequest request) {
+        ProductResponse response = productService.updateProduct(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật sản phẩm thành công", response));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa sản phẩm thành công", null));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateStatus(
+            @PathVariable Long id, @RequestParam ProductStatus status) {
+        ProductResponse response = productService.updateStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái sản phẩm thành công", response));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ProductSummaryResponse>>> getAll(
             @RequestParam(required = false) ProductStatus status,
@@ -37,7 +58,8 @@ public class ProductController {
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        PageResponse<ProductSummaryResponse> response = productService.getAll(status, categoryId, brandId, keyword, pageable);
+        PageResponse<ProductSummaryResponse> response =
+                productService.getAll(status, categoryId, brandId, keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách sản phẩm thành công", response));
     }
 
@@ -53,14 +75,6 @@ public class ProductController {
             @Valid @RequestBody CreateProductRequest request) {
         ProductResponse response = productService.updateProduct(id, request);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật sản phẩm thành công", response));
-    }
-
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<ProductResponse>> updateStatus(
-            @PathVariable Long id,
-            @RequestParam ProductStatus status) {
-        ProductResponse response = productService.updateStatus(id, status);
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái thành công", response));
     }
 
     @DeleteMapping("/{id}")
