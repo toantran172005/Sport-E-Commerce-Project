@@ -68,4 +68,18 @@ public class ProductController {
         ProductResponse response = productService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("Lấy chi tiết sản phẩm thành công", response));
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateProductRequest request) {
+        ProductResponse response = productService.updateProduct(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật sản phẩm thành công", response));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable Long id) {
+        productService.softDelete(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa sản phẩm thành công", null));
+    }
 }

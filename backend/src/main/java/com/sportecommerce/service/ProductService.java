@@ -16,4 +16,6 @@ public interface ProductService {
     ProductResponse updateStatus(Long id, ProductStatus status);
     PageResponse<ProductSummaryResponse> getAll(ProductStatus status, Long categoryId, Long brandId, String keyword, Pageable pageable);
     ProductResponse getById(Long id);
+    ProductResponse updateProduct(Long id, CreateProductRequest request);
+    void softDelete(Long id);
 }

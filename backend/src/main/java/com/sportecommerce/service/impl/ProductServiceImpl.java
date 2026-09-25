@@ -160,8 +160,7 @@ public class ProductServiceImpl implements ProductService {
         ProductStatus effectiveStatus = status != null ? status : ProductStatus.ACTIVE;
 
         Page<Product> page = productRepository.findAll(
-                ProductSpecification.filterBy(effectiveStatus, categoryId, brandId, keyword),
-                pageable);
+                ProductSpecification.filterBy(effectiveStatus, categoryId, brandId, keyword), pageable);
 
         List<ProductSummaryResponse> content = page.getContent().stream()
                 .map(this::toSummaryResponse)
@@ -183,6 +182,53 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
         return toDetailResponse(product);
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse updateProduct(Long id, CreateProductRequest request) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
+
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy category_id: " + request.getCategoryId()));
+
+        Brand brand = null;
+        if (request.getBrandId() != null) {
+            brand = brandRepository.findById(request.getBrandId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy brand_id: " + request.getBrandId()));
+        }
+
+        if (!product.getName().equals(request.getName())) {
+            product.setSlug(generateUniqueProductSlug(SlugUtil.toSlug(request.getName())));
+        }
+
+        product.setCategory(category);
+        product.setBrand(brand);
+        product.setName(request.getName());
+        product.setDescription(request.getDescription());
+        product.setSportType(request.getSportType());
+        product.setBasePrice(request.getBasePrice());
+        product.setSalePrice(request.getSalePrice());
+        if (request.getStatus() != null) {
+            product.setStatus(request.getStatus());
+        }
+
+        Product saved = productRepository.save(product);
+        return toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void softDelete(Long id) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
+
+        product.setDeletedAt(Instant.now());
+        product.setStatus(ProductStatus.DISCONTINUED);
+        productRepository.save(product);
     }
 
     private String generateUniqueProductSlug(String baseSlug) {
