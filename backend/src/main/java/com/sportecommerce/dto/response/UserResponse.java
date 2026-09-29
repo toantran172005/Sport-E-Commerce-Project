@@ -34,21 +34,4 @@ public class UserResponse {
     private OffsetDateTime lastLoginAt;
     private OffsetDateTime createdAt;
 
-    public static UserResponse fromEntity(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .phoneNumber(user.getPhoneNumber())
-                .fullName(user.getFullName())
-                .avatarUrl(user.getAvatarUrl())
-                .gender(user.getGender())
-                .dateOfBirth(user.getDateOfBirth())
-                .role(user.getRole())
-                .status(user.getStatus())
-                .emailVerifiedAt(user.getEmailVerifiedAt())
-                .phoneVerifiedAt(user.getPhoneVerifiedAt())
-                .lastLoginAt(user.getLastLoginAt())
-                .createdAt(user.getCreatedAt())
-                .build();
-    }
 }

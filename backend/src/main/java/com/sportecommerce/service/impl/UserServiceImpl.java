@@ -14,6 +14,7 @@ import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.UserRepository;
 import com.sportecommerce.service.OtpService;
 import com.sportecommerce.service.UserService;
+import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,10 +30,11 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
+    private final MapperUtil mapperUtil;
 
     @Override
     public UserResponse getProfile(Long userId) {
-        return UserResponse.fromEntity(getUserOrThrow(userId));
+        return mapperUtil.mapToUserResponse(getUserOrThrow(userId));
     }
 
     @Override
@@ -53,7 +55,7 @@ public class UserServiceImpl implements UserService {
             user.setDateOfBirth(request.getDateOfBirth());
         }
 
-        return UserResponse.fromEntity(userRepository.save(user));
+        return mapperUtil.mapToUserResponse(userRepository.save(user));
     }
 
     @Override
@@ -98,7 +100,7 @@ public class UserServiceImpl implements UserService {
         user.setEmail(request.getNewEmail());
         user.setEmailVerifiedAt(OffsetDateTime.now());
 
-        return UserResponse.fromEntity(userRepository.save(user));
+        return mapperUtil.mapToUserResponse(userRepository.save(user));
     }
 
     @Override
@@ -130,7 +132,7 @@ public class UserServiceImpl implements UserService {
         user.setPhoneNumber(request.getNewPhoneNumber());
         user.setPhoneVerifiedAt(OffsetDateTime.now());
 
-        return UserResponse.fromEntity(userRepository.save(user));
+        return mapperUtil.mapToUserResponse(userRepository.save(user));
     }
 
     private User getUserOrThrow(Long userId) {
