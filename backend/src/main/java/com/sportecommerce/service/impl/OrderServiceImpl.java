@@ -416,6 +416,13 @@ public class OrderServiceImpl implements OrderService {
             for (OrderItem orderItem : orderItems) {
                 ProductVariant variant = orderItem.getVariant();
                 variant.setStock(variant.getStock() + orderItem.getQuantity());
+                
+                if (variant.getProduct() != null) {
+                    Product product = variant.getProduct();
+                    int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                    product.setSoldCount(Math.max(0, currentSold - orderItem.getQuantity()));
+                    productRepository.save(product);
+                }
             }
 
             Payment payment = order.getPayment();

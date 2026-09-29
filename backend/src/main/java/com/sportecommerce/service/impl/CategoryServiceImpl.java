@@ -8,6 +8,7 @@ import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.CategoryRepository;
 import com.sportecommerce.repository.ProductRepository;
 import com.sportecommerce.service.CategoryService;
+import com.sportecommerce.util.MapperUtil;
 import com.sportecommerce.util.SlugUtil;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final MapperUtil mapperUtil;
 
     @Override
     @Transactional
@@ -39,7 +41,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .isActive(true)
                 .build();
 
-        return toResponse(categoryRepository.save(category));
+        return mapperUtil.mapToCategoryResponse(categoryRepository.save(category));
     }
 
     @Override
@@ -67,7 +69,7 @@ public class CategoryServiceImpl implements CategoryService {
             category.setSortOrder(request.getSortOrder());
         }
 
-        return toResponse(categoryRepository.save(category));
+        return mapperUtil.mapToCategoryResponse(categoryRepository.save(category));
     }
 
     @Override
@@ -94,7 +96,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAll() {
         return categoryRepository.findByIsActiveTrue().stream()
-                .map(this::toResponse)
+                .map(mapperUtil::mapToCategoryResponse)
                 .collect(Collectors.toList());
     }
 
@@ -103,7 +105,7 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse getById(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
-        return toResponse(category);
+        return mapperUtil.mapToCategoryResponse(category);
     }
 
     private Category resolveParent(Long parentId, Long currentId) {
@@ -124,19 +126,6 @@ public class CategoryServiceImpl implements CategoryService {
             slug = baseSlug + "-" + counter++;
         }
         return slug;
-    }
-
-    private CategoryResponse toResponse(Category c) {
-        return CategoryResponse.builder()
-                .id(c.getId())
-                .parentId(c.getParent() != null ? c.getParent().getId() : null)
-                .name(c.getName())
-                .slug(c.getSlug())
-                .description(c.getDescription())
-                .imageUrl(c.getImageUrl())
-                .isActive(c.getIsActive())
-                .sortOrder(c.getSortOrder())
-                .build();
     }
 
 }

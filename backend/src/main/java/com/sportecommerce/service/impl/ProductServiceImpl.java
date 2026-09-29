@@ -15,6 +15,7 @@ import com.sportecommerce.repository.ProductRepository;
 import com.sportecommerce.repository.ProductVariantRepository;
 import com.sportecommerce.repository.spec.ProductSpecification;
 import com.sportecommerce.service.ProductService;
+import com.sportecommerce.util.MapperUtil;
 import com.sportecommerce.util.SlugUtil;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.object.UpdatableSqlQuery;
@@ -35,6 +36,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final ProductVariantRepository variantRepository;
+    private final MapperUtil mapperUtil;
 
     @Override
     @Transactional
@@ -93,7 +95,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product saved = productRepository.save(product);
-        return toDetailResponse(saved);
+        return mapperUtil.mapToProductResponse(saved);
     }
 
     @Override
@@ -125,7 +127,7 @@ public class ProductServiceImpl implements ProductService {
         product.setBasePrice(request.getBasePrice());
         product.setSalePrice(request.getSalePrice());
 
-        return toDetailResponse(productRepository.save(product));
+        return mapperUtil.mapToProductResponse(productRepository.save(product));
     }
 
     @Override
@@ -149,7 +151,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product.setStatus(status);
-        return toDetailResponse(productRepository.save(product));
+        return mapperUtil.mapToProductResponse(productRepository.save(product));
     }
 
     @Override
@@ -163,7 +165,7 @@ public class ProductServiceImpl implements ProductService {
                 ProductSpecification.filterBy(effectiveStatus, categoryId, brandId, keyword), pageable);
 
         List<ProductSummaryResponse> content = page.getContent().stream()
-                .map(this::toSummaryResponse)
+                .map(mapperUtil::mapToProductSummaryResponse)
                 .collect(Collectors.toList());
 
         return PageResponse.<ProductSummaryResponse>builder()
@@ -181,7 +183,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponse getById(Long id) {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
-        return toDetailResponse(product);
+        return mapperUtil.mapToProductResponse(product);
     }
 
     @Override
@@ -217,7 +219,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product saved = productRepository.save(product);
-        return toDetailResponse(saved);
+        return mapperUtil.mapToProductResponse(saved);
     }
 
     @Override
@@ -240,77 +242,4 @@ public class ProductServiceImpl implements ProductService {
         return slug;
     }
 
-    private ProductSummaryResponse toSummaryResponse(Product p) {
-        String primaryImageUrl = p.getProductImages().stream()
-                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                .map(ProductImage::getImageUrl)
-                .findFirst()
-                .orElseGet(() -> p.getProductImages().isEmpty()
-                        ? null
-                        : p.getProductImages().get(0).getImageUrl());
-
-        return ProductSummaryResponse.builder()
-                .id(p.getId())
-                .name(p.getName())
-                .slug(p.getSlug())
-                .status(p.getStatus())
-                .basePrice(p.getBasePrice())
-                .salePrice(p.getSalePrice())
-                .categoryName(p.getCategory() != null ? p.getCategory().getName() : null)
-                .brandName(p.getBrand() != null ? p.getBrand().getName() : null)
-                .primaryImageUrl(primaryImageUrl)
-                .avgRating(p.getAvgRating())
-                .reviewCount(p.getReviewCount())
-                .isFeatured(p.getIsFeatured())
-                .build();
-    }
-
-    private ProductResponse toDetailResponse(Product p) {
-        List<ProductVariantResponse> variantResponses = p.getProductVariants().stream()
-                .map(v -> ProductVariantResponse.builder()
-                        .id(v.getId())
-                        .sku(v.getSku())
-                        .size(v.getSize())
-                        .color(v.getColor())
-                        .price(v.getPrice())
-                        .salePrice(v.getSalePrice())
-                        .stock(v.getStock())
-                        .isActive(v.getIsActive())
-                        .imageUrl(v.getImageUrl())
-                        .build())
-                .collect(Collectors.toList());
-
-        List<ProductImageResponse> imageResponses = p.getProductImages() == null
-                ? Collections.emptyList()
-                : p.getProductImages().stream()
-                .map(i -> ProductImageResponse.builder()
-                        .id(i.getId())
-                        .imageUrl(i.getImageUrl())
-                        .isPrimary(i.getIsPrimary())
-                        .sortOrder(i.getSortOrder())
-                        .build())
-                .collect(Collectors.toList());
-
-        return ProductResponse.builder()
-                .id(p.getId())
-                .categoryId(p.getCategory().getId())
-                .categoryName(p.getCategory().getName())
-                .brandId(p.getBrand() != null ? p.getBrand().getId() : null)
-                .brandName(p.getBrand() != null ? p.getBrand().getName() : null)
-                .name(p.getName())
-                .slug(p.getSlug())
-                .description(p.getDescription())
-                .sportType(p.getSportType())
-                .status(p.getStatus())
-                .basePrice(p.getBasePrice())
-                .salePrice(p.getSalePrice())
-                .isFeatured(p.getIsFeatured())
-                .avgRating(p.getAvgRating())
-                .reviewCount(p.getReviewCount())
-                .soldCount(p.getSoldCount())
-                .variants(variantResponses)
-                .images(imageResponses)
-                .createdAt(p.getCreatedAt())
-                .build();
-    }
 }
