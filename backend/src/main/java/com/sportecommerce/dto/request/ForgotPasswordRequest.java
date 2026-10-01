@@ -16,6 +16,6 @@ import lombok.Setter;
 public class ForgotPasswordRequest {
 
     @NotBlank
-    @Email(message = "Email khong hop le")
+    @Email(message = "Email không hợp lệ")
     private String email;
 }

@@ -39,7 +39,7 @@ public class OtpServiceImpl implements OtpService {
             Long remaining = redisTemplate.getExpire(cooldownKey);
             long seconds = (remaining == null) ? resendCooldownSeconds : remaining;
             throw new AppException(
-                    "Vui long doi " + seconds + " giay truoc khi yeu cau gui lai OTP",
+                    "Vui lòng đợi " + seconds + " giây trước khi yêu cầu gửi lại OTP",
                     HttpStatus.TOO_MANY_REQUESTS
             );
         }
@@ -77,11 +77,11 @@ public class OtpServiceImpl implements OtpService {
 
         if (attempts != null && attempts > maxAttempts) {
             redisTemplate.delete(otpKey);
-            throw new AppException("Ban da nhap sai OTP qua so lan cho phep, vui long yeu cau gui ma moi", HttpStatus.TOO_MANY_REQUESTS);
+            throw new AppException("Bạn đã nhập sai OTP quá số lần cho phép, vui lòng yêu cầu gửi mã mới", HttpStatus.TOO_MANY_REQUESTS);
         }
 
         if (!storedOtp.equals(otp)) {
-            throw new AppException("Ma OTP khong chinh xac", HttpStatus.BAD_REQUEST);
+            throw new AppException("Mã OTP không chính xác", HttpStatus.BAD_REQUEST);
         }
 
         redisTemplate.delete(otpKey);

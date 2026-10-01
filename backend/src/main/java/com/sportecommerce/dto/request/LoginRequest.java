@@ -15,10 +15,10 @@ import lombok.Setter;
 @Builder
 public class LoginRequest {
 
-    @NotBlank(message = "Email khong duoc de trong")
-    @Email(message = "Email khong hop le")
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
     private String email;
 
-    @NotBlank(message = "Mat khau khong duoc de trong")
+    @NotBlank(message = "Mật khẩu không được để trống")
     private String password;
 }

@@ -14,6 +14,6 @@ import lombok.Setter;
 @Builder
 public class RefreshTokenRequest {
 
-    @NotBlank(message = "Refresh token khong duoc de trong")
+    @NotBlank(message = "Refresh token không được để trống")
     private String refreshToken;
 }

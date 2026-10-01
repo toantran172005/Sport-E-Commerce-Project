@@ -17,22 +17,22 @@ import lombok.Setter;
 @Builder
 public class RegisterRequest {
 
-    @NotBlank(message = "Email khong duoc de trong")
-    @Email(message = "Email khong hop le")
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
     private String email;
 
-    @NotBlank(message = "Mat khau khong duoc de trong")
-    @Size(min = 8, max = 100, message = "Mat khau phai co it nhat 8 ky tu")
+    @NotBlank(message = "Mật khẩu không được để trống")
+    @Size(min = 8, max = 100, message = "Mật khẩu phải có ít nhất 8 ký tự")
     @Pattern(
             regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$",
-            message = "Mat khau phai chua ca chu va so"
+            message = "Mật khẩu phải chứa cả chữ và số"
     )
     private String password;
 
-    @NotBlank(message = "Ho ten khong duoc de trong")
+    @NotBlank(message = "Họ tên không được để trống")
     @Size(max = 150)
     private String fullName;
 
-    @Pattern(regexp = "^$|^[0-9]{9,15}$", message = "So dien thoai khong hop le")
+    @Pattern(regexp = "^$|^[0-9]{9,15}$", message = "Số điện thoại không hợp lệ")
     private String phoneNumber;
 }

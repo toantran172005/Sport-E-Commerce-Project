@@ -17,10 +17,10 @@ import lombok.Setter;
 public class ConfirmChangeEmailRequest {
 
     @NotBlank
-    @Email(message = "Email moi khong hop le")
+    @Email(message = "Email mới không hợp lệ")
     private String newEmail;
 
     @NotBlank
-    @Pattern(regexp = "^[0-9]{4,8}$", message = "Ma OTP khong hop le")
+    @Pattern(regexp = "^[0-9]{4,8}$", message = "Mã OTP không hợp lệ")
     private String otp;
 }

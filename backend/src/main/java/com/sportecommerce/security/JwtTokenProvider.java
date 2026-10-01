@@ -62,9 +62,9 @@ public class JwtTokenProvider {
             parseClaims(token);
             return true;
         } catch (ExpiredJwtException e) {
-            log.debug("JWT het han: {}", e.getMessage());
+            log.debug("JWT hết hạn: {}", e.getMessage());
         } catch (JwtException | IllegalArgumentException e) {
-            log.debug("JWT khong hop le: {}", e.getMessage());
+            log.debug("JWT không hợp lệ: {}", e.getMessage());
         }
         return false;
     }
