@@ -64,7 +64,7 @@ public class OtpServiceImpl implements OtpService {
         String storedOtp = redisTemplate.opsForValue().get(otpKey);
 
         if (storedOtp == null) {
-            throw new AppException("Ma OTP khong ton tai hoac da het han, vui long yeu cau gui lai", HttpStatus.BAD_REQUEST);
+            throw new AppException("Mã OTP không tồn tại hoặc đã hết hạn, vui lòng yêu cầu gửi lại.", HttpStatus.BAD_REQUEST);
         }
 
         Long attempts = redisTemplate.opsForValue().increment(attemptKey);

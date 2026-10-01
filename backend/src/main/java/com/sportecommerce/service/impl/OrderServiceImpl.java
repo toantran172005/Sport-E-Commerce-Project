@@ -6,6 +6,7 @@ import com.sportecommerce.dto.request.PlaceOrderRequest;
 import com.sportecommerce.dto.response.PlaceOrderResponse;
 import com.sportecommerce.entity.*;
 import com.sportecommerce.enums.OrderStatus;
+import com.sportecommerce.event.OrderPlacedEvent;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.BadRequestException;
 import com.sportecommerce.exception.ResourceNotFoundException;
@@ -14,6 +15,7 @@ import com.sportecommerce.service.OrderService;
 import com.sportecommerce.service.ShipmentService;
 import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final CouponUsageRepository couponUsageRepository;
     private final MapperUtil mapperUtil;
     private final ShipmentService shipmentService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -241,6 +244,10 @@ public class OrderServiceImpl implements OrderService {
         payment.setAmount(total);
 
         Order completedOrder = orderRepository.save(order);
+
+        // Bao cho staff biet co don hang moi can xu ly (module Notification).
+        // Dung Spring Event de khong lam OrderServiceImpl phu thuoc truc tiep vao NotificationService.
+        eventPublisher.publishEvent(new OrderPlacedEvent(completedOrder.getId(), completedOrder.getOrderCode(), userId));
 
         return ApiResponse.success("Đặt hàng thành công", mapperUtil.mapOrderToPlaceOrderResponse(completedOrder));
     }
