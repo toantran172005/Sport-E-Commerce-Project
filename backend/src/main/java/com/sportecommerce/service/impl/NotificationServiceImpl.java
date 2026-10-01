@@ -4,6 +4,7 @@ import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.response.NotificationResponse;
 import com.sportecommerce.dto.response.PageResponse;
 import com.sportecommerce.entity.Notification;
+import com.sportecommerce.entity.Order;
 import com.sportecommerce.entity.User;
 import com.sportecommerce.enums.NotificationType;
 import com.sportecommerce.enums.OrderStatus;
@@ -23,14 +24,85 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class NotificationServiceImpl implements NotificationService {
+public class    NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+
+    // ===== Nhom 1: thong bao gan voi luong dat hang / thanh toan (PaymentServiceImpl goi) =====
+
+    @Override
+    @Transactional
+    public void notifyPaymentSuccess(Order order) {
+        if (order == null || order.getUser() == null) {
+            return;
+        }
+
+        Notification notification = Notification.builder()
+                .user(order.getUser())
+                .type(NotificationType.ORDER_UPDATE)
+                .title("Thanh toán thành công")
+                .content(String.format("Đơn hàng %s đã được thanh toán thành công với tổng số tiền %,.0f đ.",
+                        order.getOrderCode(), order.getTotalAmount()))
+                .referenceId(order.getId())
+                .data(Map.of("orderCode", order.getOrderCode(), "status", "PAID"))
+                .isRead(false)
+                .build();
+
+        notificationRepository.save(notification);
+        log.info("Đã tạo thông báo thanh toán thành công cho đơn hàng: {}", order.getOrderCode());
+    }
+
+    @Override
+    @Transactional
+    public void notifyPaymentFailed(Order order) {
+        if (order == null || order.getUser() == null) {
+            return;
+        }
+
+        Notification notification = Notification.builder()
+                .user(order.getUser())
+                .type(NotificationType.ORDER_UPDATE)
+                .title("Thanh toán thất bại")
+                .content(String.format("Giao dịch thanh toán cho đơn hàng %s không thành công. Bạn có thể thử lại.",
+                        order.getOrderCode()))
+                .referenceId(order.getId())
+                .data(Map.of("orderCode", order.getOrderCode(), "status", "FAILED"))
+                .isRead(false)
+                .build();
+
+        notificationRepository.save(notification);
+        log.warn("Đã tạo thông báo thanh toán thất bại cho đơn hàng: {}", order.getOrderCode());
+    }
+
+    @Override
+    @Transactional
+    public void notifyOrderPlaced(Order order) {
+        if (order == null || order.getUser() == null) {
+            return;
+        }
+
+        Notification notification = Notification.builder()
+                .user(order.getUser())
+                .type(NotificationType.ORDER_UPDATE)
+                .title("Đặt hàng thành công")
+                .content(String.format("Đơn hàng %s của bạn đã được xác nhận (COD). Bạn sẽ thanh toán khi nhận hàng.",
+                        order.getOrderCode()))
+                .referenceId(order.getId())
+                .data(Map.of("orderCode", order.getOrderCode(), "status", "CONFIRMED"))
+                .isRead(false)
+                .build();
+
+        notificationRepository.save(notification);
+        log.info("Đã tạo thông báo đặt hàng thành công cho đơn hàng: {}", order.getOrderCode());
+    }
+
+    // ===== Nhom 2: thong bao theo kien truc Spring Event (OrderEventListener goi) =====
 
     @Override
     @Transactional
@@ -80,6 +152,8 @@ public class NotificationServiceImpl implements NotificationService {
 
         notificationRepository.save(notification);
     }
+
+    // ===== Nhom 3: API cho man hinh thong bao cua user (NotificationController goi) =====
 
     @Override
     public ApiResponse<PageResponse<NotificationResponse>> getMyNotifications(Long userId, int page, int size) {

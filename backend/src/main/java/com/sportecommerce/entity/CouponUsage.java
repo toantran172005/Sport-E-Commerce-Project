@@ -20,7 +20,8 @@ public class CouponUsage {
     private Long id;
 
     @Column(name = "discount_amount")
-    private double discountAmount;
+    @Builder.Default
+    private Double discountAmount = 0.0;
 
     @CreationTimestamp
     @Column(name = "used_at", updatable = false, nullable = false)

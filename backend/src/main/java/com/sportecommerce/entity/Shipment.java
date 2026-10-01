@@ -36,6 +36,9 @@ public class Shipment {
     @Column(name = "estimated_delivery_date")
     private LocalDate estimatedDeliveryDate;
 
+    @Column(name = "shipped_at")
+    private Instant shippedAt;
+
     @Column(name = "delivered_at")
     private Instant deliveredAt;
 

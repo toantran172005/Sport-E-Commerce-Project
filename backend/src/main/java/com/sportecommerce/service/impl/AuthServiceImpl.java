@@ -20,6 +20,7 @@ import com.sportecommerce.security.JwtTokenProvider;
 import com.sportecommerce.service.AuthService;
 import com.sportecommerce.service.OtpService;
 import com.sportecommerce.util.HashUtil;
+import com.sportecommerce.util.MapperUtil;
 import com.sportecommerce.util.OtpGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final MapperUtil mapperUtil;
 
     @Value("${app.jwt.refresh-token-expiration-ms}")
     private long refreshTokenExpirationMs;
@@ -215,7 +217,7 @@ public class AuthServiceImpl implements AuthService {
                 .refreshToken(rawRefreshToken)
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenExpirationMs() / 1000)
-                .user(UserResponse.fromEntity(user))
+                .user(mapperUtil.mapToUserResponse(user))
                 .build();
     }
 

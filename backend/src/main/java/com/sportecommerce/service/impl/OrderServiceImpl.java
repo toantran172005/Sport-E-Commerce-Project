@@ -3,14 +3,17 @@ package com.sportecommerce.service.impl;
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.request.OrderItemRequest;
 import com.sportecommerce.dto.request.PlaceOrderRequest;
+import com.sportecommerce.dto.request.UpdateOrderStatusRequest;
 import com.sportecommerce.dto.response.PlaceOrderResponse;
 import com.sportecommerce.entity.*;
-import com.sportecommerce.enums.OrderStatus;
+import com.sportecommerce.enums.*;
 import com.sportecommerce.event.OrderPlacedEvent;
+import com.sportecommerce.event.OrderStatusChangedEvent;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.BadRequestException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.*;
+import com.sportecommerce.service.CouponService;
 import com.sportecommerce.service.OrderService;
 import com.sportecommerce.service.ShipmentService;
 import com.sportecommerce.util.MapperUtil;
@@ -20,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +42,9 @@ public class OrderServiceImpl implements OrderService {
     private final MapperUtil mapperUtil;
     private final ShipmentService shipmentService;
     private final ApplicationEventPublisher eventPublisher;
+    private final ShippingIntegrationService shippingIntegrationService;
+    private final CouponService couponService;
+    private final ProductRepository productRepository;
 
     @Override
     @Transactional
@@ -92,6 +99,11 @@ public class OrderServiceImpl implements OrderService {
                     throw new BadRequestException("Sản phẩm " + variant.getSku() + " đã ngưng hoạt động!");
                 }
 
+                Product product = variant.getProduct();
+                if (product == null || product.getDeletedAt() != null || product.getStatus() != ProductStatus.ACTIVE) {
+                    throw new BadRequestException("Sản phẩm " + (product != null ? product.getName() : variant.getSku()) + " hiện không mở bán!");
+                }
+
                 double actualPrice = variant.getPrice();
                 if (variant.getSalePrice() != null && variant.getSalePrice() > 0) {
                     actualPrice = variant.getSalePrice();
@@ -129,6 +141,11 @@ public class OrderServiceImpl implements OrderService {
 
             if (!Boolean.TRUE.equals(variant.getIsActive())) {
                 throw new BadRequestException("Sản phẩm " + variant.getSku() + " đã ngưng hoạt động!");
+            }
+
+            Product product = variant.getProduct();
+            if (product == null || product.getDeletedAt() != null || product.getStatus() != ProductStatus.ACTIVE) {
+                throw new BadRequestException("Sản phẩm " + (product != null ? product.getName() : variant.getSku()) + " hiện không mở bán!");
             }
 
             double actualPrice = variant.getPrice();
@@ -179,57 +196,20 @@ public class OrderServiceImpl implements OrderService {
 
         // COUPON
         double discountAmount = 0.0;
+        Coupon coupon = null;
+
         if (request.getCouponId() != null) {
-            Coupon coupon = couponRepository
-                    .findById(request.getCouponId())
-                    .orElseThrow(() -> new BadRequestException("Mã giảm giá không hợp lệ!"));
+            Coupon foundCoupon = couponRepository.findById(request.getCouponId())
+                    .orElseThrow(() -> new BadRequestException("Mã giảm giá không tồn tại!"));
 
-            if (couponUsageRepository.existsByCouponIdAndUserId(coupon.getId(), userId)) {
-                throw new BadRequestException("Bạn đã sử dụng mã giảm giá này rồi!");
+            coupon = couponService.getValidCoupon(foundCoupon.getCode(), subTotal, userId);
+
+            if (coupon.getDiscountType() == DiscountType.FREE_SHIPPING) {
+                discountAmount = shipment.getShippingFee();
+            } else {
+                discountAmount = couponService.calculateDiscount(coupon, subTotal);
             }
 
-            if (!Boolean.TRUE.equals(coupon.getIsActive())) {
-                throw new BadRequestException("Mã giảm giá đã hết hạn sử dụng!");
-            }
-
-            if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-                throw new BadRequestException("Mã giảm giá đã hết lượt sử dụng!");
-            }
-
-            Instant now = Instant.now();
-            if (now.isBefore(coupon.getStartDate()) || now.isAfter(coupon.getEndDate())) {
-                throw new BadRequestException("Mã giảm giá không trong thời gian sử dụng!");
-            }
-
-            if (coupon.getMinOrderAmount() != null && subTotal < coupon.getMinOrderAmount()) {
-                throw new BadRequestException("Đơn hàng chưa đạt giá trị tối thiểu để dùng mã này!");
-            }
-
-            switch (coupon.getDiscountType()) {
-                case PERCENTAGE -> {
-                    discountAmount = (subTotal * coupon.getDiscountValue()) / 100.0;
-
-                    if (coupon.getMaxDiscountAmount() != null && discountAmount > coupon.getMaxDiscountAmount()) {
-                        discountAmount = coupon.getMaxDiscountAmount();
-                    }
-                }
-
-                case FIXED_AMOUNT -> discountAmount = Math.min(coupon.getDiscountValue(), subTotal);
-
-
-                case FREE_SHIPPING -> discountAmount = shipment.getShippingFee();
-            }
-            coupon.setUsedCount(coupon.getUsedCount() + 1);
-            couponRepository.save(coupon);
-
-            CouponUsage couponUsage = CouponUsage.builder()
-                    .coupon(coupon)
-                    .order(order)
-                    .user(user)
-                    .discountAmount(discountAmount)
-                    .build();
-
-            order.setCouponUsage(couponUsage);
             order.setCoupon(coupon);
         }
 
@@ -245,10 +225,243 @@ public class OrderServiceImpl implements OrderService {
 
         Order completedOrder = orderRepository.save(order);
 
+        if (coupon != null) {
+            couponService.recordUsage(coupon.getCode(), userId, completedOrder.getId(), discountAmount);
+        }
+
         // Bao cho staff biet co don hang moi can xu ly (module Notification).
         // Dung Spring Event de khong lam OrderServiceImpl phu thuoc truc tiep vao NotificationService.
         eventPublisher.publishEvent(new OrderPlacedEvent(completedOrder.getId(), completedOrder.getOrderCode(), userId));
 
         return ApiResponse.success("Đặt hàng thành công", mapperUtil.mapOrderToPlaceOrderResponse(completedOrder));
     }
+
+    @Override
+    @Transactional
+    public void confirmOrder(Long orderId) {
+        Order order = getOrderById(orderId);
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.setConfirmedAt(Instant.now());
+
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(order)
+                .status(OrderStatus.CONFIRMED)
+                .note("Xác nhận đơn hàng qua hệ thống thanh toán")
+                .changedBy(order.getUser())
+                .build();
+
+        order.getOrderStatusHistories().add(history);
+        orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Order getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với ID: " + orderId));
+    }
+    public ApiResponse<?> updateOrderStatus(Long userId, UpdateOrderStatusRequest request) {
+
+        Long orderId = request.getOrderId();
+        OrderStatus newStatus = request.getNewStatus();
+        String note = request.getNote();
+        String cancelledReason = request.getCancelledReason();
+
+        User user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mã nhân viên: " + userId));
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng mã: " + orderId));
+
+        if (user.getRole().equals(UserRole.CUSTOMER)) {
+            throw new BadRequestException("Khách hàng không được phép chỉnh sửa đơn hàng!");
+        }
+
+        OrderStatus currentStatus = order.getStatus();
+
+        if (currentStatus.equals(OrderStatus.PENDING) && newStatus.equals(OrderStatus.CONFIRMED)) {
+            Payment payment = order.getPayment();
+            if (!payment.getMethod().equals(PaymentMethod.COD) && !payment.getStatus().equals(PaymentStatus.PAID)) {
+                throw new BadRequestException("Vui lòng thanh toán đơn hàng trước khi cập nhật!");
+            }
+
+            order.setStatus(OrderStatus.CONFIRMED);
+            order.setConfirmedAt(Instant.now());
+
+            OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
+                    .status(OrderStatus.CONFIRMED)
+                    .changedBy(user)
+                    .order(order)
+                    .note(note)
+                    .build();
+
+            order.getOrderStatusHistories().add(orderStatusHistory);
+            orderRepository.save(order);
+
+        } else if (currentStatus.equals(OrderStatus.CONFIRMED) && newStatus.equals(OrderStatus.PROCESSING)) {
+            String trackingNumber = shippingIntegrationService.createShippingOrder(order);
+
+            Shipment shipment = order.getShipment();
+            shipment.setTrackingNumber(trackingNumber);
+
+            order.setStatus(OrderStatus.PROCESSING);
+
+            OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
+                    .status(OrderStatus.PROCESSING)
+                    .changedBy(user)
+                    .order(order)
+                    .note(note)
+                    .build();
+
+            order.getOrderStatusHistories().add(orderStatusHistory);
+            orderRepository.save(order);
+
+        } else if (currentStatus.equals(OrderStatus.PROCESSING) && newStatus.equals(OrderStatus.SHIPPED)) {
+            Shipment shipment = order.getShipment();
+
+            shipment.setStatus(ShipmentStatus.IN_TRANSIT);
+            shipment.setShippedAt(Instant.now());
+            order.setStatus(OrderStatus.SHIPPED);
+
+            OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
+                    .status(OrderStatus.SHIPPED)
+                    .changedBy(user)
+                    .order(order)
+                    .note(note)
+                    .build();
+
+            order.getOrderStatusHistories().add(orderStatusHistory);
+            orderRepository.save(order);
+
+        } else if (currentStatus.equals(OrderStatus.SHIPPED) && newStatus.equals(OrderStatus.DELIVERED)) {
+            Shipment shipment = order.getShipment();
+
+            shipment.setStatus(ShipmentStatus.DELIVERED);
+            shipment.setDeliveredAt(Instant.now());
+
+            Payment payment = order.getPayment();
+
+            if (payment.getMethod().equals(PaymentMethod.COD)) {
+                payment.setStatus(PaymentStatus.PAID);
+                payment.setPaidAt(Instant.now());
+            }
+
+            if (order.getOrderItems() != null) {
+                for (OrderItem item : order.getOrderItems()) {
+                    if (item.getVariant() != null && item.getVariant().getProduct() != null) {
+                        Product product = item.getVariant().getProduct();
+                        int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                        product.setSoldCount(currentSold + item.getQuantity());
+                        productRepository.save(product);
+                    }
+                }
+            }
+
+            order.setStatus(OrderStatus.DELIVERED);
+
+            OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
+                    .status(OrderStatus.DELIVERED)
+                    .changedBy(user)
+                    .order(order)
+                    .note(note)
+                    .build();
+
+            order.getOrderStatusHistories().add(orderStatusHistory);
+            orderRepository.save(order);
+
+        } else if ((currentStatus.equals(OrderStatus.PENDING) ||
+                currentStatus.equals(OrderStatus.CONFIRMED) ||
+                currentStatus.equals(OrderStatus.PROCESSING)) &&
+                newStatus.equals(OrderStatus.CANCELED)) {
+            List<OrderItem> orderItems = order.getOrderItems();
+
+            for (OrderItem orderItem : orderItems) {
+                ProductVariant variant = orderItem.getVariant();
+                variant.setStock(variant.getStock() + orderItem.getQuantity());
+            }
+
+            Coupon coupon = order.getCoupon();
+            if (coupon != null) {
+                coupon.setUsedCount(coupon.getUsedCount() - 1);
+                couponUsageRepository.deleteByOrder_Id(order.getId());
+            }
+
+            Payment payment = order.getPayment();
+            if (payment.getStatus().equals(PaymentStatus.PAID)) {
+                payment.setStatus(PaymentStatus.REFUND);
+            } else {
+                payment.setStatus(PaymentStatus.CANCELLED);
+            }
+
+            order.setStatus(OrderStatus.CANCELED);
+            order.setCanceledAt(Instant.now());
+            order.setCancelReason(cancelledReason);
+
+            OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
+                    .status(OrderStatus.CANCELED)
+                    .changedBy(user)
+                    .order(order)
+                    .note(cancelledReason)
+                    .build();
+
+            order.getOrderStatusHistories().add(orderStatusHistory);
+            orderRepository.save(order);
+
+        } else if (currentStatus.equals(OrderStatus.DELIVERED)
+                && newStatus.equals(OrderStatus.RETURNED)) {
+            Shipment shipment = order.getShipment();
+            Instant deliveredAt = shipment.getDeliveredAt();
+
+            if (deliveredAt != null &&
+                    Instant.now()
+                            .isAfter(order.getShipment().getDeliveredAt()
+                                    .plus(7, ChronoUnit.DAYS))) {
+                throw new BadRequestException("Đơn hàng đã quá hạn 7 ngày để hoàn trả!");
+            }
+
+            List<OrderItem> orderItems = order.getOrderItems();
+
+            for (OrderItem orderItem : orderItems) {
+                ProductVariant variant = orderItem.getVariant();
+                variant.setStock(variant.getStock() + orderItem.getQuantity());
+                
+                if (variant.getProduct() != null) {
+                    Product product = variant.getProduct();
+                    int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                    product.setSoldCount(Math.max(0, currentSold - orderItem.getQuantity()));
+                    productRepository.save(product);
+                }
+            }
+
+            Payment payment = order.getPayment();
+            if (payment.getStatus().equals(PaymentStatus.PAID)) {
+                payment.setStatus(PaymentStatus.REFUND);
+            }
+
+            OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
+                    .status(OrderStatus.RETURNED)
+                    .changedBy(user)
+                    .order(order)
+                    .note(note)
+                    .build();
+
+            order.setStatus(OrderStatus.RETURNED);
+            order.getOrderStatusHistories().add(orderStatusHistory);
+
+            orderRepository.save(order);
+
+        } else {
+            throw new BadRequestException("Không thể chuyển trạng thái đơn hàng từ " + currentStatus + " sang " + newStatus);
+        }
+
+        // Bao cho khach hang biet don hang cua ho vua doi trang thai (module Notification).
+        // currentStatus o day van la trang thai TRUOC khi doi (duoc doc o dau ham, truoc khi
+        // cac nhanh if/else-if ben tren goi order.setStatus(...)).
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getOrderCode(), order.getUser().getId(), currentStatus, newStatus));
+
+        return ApiResponse.success("Cập nhật trạng thái thành công!",
+                mapperUtil.mapOrderToPlaceOrderResponse(order));
+    }
+
 }

@@ -4,6 +4,7 @@ import com.sportecommerce.entity.Order;
 import com.sportecommerce.entity.Shipment;
 import com.sportecommerce.entity.ShippingProvider;
 import com.sportecommerce.entity.UserAddress;
+import com.sportecommerce.enums.PaymentStatus;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.ShippingProviderRepository;
@@ -24,7 +25,11 @@ public class ShipmentServiceImpl implements ShipmentService {
         ShippingProvider provider;
         // Lấy đơn vị vận chuyển bằng mã code
         if (providerCode != null && !providerCode.isBlank()) {
-            provider = shippingProviderRepository.findByCode(providerCode)
+            String code = providerCode.trim().toUpperCase();
+            if (code.equals("VTP") || code.equals("VTPOST")) {
+                throw new AppException("Tích hợp Viettel Post đang trong quá trình phát triển. Vui lòng chọn GHN hoặc GHTK!");
+            }
+            provider = shippingProviderRepository.findByCode(code)
                     .orElseThrow(()-> new ResourceNotFoundException("Đơn vị vận chuyển không hợp lệ: " + providerCode));
         } else {
             // Nếu không có mặc định chọn đơn vị vận chuyển đầu tiên
