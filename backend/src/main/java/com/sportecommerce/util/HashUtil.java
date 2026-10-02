@@ -20,7 +20,7 @@ public final class HashUtil {
             byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Thuat toan SHA-256 khong kha dung", e);
+            throw new IllegalStateException("Thuật toán SHA-256 không khả dụng", e);
         }
     }
 }

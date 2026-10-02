@@ -18,18 +18,18 @@ import lombok.Setter;
 public class ResetPasswordRequest {
 
     @NotBlank
-    @Email(message = "Email khong hop le")
+    @Email(message = "Email không hợp lệ")
     private String email;
 
     @NotBlank
-    @Pattern(regexp = "^[0-9]{4,8}$", message = "Ma OTP khong hop le")
+    @Pattern(regexp = "^[0-9]{4,8}$", message = "Mã OTP không hợp lệ")
     private String otp;
 
     @NotBlank
-    @Size(min = 8, max = 100, message = "Mat khau phai co it nhat 8 ky tu")
+    @Size(min = 8, max = 100, message = "Mật khẩu phải có ít nhất 8 ký tự")
     @Pattern(
             regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$",
-            message = "Mat khau phai chua ca chu va so"
+            message = "Mật khẩu phải chứa cả chữ và số"
     )
     private String newPassword;
 }

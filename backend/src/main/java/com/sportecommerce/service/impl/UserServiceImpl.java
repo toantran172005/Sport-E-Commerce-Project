@@ -64,7 +64,7 @@ public class UserServiceImpl implements UserService {
         User user = getUserOrThrow(userId);
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPasswordHash())) {
-            throw new AppException("Mat khau hien tai khong dung", HttpStatus.BAD_REQUEST);
+            throw new AppException("Mật khẩu hiện tại không đúng", HttpStatus.BAD_REQUEST);
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
@@ -76,10 +76,10 @@ public class UserServiceImpl implements UserService {
         User user = getUserOrThrow(userId);
 
         if (request.getNewEmail().equalsIgnoreCase(user.getEmail())) {
-            throw new AppException("Email moi phai khac email hien tai", HttpStatus.BAD_REQUEST);
+            throw new AppException("Email mới phải khác email hiện tại", HttpStatus.BAD_REQUEST);
         }
         if (userRepository.existsByEmail(request.getNewEmail())) {
-            throw new AppException("Email nay da duoc su dung boi tai khoan khac", HttpStatus.CONFLICT);
+            throw new AppException("Email này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
         // Gui OTP toi email MOI de xac nhan quyen so huu hop thu do truoc khi doi.
@@ -94,7 +94,7 @@ public class UserServiceImpl implements UserService {
         otpService.verify(request.getNewEmail(), OtpPurpose.CHANGE_EMAIL, request.getOtp());
 
         if (userRepository.existsByEmail(request.getNewEmail())) {
-            throw new AppException("Email nay da duoc su dung boi tai khoan khac", HttpStatus.CONFLICT);
+            throw new AppException("Email này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
         user.setEmail(request.getNewEmail());
@@ -108,10 +108,10 @@ public class UserServiceImpl implements UserService {
         User user = getUserOrThrow(userId);
 
         if (request.getNewPhoneNumber().equals(user.getPhoneNumber())) {
-            throw new AppException("So dien thoai moi phai khac so hien tai", HttpStatus.BAD_REQUEST);
+            throw new AppException("Số điện thoại mới phải khác số hiện tại", HttpStatus.BAD_REQUEST);
         }
         if (userRepository.existsByPhoneNumber(request.getNewPhoneNumber())) {
-            throw new AppException("So dien thoai nay da duoc su dung boi tai khoan khac", HttpStatus.CONFLICT);
+            throw new AppException("Số điện thoại này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
         // Chua tich hop SMS gateway: OTP xac nhan doi SDT duoc gui qua email da xac thuc cua chinh user.
@@ -126,7 +126,7 @@ public class UserServiceImpl implements UserService {
         otpService.verify(user.getEmail(), OtpPurpose.CHANGE_PHONE, request.getOtp());
 
         if (userRepository.existsByPhoneNumber(request.getNewPhoneNumber())) {
-            throw new AppException("So dien thoai nay da duoc su dung boi tai khoan khac", HttpStatus.CONFLICT);
+            throw new AppException("Số điện thoại này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
         user.setPhoneNumber(request.getNewPhoneNumber());
@@ -137,6 +137,6 @@ public class UserServiceImpl implements UserService {
 
     private User getUserOrThrow(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
     }
 }

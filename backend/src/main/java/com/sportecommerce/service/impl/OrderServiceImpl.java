@@ -7,6 +7,8 @@ import com.sportecommerce.dto.request.UpdateOrderStatusRequest;
 import com.sportecommerce.dto.response.PlaceOrderResponse;
 import com.sportecommerce.entity.*;
 import com.sportecommerce.enums.*;
+import com.sportecommerce.event.OrderPlacedEvent;
+import com.sportecommerce.event.OrderStatusChangedEvent;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.BadRequestException;
 import com.sportecommerce.exception.ResourceNotFoundException;
@@ -16,6 +18,7 @@ import com.sportecommerce.service.OrderService;
 import com.sportecommerce.service.ShipmentService;
 import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,7 @@ public class OrderServiceImpl implements OrderService {
     private final CouponUsageRepository couponUsageRepository;
     private final MapperUtil mapperUtil;
     private final ShipmentService shipmentService;
+    private final ApplicationEventPublisher eventPublisher;
     private final ShippingIntegrationService shippingIntegrationService;
     private final CouponService couponService;
     private final ProductRepository productRepository;
@@ -224,6 +228,10 @@ public class OrderServiceImpl implements OrderService {
         if (coupon != null) {
             couponService.recordUsage(coupon.getCode(), userId, completedOrder.getId(), discountAmount);
         }
+
+        // Bao cho staff biet co don hang moi can xu ly (module Notification).
+        // Dung Spring Event de khong lam OrderServiceImpl phu thuoc truc tiep vao NotificationService.
+        eventPublisher.publishEvent(new OrderPlacedEvent(completedOrder.getId(), completedOrder.getOrderCode(), userId));
 
         return ApiResponse.success("Đặt hàng thành công", mapperUtil.mapOrderToPlaceOrderResponse(completedOrder));
     }
@@ -445,6 +453,12 @@ public class OrderServiceImpl implements OrderService {
         } else {
             throw new BadRequestException("Không thể chuyển trạng thái đơn hàng từ " + currentStatus + " sang " + newStatus);
         }
+
+        // Bao cho khach hang biet don hang cua ho vua doi trang thai (module Notification).
+        // currentStatus o day van la trang thai TRUOC khi doi (duoc doc o dau ham, truoc khi
+        // cac nhanh if/else-if ben tren goi order.setStatus(...)).
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getOrderCode(), order.getUser().getId(), currentStatus, newStatus));
 
         return ApiResponse.success("Cập nhật trạng thái thành công!",
                 mapperUtil.mapOrderToPlaceOrderResponse(order));

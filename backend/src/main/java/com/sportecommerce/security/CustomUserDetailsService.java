@@ -17,14 +17,14 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmailAndDeletedAtIsNull(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung voi email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với email: " + email));
         return new UserPrincipal(user);
     }
 
     public UserDetails loadUserById(Long id) {
         User user = userRepository.findById(id)
                 .filter(u -> u.getDeletedAt() == null)
-                .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung voi id: " + id));
+                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng vơi id: " + id));
         return new UserPrincipal(user);
     }
 }
