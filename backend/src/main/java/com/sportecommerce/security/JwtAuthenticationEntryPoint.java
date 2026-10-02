@@ -29,7 +29,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(
                 objectMapper.writeValueAsString(
-                        ApiResponse.error("Xac thuc that bai hoac phien dang nhap da het han")
+                        ApiResponse.error("Xác thực thất bại hoặc phiên đăng nhập đã hết hạn")
                 )
         );
     }

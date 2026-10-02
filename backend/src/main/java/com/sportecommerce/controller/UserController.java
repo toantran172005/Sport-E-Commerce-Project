@@ -37,7 +37,7 @@ public class UserController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateProfileRequest request
     ) {
-        return ApiResponse.success("Cap nhat ho so thanh cong", userService.updateProfile(principal.getId(), request));
+        return ApiResponse.success("Cập nhật hồ sơ thành công", userService.updateProfile(principal.getId(), request));
     }
 
     @PostMapping("/change-password")
@@ -46,7 +46,7 @@ public class UserController {
             @Valid @RequestBody ChangePasswordRequest request
     ) {
         userService.changePassword(principal.getId(), request);
-        return ApiResponse.success("Doi mat khau thanh cong", null);
+        return ApiResponse.success("Đổi mật khẩu thành công", null);
     }
 
     @PostMapping("/change-email/request")
@@ -55,7 +55,7 @@ public class UserController {
             @Valid @RequestBody ChangeEmailRequest request
     ) {
         userService.requestChangeEmail(principal.getId(), request);
-        return ApiResponse.success("Da gui ma OTP toi email moi", null);
+        return ApiResponse.success("Đã gửi mã OTP tới email mới", null);
     }
 
     @PostMapping("/change-email/confirm")
@@ -63,7 +63,7 @@ public class UserController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody ConfirmChangeEmailRequest request
     ) {
-        return ApiResponse.success("Doi email thanh cong", userService.confirmChangeEmail(principal.getId(), request));
+        return ApiResponse.success("Đổi email thành công", userService.confirmChangeEmail(principal.getId(), request));
     }
 
     @PostMapping("/change-phone/request")
@@ -72,7 +72,7 @@ public class UserController {
             @Valid @RequestBody ChangePhoneRequest request
     ) {
         userService.requestChangePhone(principal.getId(), request);
-        return ApiResponse.success("Da gui ma OTP xac nhan toi email cua ban", null);
+        return ApiResponse.success("Đã gửi mã OTP xác nhận tới email của bạn", null);
     }
 
     @PostMapping("/change-phone/confirm")
@@ -80,6 +80,6 @@ public class UserController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody ConfirmChangePhoneRequest request
     ) {
-        return ApiResponse.success("Doi so dien thoai thanh cong", userService.confirmChangePhone(principal.getId(), request));
+        return ApiResponse.success("Đổi số điện thoại thành công", userService.confirmChangePhone(principal.getId(), request));
     }
 }

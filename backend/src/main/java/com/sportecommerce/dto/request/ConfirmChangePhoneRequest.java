@@ -16,10 +16,10 @@ import lombok.Setter;
 public class ConfirmChangePhoneRequest {
 
     @NotBlank
-    @Pattern(regexp = "^[0-9]{9,15}$", message = "So dien thoai khong hop le")
+    @Pattern(regexp = "^[0-9]{9,15}$", message = "Số điện thoại không hợp lệ")
     private String newPhoneNumber;
 
     @NotBlank
-    @Pattern(regexp = "^[0-9]{4,8}$", message = "Ma OTP khong hop le")
+    @Pattern(regexp = "^[0-9]{4,8}$", message = "Mã OTP không hợp lệ")
     private String otp;
 }

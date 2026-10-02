@@ -16,6 +16,6 @@ import lombok.Setter;
 public class ChangeEmailRequest {
 
     @NotBlank
-    @Email(message = "Email moi khong hop le")
+    @Email(message = "Email mới không hợp lệ")
     private String newEmail;
 }

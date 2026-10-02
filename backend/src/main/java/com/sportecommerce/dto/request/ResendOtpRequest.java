@@ -18,9 +18,9 @@ import lombok.Setter;
 public class ResendOtpRequest {
 
     @NotBlank
-    @Email(message = "Email khong hop le")
+    @Email(message = "Email không hợp lệ")
     private String email;
 
-    @NotNull(message = "Muc dich xac thuc OTP khong duoc de trong")
+    @NotNull(message = "Mục đích xác thực OTP không được để trống")
     private OtpPurpose purpose;
 }

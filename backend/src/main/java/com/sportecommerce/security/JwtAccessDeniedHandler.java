@@ -29,7 +29,7 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(
                 objectMapper.writeValueAsString(
-                        ApiResponse.error("Ban khong co quyen thuc hien thao tac nay")
+                        ApiResponse.error("Bạn không có quyền thực hiện thao tác này")
                 )
         );
     }

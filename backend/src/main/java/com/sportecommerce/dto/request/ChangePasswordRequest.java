@@ -16,14 +16,14 @@ import lombok.Setter;
 @Builder
 public class ChangePasswordRequest {
 
-    @NotBlank(message = "Mat khau hien tai khong duoc de trong")
+    @NotBlank(message = "Mật khẩu hiện tại không được để trống")
     private String oldPassword;
 
     @NotBlank
-    @Size(min = 8, max = 100, message = "Mat khau phai co it nhat 8 ky tu")
+    @Size(min = 8, max = 100, message = "Mật khẩu phải có ít nhất 8 kí tự")
     @Pattern(
             regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$",
-            message = "Mat khau phai chua ca chu va so"
+            message = "Mật khẩu phải chứa cả chữ và số"
     )
     private String newPassword;
 }

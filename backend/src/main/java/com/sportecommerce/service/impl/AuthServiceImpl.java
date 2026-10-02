@@ -51,11 +51,11 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new AppException("Email nay da duoc dang ky", HttpStatus.CONFLICT);
+            throw new AppException("Email này đã được đăng ký", HttpStatus.CONFLICT);
         }
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()
                 && userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
-            throw new AppException("So dien thoai nay da duoc su dung", HttpStatus.CONFLICT);
+            throw new AppException("Số điện thoại này đã được sử dụng", HttpStatus.CONFLICT);
         }
 
         User user = User.builder()
@@ -76,7 +76,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse verifyRegisterOtp(VerifyOtpRequest request) {
         if (request.getPurpose() != OtpPurpose.REGISTER) {
-            throw new AppException("Muc dich OTP khong hop le cho thao tac nay", HttpStatus.BAD_REQUEST);
+            throw new AppException("Mục đích OTP không hợp lệ cho thao tác này", HttpStatus.BAD_REQUEST);
         }
 
         User user = findActivatableUserByEmail(request.getEmail());
@@ -102,20 +102,20 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
-                .orElseThrow(() -> new AppException("Email hoac mat khau khong dung", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new AppException("Email hoặc mật khẩu không đúng", HttpStatus.UNAUTHORIZED));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new AppException("Email hoac mat khau khong dung", HttpStatus.UNAUTHORIZED);
+            throw new AppException("Email hoặc mật khẩu không đúng", HttpStatus.UNAUTHORIZED);
         }
 
         if (user.getStatus() == UserStatus.PENDING) {
-            throw new AppException("Tai khoan chua duoc xac thuc email, vui long xac thuc OTP truoc khi dang nhap", HttpStatus.FORBIDDEN);
+            throw new AppException("Tài khoản chưa được xác thực email, vui lòng xác thực OTP trước khi đăng nhập", HttpStatus.FORBIDDEN);
         }
         if (user.getStatus() == UserStatus.LOCKED) {
-            throw new AppException("Tai khoan da bi khoa, vui long lien he ho tro", HttpStatus.FORBIDDEN);
+            throw new AppException("Tài khoản đã bị khóa, vui lòng liên hệ hỗ trợ", HttpStatus.FORBIDDEN);
         }
         if (user.getStatus() == UserStatus.DELETED) {
-            throw new AppException("Tai khoan khong con hoat dong", HttpStatus.FORBIDDEN);
+            throw new AppException("Tài khoản không còn hoạt động", HttpStatus.FORBIDDEN);
         }
 
         user.setLastLoginAt(OffsetDateTime.now());
@@ -130,13 +130,13 @@ public class AuthServiceImpl implements AuthService {
         String tokenHash = HashUtil.sha256(rawRefreshToken);
 
         RefreshToken storedToken = refreshTokenRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> new AppException("Refresh token khong hop le", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new AppException("Refresh token không hợp lệ", HttpStatus.UNAUTHORIZED));
 
         if (storedToken.getRevokedAt() != null) {
-            throw new AppException("Refresh token da bi thu hoi, vui long dang nhap lai", HttpStatus.UNAUTHORIZED);
+            throw new AppException("Refresh token đã bị thu hồi, vui lòng đăng nhập lại", HttpStatus.UNAUTHORIZED);
         }
         if (storedToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            throw new AppException("Refresh token da het han, vui long dang nhap lai", HttpStatus.UNAUTHORIZED);
+            throw new AppException("Refresh token đã hết hạn, vui lòng đăng nhập lại", HttpStatus.UNAUTHORIZED);
         }
 
         User user = storedToken.getUser();
@@ -162,7 +162,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void logoutAll(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException("Khong tim thay nguoi dung", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new AppException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         List<RefreshToken> activeTokens = refreshTokenRepository.findAllByUserAndRevokedAtIsNull(user);
         OffsetDateTime now = OffsetDateTime.now();
@@ -181,7 +181,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
-                .orElseThrow(() -> new AppException("Yeu cau khong hop le", HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> new AppException("Yêu cầu không hợp lệ", HttpStatus.BAD_REQUEST));
 
         otpService.verify(request.getEmail(), OtpPurpose.RESET_PASSWORD, request.getOtp());
 
@@ -193,16 +193,16 @@ public class AuthServiceImpl implements AuthService {
 
     private User findActivatableUserByEmail(String email) {
         User user = userRepository.findByEmailAndDeletedAtIsNull(email)
-                .orElseThrow(() -> new AppException("Khong tim thay tai khoan voi email nay", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new AppException("Không tìm thấy tài khoản với email này", HttpStatus.NOT_FOUND));
 
         if (user.getStatus() != UserStatus.PENDING) {
-            throw new AppException("Tai khoan da duoc xac thuc truoc do", HttpStatus.BAD_REQUEST);
+            throw new AppException("Tài khoản đã được xác thực trước đó", HttpStatus.BAD_REQUEST);
         }
         return user;
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name(), user.getFullName());
         String rawRefreshToken = OtpGenerator.generateOpaqueToken();
 
         RefreshToken refreshToken = RefreshToken.builder()

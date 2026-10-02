@@ -44,16 +44,16 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(message);
         } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("Gui email OTP that bai toi {}: {}", toEmail, e.getMessage());
-            throw new IllegalStateException("Khong the gui email OTP, vui long thu lai sau", e);
+            throw new IllegalStateException("Không thể gửi email OTP, vui lòng thử lại sau.", e);
         }
     }
 
     private String subjectFor(OtpPurpose purpose) {
         return switch (purpose) {
-            case REGISTER -> "Xac nhan dang ky tai khoan - Sport E-Commerce";
-            case RESET_PASSWORD -> "Ma OTP khoi phuc mat khau - Sport E-Commerce";
-            case CHANGE_EMAIL -> "Xac nhan doi email - Sport E-Commerce";
-            case CHANGE_PHONE -> "Xac nhan doi so dien thoai - Sport E-Commerce";
+            case REGISTER -> "Xác nhận đăng ký tài khoản - Ways Sport";
+            case RESET_PASSWORD -> "Mã OTP khôi phục mật khẩu - Ways Sport";
+            case CHANGE_EMAIL -> "Xác nhận đổi email - Ways Sport";
+            case CHANGE_PHONE -> "Xác nhận đổi số điện thoại - Ways Sport";
         };
     }
 
@@ -63,8 +63,8 @@ public class EmailServiceImpl implements EmailService {
                     <h2 style="color:#1a73e8;">Sport E-Commerce</h2>
                     <p>Ma xac thuc (OTP) cua ban la:</p>
                     <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #111;">%s</p>
-                    <p>Ma nay se het han sau 2 phut. Vui long khong chia se ma nay cho bat ky ai.</p>
-                    <p style="color:#888; font-size: 12px;">Neu ban khong thuc hien yeu cau nay, vui long bo qua email nay.</p>
+                    <p>Mã này sẽ hết hạn sau 15 phút. Vui lòng không chia sẻ mã này với bất kì ai!.</p>
+                    <p style="color:#888; font-size: 12px;">Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
                 </div>
                 """.formatted(otp);
     }
