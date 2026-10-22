@@ -56,10 +56,11 @@ public class ProductController {
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<ProductSummaryResponse> response =
-                productService.getAll(status, categoryId, brandId, keyword, pageable);
+                productService.getAll(status, categoryId, brandId, tagId, keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách sản phẩm thành công", response));
     }
 
