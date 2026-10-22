@@ -157,12 +157,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ProductSummaryResponse> getAll(
-            ProductStatus status, Long categoryId, Long brandId, String keyword, Pageable pageable) {
+            ProductStatus status, Long categoryId, Long brandId, Long tagId, String keyword, Pageable pageable) {
 
         ProductStatus effectiveStatus = status != null ? status : ProductStatus.ACTIVE;
 
         Page<Product> page = productRepository.findAll(
-                ProductSpecification.filterBy(effectiveStatus, categoryId, brandId, keyword), pageable);
+                ProductSpecification.filterBy(effectiveStatus, categoryId, brandId, tagId, keyword), pageable);
 
         List<ProductSummaryResponse> content = page.getContent().stream()
                 .map(mapperUtil::mapToProductSummaryResponse)

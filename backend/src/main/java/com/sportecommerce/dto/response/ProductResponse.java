@@ -29,5 +29,7 @@ public class ProductResponse {
     private Integer soldCount;
     private List<ProductVariantResponse> variants;
     private List<ProductImageResponse> images;
+    private List<ProductAttributeResponse> attributes;
+    private List<TagResponse> tags;
     private Instant createdAt;
 }

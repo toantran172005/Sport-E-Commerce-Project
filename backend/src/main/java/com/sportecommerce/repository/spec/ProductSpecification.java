@@ -2,6 +2,7 @@ package com.sportecommerce.repository.spec;
 
 import com.sportecommerce.entity.Product;
 import com.sportecommerce.enums.ProductStatus;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -13,7 +14,7 @@ public class ProductSpecification {
     public ProductSpecification() {
     }
 
-    public static Specification<Product> filterBy(ProductStatus status, Long categoryId, Long brandId, String keyword){
+    public static Specification<Product> filterBy(ProductStatus status, Long categoryId, Long brandId, Long tagId, String keyword){
         return (root, query, cb) -> {
             if(query.getResultType() != Long.class){
                 root.fetch("category", JoinType.LEFT);
@@ -34,6 +35,11 @@ public class ProductSpecification {
 
             if(brandId != null){
                 predicates.add(cb.equal(root.get("brand").get("id"), brandId));
+            }
+
+            if (tagId != null) {
+                Join<Object, Object> productTags = root.join("productTags", JoinType.INNER);
+                predicates.add(cb.equal(productTags.get("tag").get("id"), tagId));
             }
 
             if(keyword != null && !keyword.isBlank()){
