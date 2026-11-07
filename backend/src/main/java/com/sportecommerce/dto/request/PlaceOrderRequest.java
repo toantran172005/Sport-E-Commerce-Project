@@ -13,6 +13,8 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class PlaceOrderRequest {
+    private Long userId;
+
     @NotNull(message = "Vui lòng chọn địa chỉ giao hàng")
     private Long shippingAddressId;
 

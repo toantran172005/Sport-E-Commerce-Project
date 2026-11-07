@@ -14,7 +14,6 @@ export function usePersistentState(key, initialValue) {
         return JSON.parse(saved);
       }
     } catch {
-      // ignore JSON or security errors
     }
     return typeof initialValue === 'function' ? initialValue() : initialValue;
   });
@@ -27,7 +26,6 @@ export function usePersistentState(key, initialValue) {
         localStorage.setItem(key, JSON.stringify(state));
       }
     } catch {
-      // ignore storage quota / private browsing errors
     }
   }, [key, state]);
 

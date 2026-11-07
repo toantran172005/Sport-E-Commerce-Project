@@ -26,7 +26,7 @@ export default function AdminProductsPage() {
     deleteBrand,
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState('products'); // 'products' | 'categories' | 'brands'
+  const [activeTab, setActiveTab] = useState('products');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [brandFilter, setBrandFilter] = useState('ALL');

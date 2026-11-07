@@ -36,7 +36,6 @@ export default function CategoriesDropdown() {
   const currentCategory =
     categoriesList.find((c) => c.id === activeCatId) || categoriesList[0] || {};
 
-  // Lấy 4 sản phẩm tiêu biểu thuộc danh mục này
   const categoryProducts = products
     .filter((p) => p.categoryId === currentCategory.id)
     .slice(0, 4);

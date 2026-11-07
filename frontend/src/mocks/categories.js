@@ -1,4 +1,3 @@
-// Dữ liệu Mock tĩnh bám sát Entity Java (6 danh mục phẳng theo loại sản phẩm)
 export const categories = [
   {
     id: 1,

@@ -38,7 +38,6 @@ export default function AdminDashboardPage() {
     return { total, positive, negative, posPercent, negPercent };
   }, [reviews]);
 
-  // Calculations
   const totalRevenue = useMemo(() => {
     return orders
       .filter((o) => o.status !== 'CANCELED')

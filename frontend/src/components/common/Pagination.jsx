@@ -1,10 +1,10 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Pagination({
   page = 0,
   totalPages = 1,
   onPageChange,
-  className = '',
+  className = "",
 }) {
   if (totalPages <= 1) return null;
 
@@ -18,8 +18,8 @@ export default function Pagination({
       (i >= activePage - 1 && i <= activePage + 1)
     ) {
       pages.push(i);
-    } else if (pages[pages.length - 1] !== '...') {
-      pages.push('...');
+    } else if (pages[pages.length - 1] !== "...") {
+      pages.push("...");
     }
   }
 
@@ -38,7 +38,7 @@ export default function Pagination({
 
       {/* Page Numbers (0-based internally, display p + 1) */}
       {pages.map((p, idx) =>
-        p === '...' ? (
+        p === "..." ? (
           <span key={`dots-${idx}`} className="px-2 text-xs text-ink-subtle">
             ...
           </span>
@@ -47,15 +47,15 @@ export default function Pagination({
             key={`page-${p}`}
             type="button"
             onClick={() => onPageChange(p)}
-            className={`h-8 min-w-[32px] px-2.5 rounded-md text-[13px] font-bold transition cursor-pointer ${
+            className={`h-8 min-w-8 px-2.5 rounded-md text-[13px] font-bold transition cursor-pointer ${
               p === activePage
-                ? 'bg-accent text-white shadow-xs'
-                : 'border border-line bg-surface text-ink hover:bg-surface-2'
+                ? "bg-accent text-white shadow-xs"
+                : "border border-line bg-surface text-ink hover:bg-surface-2"
             }`}
           >
             {p + 1}
           </button>
-        )
+        ),
       )}
 
       {/* Next Button */}

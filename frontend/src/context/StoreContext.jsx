@@ -29,34 +29,24 @@ export function useStore() {
   const cart = useCart();
 
   return {
-    // Theme Domain
     ...theme,
 
-    // UI & Modal/Toast Domain
     ...ui,
 
-    // Auth & Identity Domain
     ...auth,
 
-    // Catalog & Products/Reviews/Coupons Domain
     ...catalog,
 
-    // Customer CRM Domain
     ...customer,
 
-    // Wishlist Domain
     ...wishlist,
 
-    // Notification Domain
     ...notification,
 
-    // Address Book Domain
     ...address,
 
-    // Order Management Domain
     ...order,
 
-    // Cart & Checkout Domain
     ...cart,
   };
 }
@@ -66,7 +56,6 @@ export function useStore() {
  */
 export const StoreProvider = AppProviders;
 
-// Re-export individual domain hooks and providers for clean modular consumption
 export { useTheme, ThemeProvider } from './ThemeContext.jsx';
 export { useUI, UIProvider } from './UIContext.jsx';
 export { useAuth, AuthProvider } from './AuthContext.jsx';

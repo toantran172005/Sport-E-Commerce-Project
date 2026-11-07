@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
-import ProductCard from '../../components/common/ProductCard.jsx';
-import EmptyState from '../../components/common/EmptyState.jsx';
-import { useStore } from '../../context/StoreContext.jsx';
+import { Link } from "react-router-dom";
+import { Heart } from "lucide-react";
+import { ProductCard } from "../../components/product";
+import { EmptyState } from "../../components/common";
+import { useStore } from "../../context/StoreContext.jsx";
 
 export default function WishlistPage() {
   const { products, wishlistIds } = useStore();
@@ -10,7 +10,7 @@ export default function WishlistPage() {
   const wishlistProducts = products.filter((p) => wishlistIds.includes(p.id));
 
   return (
-    <div className="max-w-[1360px] w-full mx-auto px-4 md:px-6 py-6 space-y-6 text-ink">
+    <div className="max-w-340 w-full mx-auto px-4 md:px-6 py-6 space-y-6 text-ink">
       {/* Breadcrumb */}
       <div className="text-[12.5px] text-ink-muted flex items-center gap-1.5">
         <Link to="/" className="hover:text-accent transition">

@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error('useAuth phải được sử dụng bên trong AuthProvider');
   }
   return ctx;
 }

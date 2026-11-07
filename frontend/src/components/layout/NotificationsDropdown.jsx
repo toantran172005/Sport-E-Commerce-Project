@@ -20,7 +20,6 @@ export default function NotificationsDropdown() {
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Close modal on Escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -35,7 +34,6 @@ export default function NotificationsDropdown() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isDetailOpen, isNotificationsOpen, setIsNotificationsOpen]);
 
-  // Lock body scroll when detail modal is open
   useEffect(() => {
     if (!isDetailOpen) return undefined;
     const originalStyle = document.body.style.overflow;
@@ -92,10 +90,8 @@ export default function NotificationsDropdown() {
   };
 
   const handleItemClick = (item) => {
-    // Đánh dấu đã đọc thông báo này
     markNotificationAsRead(item.id);
     setSelectedNotification({ ...item, isRead: true });
-    // Đóng dropdown popover và mở modal chi tiết (tuyệt đối không điều hướng)
     setIsNotificationsOpen(false);
     setIsDetailOpen(true);
   };

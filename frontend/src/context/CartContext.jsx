@@ -1,36 +1,38 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { products as mockProducts } from '../mocks/products.js';
 import { useUI } from './UIContext.jsx';
 
 const CartContext = createContext(null);
 
-const DEFAULT_CART_ITEMS = () => {
-  const p1 = mockProducts[0];
-  const p2 = mockProducts[1];
+export const DEFAULT_CART_ITEMS = () => {
+  const p1 = mockProducts[0] || {};
+  const v1 = p1.variants?.find((v) => v.id === 11) || p1.variants?.[0];
+  const v2 = p1.variants?.find((v) => v.id === 10) || p1.variants?.[1] || p1.variants?.[0];
+
   return [
     {
-      productId: p1.id,
-      variantId: p1.variants[0]?.id || 1,
-      name: p1.name,
-      variant: `${p1.variants[0]?.size} • ${p1.variants[0]?.color}`,
-      price: p1.variants[0]?.salePrice || p1.variants[0]?.price || p1.basePrice,
-      originalPrice: p1.variants[0]?.price || p1.basePrice,
+      productId: p1.id || 1,
+      variantId: 11,
+      name: "Giày Chạy Bộ Nike Air Zoom Pegasus 40",
+      variant: `${v1?.size || 'Size 42'} • ${v1?.color || 'Xanh Dương'}`,
+      price: 890000,
+      originalPrice: 890000,
       quantity: 1,
-      imageUrl: p1.images[0]?.imageUrl,
-      stock: p1.variants[0]?.stock || 20,
+      imageUrl: v1?.imageUrl || p1.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800",
+      stock: 50,
     },
     {
-      productId: p2.id,
-      variantId: p2.variants[0]?.id || 2,
-      name: p2.name,
-      variant: `${p2.variants[0]?.size} • ${p2.variants[0]?.color}`,
-      price: p2.variants[0]?.salePrice || p2.variants[0]?.price || p2.basePrice,
-      originalPrice: p2.variants[0]?.price || p2.basePrice,
+      productId: p1.id || 1,
+      variantId: 10,
+      name: "Vợt Cầu Lông Yonex Astrox (DB chỉ còn 3 cái - Tăng lên để test lỗi)",
+      variant: `${v2?.size || 'Size Chuẩn'} • ${v2?.color || 'Vàng Chanh'}`,
+      price: 3890000,
+      originalPrice: 3890000,
       quantity: 1,
-      imageUrl: p2.images[0]?.imageUrl,
-      stock: p2.variants[0]?.stock || 15,
+      imageUrl: v2?.imageUrl || p1.images?.[1]?.imageUrl || p1.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800",
+      stock: 20,
     },
   ];
 };
@@ -41,9 +43,23 @@ export function CartProvider({ children }) {
   const [cart, setCart] = usePersistentState('sport_cart', DEFAULT_CART_ITEMS);
   const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState('sport_selected_cart', [
     '1_11',
-    '2_21',
+    '1_10',
   ]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+
+  // Tự động đồng bộ giỏ hàng sang 2 sản phẩm test DB nếu giỏ hàng hiện tại chứa dữ liệu mock cũ
+  useEffect(() => {
+    const hasTestItems = cart && cart.some((item) => item.variantId === 11 || item.variantId === 10);
+    if (!hasTestItems || !cart || cart.length === 0) {
+      const defaultItems = DEFAULT_CART_ITEMS();
+      setCart(defaultItems);
+      setSelectedCartItemKeys(['1_11', '1_10']);
+    } else if (cart.some((it) => it.variantId === 10 && it.stock < 20)) {
+      setCart((prev) =>
+        prev.map((it) => (it.variantId === 10 ? { ...it, stock: 20 } : it))
+      );
+    }
+  }, [cart, setCart, setSelectedCartItemKeys]);
 
   const getCartItemKey = useCallback((item) => `${item.productId}_${item.variantId || 'def'}`, []);
 
@@ -67,8 +83,14 @@ export function CartProvider({ children }) {
   const removeSelectedCartItems = useCallback(() => {
     setCart((prev) => prev.filter((item) => !selectedCartItemKeys.includes(getCartItemKey(item))));
     setSelectedCartItemKeys([]);
-    showToast('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng');
   }, [getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys, showToast]);
+
+  const resetTestCart = useCallback(() => {
+    const defaultItems = DEFAULT_CART_ITEMS();
+    setCart(defaultItems);
+    setSelectedCartItemKeys(['1_11', '1_10']);
+    showToast('Đã khôi phục giỏ hàng về 2 sản phẩm Test DB');
+  }, [setCart, setSelectedCartItemKeys, showToast]);
 
   const addToCart = useCallback(
     (product, quantity = 1, customVariant = null) => {
@@ -125,7 +147,7 @@ export function CartProvider({ children }) {
           if (!isMatch) return item;
           const newQty = item.quantity + delta;
           const maxStock = item.stock ?? 99;
-          return { ...item, quantity: Math.max(1, Math.min(newQty, maxStock)) };
+          return { ...item, quantity: Math.max(1, newQty) };
         })
       );
     },
@@ -140,14 +162,12 @@ export function CartProvider({ children }) {
           return item.productId !== productId;
         })
       );
-      showToast('Đã xóa sản phẩm khỏi giỏ hàng');
     },
     [setCart, showToast]
   );
 
   const clearCart = useCallback(() => setCart([]), [setCart]);
 
-  // Derived Calculations
   const cartItemCount = cart.length;
   const cartTotalUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const cartSubtotal = useMemo(
@@ -185,6 +205,7 @@ export function CartProvider({ children }) {
       selectAllCartItems,
       deselectAllCartItems,
       removeSelectedCartItems,
+      resetTestCart,
       addToCart,
       updateCartQuantity,
       removeFromCart,
@@ -208,6 +229,7 @@ export function CartProvider({ children }) {
       selectAllCartItems,
       deselectAllCartItems,
       removeSelectedCartItems,
+      resetTestCart,
       addToCart,
       updateCartQuantity,
       removeFromCart,
@@ -223,7 +245,7 @@ export function CartProvider({ children }) {
 export function useCart() {
   const ctx = useContext(CartContext);
   if (!ctx) {
-    throw new Error('useCart must be used within CartProvider');
+    throw new Error('useCart phải được sử dụng bên trong CartProvider');
   }
   return ctx;
 }

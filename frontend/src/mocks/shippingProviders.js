@@ -1,4 +1,3 @@
-// Dữ liệu Mock tĩnh bám sát Entity Java (Chỉ tích hợp GHN và GHTK theo cấu hình hệ thống)
 export const shippingProviders = [
   {
     id: 1,

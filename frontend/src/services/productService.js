@@ -5,7 +5,6 @@ import { categories } from '../mocks/categories.js';
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 const fakeDelay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Local state for mutations in mock mode
 let mockProducts = [...initialProducts];
 
 export const productService = {
@@ -72,7 +71,6 @@ export const productService = {
         filtered = filtered.filter((p) => p.tagIds?.includes(Number(tagId)));
       }
 
-      // Sắp xếp
       switch (sort) {
         case 'price_asc':
           filtered.sort((a, b) => (a.salePrice || a.basePrice) - (b.salePrice || b.basePrice));
@@ -102,7 +100,6 @@ export const productService = {
       const start = pageNumber * pageSize;
       const items = filtered.slice(start, start + pageSize);
 
-      // Đính kèm brand & category cho tiện UI
       const enrichedItems = items.map((item) => ({
         ...item,
         brand: brands.find((b) => b.id === item.brandId),
@@ -126,7 +123,6 @@ export const productService = {
       };
     }
 
-    // Khi chuyển sang API thật
     const { default: axiosClient } = await import('../api/axiosClient.js');
     return axiosClient.get('/products', { params });
   },

@@ -53,7 +53,6 @@ export default function LoginPage() {
     executeLogin(email, password);
   };
 
-  // 1-Click Role Logins
   const handleLoginAsCustomer = () => {
     setEmail('toan.tran@gmail.com');
     setPassword('123456');

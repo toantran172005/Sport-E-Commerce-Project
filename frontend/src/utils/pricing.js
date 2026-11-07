@@ -13,7 +13,6 @@
 export function calculateDiscount(coupon, subtotal = 0, shippingFee = 0) {
   if (!coupon || subtotal <= 0) return 0;
 
-  // Minimum order amount check
   const minAmount = coupon.minOrderAmount ?? 0;
   if (subtotal < minAmount) return 0;
 
@@ -30,7 +29,6 @@ export function calculateDiscount(coupon, subtotal = 0, shippingFee = 0) {
     return shippingFee;
   }
 
-  // FIXED_AMOUNT
   const fixed = coupon.discountValue ?? coupon.discount ?? 0;
   return Math.min(subtotal, fixed);
 }

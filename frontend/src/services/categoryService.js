@@ -7,7 +7,6 @@ export const categoryService = {
   async getCategories() {
     if (USE_MOCK) {
       await fakeDelay();
-      // Xây dựng cây danh mục cha con
       const parentCategories = initialCategories.filter((c) => !c.parentId);
       return parentCategories.map((parent) => ({
         ...parent,

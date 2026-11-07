@@ -7,9 +7,8 @@ import {
   Star,
   Check,
 } from 'lucide-react';
-import ProductCard from '../../components/common/ProductCard.jsx';
-import EmptyState from '../../components/common/EmptyState.jsx';
-import Pagination from '../../components/common/Pagination.jsx';
+import { ProductCard } from '../../components/product';
+import { EmptyState, Pagination } from '../../components/common';
 import { ProductCardSkeleton } from '../../components/common/Skeleton.jsx';
 import { productService } from '../../services/productService.js';
 import { useStore } from '../../context/StoreContext.jsx';
@@ -36,7 +35,6 @@ export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [, startTransition] = useTransition();
 
-  // Params from URL
   const query = searchParams.get('q') || '';
   const categoryIdParam = searchParams.get('categoryId') || '';
   const brandIdParam = searchParams.get('brandId') || '';
@@ -47,7 +45,6 @@ export default function CatalogPage() {
   const sortParam = searchParams.get('sort') || 'popular';
   const pageParam = Number(searchParams.get('page')) || 0;
 
-  // Local state for products response
   const [productsData, setProductsData] = useState({
     items: [],
     content: [],
@@ -62,7 +59,6 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  // Fetch products based on search params
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -106,7 +102,6 @@ export default function CatalogPage() {
     pageParam,
   ]);
 
-  // Update query params helper
   const updateParam = (key, value) => {
     startTransition(() => {
       setSearchParams((prev) => {
@@ -117,7 +112,7 @@ export default function CatalogPage() {
           next.set(key, String(value));
         }
         if (key !== 'page') {
-          next.delete('page'); // Reset to page 1 on filter change
+          next.delete('page');
         }
         return next;
       });
@@ -144,7 +139,6 @@ export default function CatalogPage() {
     });
   };
 
-  // Sidebar Filter Content component (reusable for Desktop and Mobile Drawer)
   const FilterContent = (
     <div className="space-y-6">
       <div className="flex items-center justify-between pb-3 border-b border-line">

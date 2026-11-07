@@ -1,41 +1,174 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import {
-  Package,
-  Truck,
-  MapPin,
-  Copy,
-  ArrowLeft,
-} from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
-import { orderService } from '../../services/orderService.js';
-import { formatCurrency } from '../../utils/formatters.js';
+import { useState, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { Package, Truck, MapPin, Copy, ArrowLeft } from "lucide-react";
+import { useStore } from "../../context/StoreContext.jsx";
+import { orderService } from "../../services/orderService.js";
+import { formatCurrency, formatDateTime } from "../../utils/formatters.js";
+import { OrderStatusBadge, OrderTimeline } from "../../components/order";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
-  const { openModal, showToast, addToCart } = useStore();
+  const { orders, openModal, showToast, addToCart, showErrorModal } = useStore();
   const navigate = useNavigate();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to normalize items from either items or orderItems structure
+  const normalizeItems = (rawItems) => {
+    if (!Array.isArray(rawItems)) return [];
+    return rawItems.map((it, idx) => ({
+      id: it.id || it.variantId || idx,
+      variantId: it.variantId || it.id,
+      productId: it.productId,
+      name: it.productNameSnapshot || it.productName || it.name || "Sản phẩm thể thao",
+      productName: it.productNameSnapshot || it.productName || it.name || "Sản phẩm thể thao",
+      variant: it.variantSnapshot || it.variant || it.variantName || "Tiêu chuẩn",
+      price: it.unitPrice || it.price || 0,
+      quantity: it.quantity || 1,
+      image: it.imageUrl || it.image || it.productImage || null,
+    }));
+  };
+
   useEffect(() => {
     let isMounted = true;
+    const localOrder = (orders || []).find(
+      (o) => String(o.id) === String(id) || o.orderCode === id || o.code === id
+    );
+
     orderService
       .getOrderById(id)
-      .then((data) => {
-        if (isMounted) {
-          setOrder(data);
-          setLoading(false);
+      .then((res) => {
+        if (!isMounted) return;
+        const backendData = res?.data || res;
+
+        // Parse recipientSnapshot: "Name - Phone - Address"
+        let parsedReceiver = {};
+        if (backendData?.recipientSnapshot) {
+          const parts = backendData.recipientSnapshot.split(" - ");
+          if (parts.length >= 3) {
+            parsedReceiver = {
+              receiverName: parts[0]?.trim(),
+              receiverPhone: parts[1]?.trim(),
+              shippingAddress: parts.slice(2).join(" - ").trim(),
+            };
+          } else {
+            parsedReceiver = {
+              shippingAddress: backendData.recipientSnapshot,
+            };
+          }
         }
+
+        const rawItems =
+          (localOrder?.items && localOrder.items.length > 0)
+            ? localOrder.items
+            : (localOrder?.orderItems || backendData?.orderItems || backendData?.items || []);
+
+        const merged = {
+          ...localOrder,
+          ...backendData,
+          id: backendData?.id || localOrder?.id || id,
+          code:
+            backendData?.orderCode ||
+            backendData?.code ||
+            localOrder?.code ||
+            localOrder?.orderCode ||
+            `#ORD-${id}`,
+          orderCode:
+            backendData?.orderCode ||
+            localOrder?.orderCode ||
+            localOrder?.code ||
+            `#ORD-${id}`,
+          status: backendData?.status || localOrder?.status || "CONFIRMED",
+          subtotal:
+            backendData?.subTotal ??
+            localOrder?.subTotal ??
+            localOrder?.subtotal ??
+            0,
+          subTotal:
+            backendData?.subTotal ??
+            localOrder?.subTotal ??
+            localOrder?.subtotal ??
+            0,
+          shippingFee:
+            backendData?.shippingFee ??
+            localOrder?.shippingFee ??
+            30000,
+          discountAmount:
+            backendData?.discountAmount ??
+            localOrder?.discountAmount ??
+            0,
+          total:
+            backendData?.totalAmount ??
+            backendData?.total ??
+            localOrder?.totalAmount ??
+            localOrder?.total ??
+            0,
+          totalAmount:
+            backendData?.totalAmount ??
+            localOrder?.totalAmount ??
+            localOrder?.total ??
+            0,
+          createdAt: backendData?.placedAt
+            ? formatDateTime(backendData.placedAt)
+            : localOrder?.createdAt
+            ? (localOrder.createdAt.includes('T') ? formatDateTime(localOrder.createdAt) : localOrder.createdAt)
+            : formatDateTime(new Date().toISOString()),
+          receiverName:
+            parsedReceiver.receiverName ||
+            localOrder?.receiverName ||
+            localOrder?.userAddress?.receiverName ||
+            "Khách hàng",
+          receiverPhone:
+            parsedReceiver.receiverPhone ||
+            localOrder?.receiverPhone ||
+            localOrder?.userAddress?.phone ||
+            "0901234567",
+          shippingAddress:
+            parsedReceiver.shippingAddress ||
+            localOrder?.shippingAddress ||
+            localOrder?.address ||
+            (localOrder?.userAddress
+              ? `${localOrder.userAddress.streetAddress}, ${localOrder.userAddress.ward}, ${localOrder.userAddress.district}, ${localOrder.userAddress.province}`
+              : "Địa chỉ giao hàng"),
+          items: normalizeItems(rawItems),
+        };
+
+        setOrder(merged);
+        setLoading(false);
       })
-      .catch(() => {
-        if (isMounted) setLoading(false);
+      .catch((err) => {
+        if (!isMounted) return;
+        if (localOrder) {
+          const rawItems = localOrder.items || localOrder.orderItems || [];
+          setOrder({
+            ...localOrder,
+            code: localOrder.code || localOrder.orderCode || `#ORD-${id}`,
+            items: normalizeItems(rawItems),
+          });
+          setLoading(false);
+        } else {
+          setLoading(false);
+          showErrorModal(err, { title: "Không Thể Tải Chi Tiết Đơn Hàng" });
+        }
       });
+
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, orders, showErrorModal]);
+
+  // Keep order status synchronized with store updates (e.g. after cancellation)
+  useEffect(() => {
+    if (order && orders) {
+      const liveOrder = orders.find(
+        (o) => String(o.id) === String(id) || o.orderCode === id || o.code === id
+      );
+      if (liveOrder && liveOrder.status && liveOrder.status !== order.status) {
+        setOrder((prev) => ({ ...prev, status: liveOrder.status }));
+      }
+    }
+  }, [orders, id, order]);
 
   const handleCopy = (text, label) => {
     navigator.clipboard?.writeText(text);
@@ -53,11 +186,11 @@ export default function OrderDetailPage() {
             salePrice: null,
             images: [],
           },
-          item.quantity || 1
+          item.quantity || 1,
         );
       });
-      showToast('Đã thêm lại các sản phẩm vào giỏ hàng');
-      navigate('/cart');
+      showToast("Đã thêm lại các sản phẩm vào giỏ hàng");
+      navigate("/cart");
     }
   };
 
@@ -65,7 +198,9 @@ export default function OrderDetailPage() {
     return (
       <div className="bg-surface rounded-lg border border-line p-12 text-center shadow-2xs">
         <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin mx-auto mb-3" />
-        <p className="text-[13px] text-ink-muted">Đang tải thông tin đơn hàng #{id}...</p>
+        <p className="text-[13px] text-ink-muted">
+          Đang tải thông tin đơn hàng #{id}...
+        </p>
       </div>
     );
   }
@@ -73,7 +208,9 @@ export default function OrderDetailPage() {
   if (!order) {
     return (
       <div className="bg-surface rounded-lg border border-line p-12 text-center space-y-4 shadow-2xs">
-        <h3 className="text-[16px] font-bold text-ink">Không tìm thấy đơn hàng #{id}</h3>
+        <h3 className="text-[16px] font-bold text-ink">
+          Không tìm thấy đơn hàng #{id}
+        </h3>
         <p className="text-[13px] text-ink-muted">
           Đơn hàng này không tồn tại hoặc bạn không có quyền truy cập.
         </p>
@@ -112,11 +249,9 @@ export default function OrderDetailPage() {
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-[18px] font-extrabold text-ink font-mono">
-                {order.code}
+                {order.code || order.orderCode}
               </h2>
-              <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-accent-soft text-accent">
-                {order.status}
-              </span>
+              <OrderStatusBadge status={order.status} />
             </div>
             <p className="text-[12px] text-ink-subtle mt-1">
               Thời gian đặt hàng: {order.createdAt}
@@ -124,10 +259,15 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {order.status === 'PENDING' && (
+            {(order.status === "PENDING" || order.status === "CONFIRMED") && (
               <button
                 type="button"
-                onClick={() => openModal('cancel_order_modal', { orderId: order.id })}
+                onClick={() =>
+                  openModal("cancel_order_modal", {
+                    orderId: order.id,
+                    orderCode: order.code || order.orderCode,
+                  })
+                }
                 className="px-3.5 py-2 rounded-md border border-line text-danger hover:bg-danger-soft text-[12.5px] font-bold transition"
               >
                 Hủy đơn hàng
@@ -153,17 +293,14 @@ export default function OrderDetailPage() {
               <span>ĐỊA CHỈ NHẬN HÀNG</span>
             </div>
             <p className="text-[14px] font-bold text-ink">
-              {order.receiverName || order.userAddress?.receiverName || 'Khách hàng'} ·{' '}
+              {order.receiverName || "Khách hàng"}{" "}
+              ·{" "}
               <span className="text-ink-muted font-medium">
-                {order.receiverPhone || order.userAddress?.phone || '0912 345 678'}
+                {order.receiverPhone || "0912 345 678"}
               </span>
             </p>
             <p className="text-[12.5px] text-ink-muted leading-relaxed">
-              {order.shippingAddress ||
-                order.address ||
-                (order.userAddress
-                  ? `${order.userAddress.streetAddress}, ${order.userAddress.ward}, ${order.userAddress.district}, ${order.userAddress.province}`
-                  : '42 Nguyễn Thị Minh Khai, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh')}
+              {order.shippingAddress || "Địa chỉ nhận hàng"}
             </p>
           </div>
 
@@ -176,7 +313,9 @@ export default function OrderDetailPage() {
             <div className="text-[13px] text-ink flex items-center justify-between">
               <span>Đơn vị giao:</span>
               <strong className="text-accent">
-                {order.shippingProviderShort || order.shippingProvider?.name || 'Giao Hàng Nhanh (GHN)'}
+                {order.shippingProviderShort ||
+                  order.shippingProvider?.name ||
+                  "Giao Hàng Nhanh (GHN)"}
               </strong>
             </div>
             {order.trackingCode && (
@@ -184,7 +323,7 @@ export default function OrderDetailPage() {
                 <span>Mã vận đơn:</span>
                 <button
                   type="button"
-                  onClick={() => handleCopy(order.trackingCode, 'Mã vận đơn')}
+                  onClick={() => handleCopy(order.trackingCode, "Mã vận đơn")}
                   className="font-mono text-accent font-bold hover:underline inline-flex items-center gap-1"
                 >
                   <span>{order.trackingCode}</span>
@@ -195,11 +334,23 @@ export default function OrderDetailPage() {
             <div className="text-[13px] text-ink flex items-center justify-between">
               <span>Thanh toán:</span>
               <span className="font-bold text-ink">
-                {order.paymentMethod === 'VNPAY' ? 'VNPay QR Sandbox' : 'COD (Thanh toán khi nhận)'}
+                {order.paymentMethod === "VNPAY"
+                  ? "VNPay QR Sandbox"
+                  : "COD (Thanh toán khi nhận)"}
               </span>
             </div>
           </div>
         </div>
+
+        {/* Timeline History if available */}
+        {order.orderStatusHistories && order.orderStatusHistories.length > 0 && (
+          <div className="p-6 border-b border-line bg-page/30 space-y-3">
+            <h3 className="text-[13px] font-extrabold uppercase text-ink tracking-wider">
+              LỊCH SỬ TRẠNG THÁI ĐƠN HÀNG
+            </h3>
+            <OrderTimeline histories={order.orderStatusHistories} />
+          </div>
+        )}
 
         {/* Order Items Table */}
         <div className="p-6 space-y-4">
@@ -209,7 +360,10 @@ export default function OrderDetailPage() {
 
           <div className="space-y-3 divide-y divide-line">
             {order.items?.map((item, idx) => (
-              <div key={item.id || idx} className="pt-3 first:pt-0 flex items-start justify-between gap-4">
+              <div
+                key={item.id || idx}
+                className="pt-3 first:pt-0 flex items-start justify-between gap-4"
+              >
                 <div className="flex items-center gap-3.5">
                   <div className="w-16 h-16 rounded-md bg-surface-2 border border-line overflow-hidden shrink-0 flex items-center justify-center">
                     {item.image || item.productImage || item.imageUrl ? (
@@ -224,10 +378,12 @@ export default function OrderDetailPage() {
                   </div>
                   <div>
                     <h4 className="text-[13.5px] font-bold text-ink line-clamp-1">
-                      {item.name || item.productName || 'Sản phẩm thể thao'}
+                      {item.name || item.productName || "Sản phẩm thể thao"}
                     </h4>
                     <p className="text-[12px] text-ink-muted mt-0.5">
-                      Phân loại: {item.variant || item.variantName || 'Tiêu chuẩn'} · Số lượng: x{item.quantity || 1}
+                      Phân loại:{" "}
+                      {item.variant || item.variantName || "Tiêu chuẩn"} · Số
+                      lượng: x{item.quantity || 1}
                     </p>
                     <p className="text-[12.5px] font-bold text-accent sm:hidden mt-1">
                       {formatCurrency(item.price || 0)}
@@ -252,14 +408,18 @@ export default function OrderDetailPage() {
             <div className="flex justify-between text-ink-muted">
               <span>Tạm tính tiền hàng:</span>
               <span className="font-bold text-ink">
-                {formatCurrency(order.subtotal || order.subTotal || (order.total || 0) - 30000)}
+                {formatCurrency(
+                  order.subtotal ||
+                    order.subTotal ||
+                    (order.total || 0) - 30000,
+                )}
               </span>
             </div>
 
             <div className="flex justify-between text-ink-muted">
               <span>Phí giao hàng:</span>
               <span className="font-bold text-ink">
-                {formatCurrency(order.shippingFee || 30000)}
+                {formatCurrency(order.shippingFee ?? 30000)}
               </span>
             </div>
 

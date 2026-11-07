@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Package, Home } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
+import { orderService } from '../../services/orderService.js';
 import { formatCurrency, formatDateTime } from '../../utils/formatters.js';
 
 export default function PaymentResultPage() {
@@ -8,14 +10,35 @@ export default function PaymentResultPage() {
   const { orders } = useStore();
 
   const orderId = searchParams.get('orderId');
-  const orderCode = searchParams.get('orderCode') || '#ORD-2026001';
-  const method = searchParams.get('method') || 'BANK_TRANSFER';
+  const orderCode = searchParams.get('orderCode');
+  const method = searchParams.get('method') || 'COD';
 
-  const order =
-    orders.find(
-      (o) => String(o.id) === String(orderId) || o.orderCode === orderCode
-    ) || orders[0];
-  const isOnline = method === 'BANK_TRANSFER';
+  const [backendOrder, setBackendOrder] = useState(null);
+
+  useEffect(() => {
+    if (orderId) {
+      orderService
+        .getOrderById(orderId)
+        .then((res) => {
+          const data = res?.data || res;
+          if (data) setBackendOrder(data);
+        })
+        .catch(() => {});
+    }
+  }, [orderId]);
+
+  const matchedOrder = orders.find(
+    (o) => String(o.id) === String(orderId) || o.orderCode === orderCode
+  );
+
+  const displayOrderCode =
+    backendOrder?.orderCode || matchedOrder?.orderCode || orderCode || `#ORD-${orderId}`;
+  const displayTotal =
+    backendOrder?.totalAmount ?? matchedOrder?.totalAmount ?? 0;
+  const displayCreatedAt =
+    backendOrder?.placedAt || matchedOrder?.createdAt || new Date().toISOString();
+  const displayOrderId = orderId || matchedOrder?.id || '1';
+  const isOnline = method === 'BANK_TRANSFER' || matchedOrder?.paymentMethod === 'VNPAY';
 
   return (
     <div className="max-w-[1360px] w-full mx-auto px-4 md:px-6 py-12 flex items-center justify-center text-ink">
@@ -40,7 +63,7 @@ export default function PaymentResultPage() {
             MÃ ĐƠN HÀNG CỦA BẠN
           </p>
           <p className="text-2xl font-extrabold text-accent mt-1 font-mono">
-            {order?.orderCode || orderCode}
+            {displayOrderCode}
           </p>
         </div>
 
@@ -49,7 +72,7 @@ export default function PaymentResultPage() {
           <div className="flex items-center justify-between">
             <span className="text-ink-muted">Tổng thanh toán:</span>
             <span className="font-extrabold text-ink">
-              {formatCurrency(order?.totalAmount || 1265000)}
+              {formatCurrency(displayTotal)}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -63,7 +86,7 @@ export default function PaymentResultPage() {
           <div className="flex items-center justify-between">
             <span className="text-ink-muted">Thời gian tạo:</span>
             <span className="text-ink">
-              {formatDateTime(order?.createdAt || new Date().toISOString())}
+              {formatDateTime(displayCreatedAt)}
             </span>
           </div>
         </div>
@@ -71,7 +94,7 @@ export default function PaymentResultPage() {
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-3 mt-6">
           <Link
-            to={`/account/orders/${order?.id || 1}`}
+            to={`/account/orders/${displayOrderId}`}
             className="py-2.5 rounded-md bg-accent hover:bg-accent/90 text-white text-[13px] font-bold flex items-center justify-center gap-2 shadow-xs transition"
           >
             <Package className="w-4 h-4" />

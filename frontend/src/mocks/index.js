@@ -1,4 +1,3 @@
-// Mock Data Index (ESM compatible)
 export * from './categories.js';
 export * from './brands.js';
 export * from './tags.js';

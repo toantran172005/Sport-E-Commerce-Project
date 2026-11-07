@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { userAddresses as mockAddresses } from '../mocks/userAddresses.js';
 import { useAuth } from './AuthContext.jsx';
@@ -19,12 +19,18 @@ export function AddressProvider({ children }) {
   const { showToast } = useUI();
 
   const [addresses, setAddresses] = usePersistentState('sport_user_addresses', () => {
-    const userAddrs = mockAddresses.filter((a) => a.userId === 1);
-    return sanitizeAddresses(userAddrs);
+    return sanitizeAddresses(mockAddresses);
   });
 
+  // Tự động khôi phục nếu localStorage bị rỗng hoặc không có địa chỉ
+  useEffect(() => {
+    if (!addresses || addresses.length === 0) {
+      setAddresses(sanitizeAddresses(mockAddresses));
+    }
+  }, [addresses, setAddresses]);
+
   const [selectedAddressId, setSelectedAddressId] = useState(() => {
-    const defaultAddr = mockAddresses.find((a) => a.userId === 1 && a.isDefault);
+    const defaultAddr = mockAddresses.find((a) => a.isDefault);
     return defaultAddr?.id || 1;
   });
 
@@ -36,7 +42,7 @@ export function AddressProvider({ children }) {
         const created = {
           ...newAddr,
           id,
-          userId: user?.id || 1,
+          userId: user?.id || 4,
           country: 'Vietnam',
           type: 'SHIPPING',
           isDefault: shouldBeDefault,
@@ -62,13 +68,13 @@ export function AddressProvider({ children }) {
   );
 
   const selectedAddress = useMemo(
-    () => addresses.find((a) => a.id === selectedAddressId) || addresses[0],
+    () => addresses.find((a) => a.id === selectedAddressId) || addresses[0] || mockAddresses[0],
     [addresses, selectedAddressId]
   );
 
   const value = useMemo(
     () => ({
-      addresses,
+      addresses: addresses && addresses.length > 0 ? addresses : mockAddresses,
       setAddresses,
       selectedAddressId,
       setSelectedAddressId,
@@ -85,7 +91,7 @@ export function AddressProvider({ children }) {
 export function useAddress() {
   const ctx = useContext(AddressContext);
   if (!ctx) {
-    throw new Error('useAddress must be used within AddressProvider');
+    throw new Error('useAddress phải được sử dụng bên trong AddressProvider');
   }
   return ctx;
 }

@@ -1,6 +1,4 @@
-// Dữ liệu Mock tĩnh bám sát Entity Java & chuẩn E-commerce thể thao
 export const reviews = [
-  // ==================== 1. PENDING (Chờ duyệt - Dùng để test chức năng nhập tin nhắn & chuyển trạng thái) ====================
   {
     id: 101,
     productId: 1,
@@ -103,7 +101,6 @@ export const reviews = [
     replyText: ''
   },
 
-  // ==================== 2. APPROVED (Đã duyệt & Đã có phản hồi) ====================
   {
     id: 1,
     productId: 1,
@@ -234,7 +231,6 @@ export const reviews = [
     replyText: 'Sân Nhà Sport cảm ơn bạn! Rất vui vì sản phẩm phù hợp với bạn. Chúc bạn tập luyện vui vẻ.'
   },
 
-  // ==================== 3. REJECTED (Đã ẩn / Vi phạm chính sách) ====================
   {
     id: 201,
     productId: 2,

@@ -35,7 +35,7 @@ export function ThemeProvider({ children }) {
 export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
-    throw new Error('useTheme must be used within ThemeProvider');
+    throw new Error('useTheme phải được sử dụng bên trong ThemeProvider');
   }
   return ctx;
 }

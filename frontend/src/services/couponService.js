@@ -72,7 +72,7 @@ export const couponService = {
       } else if (coupon.discountType === 'FIXED_AMOUNT') {
         discountAmount = coupon.discountValue;
       } else if (coupon.discountType === 'FREE_SHIPPING') {
-        discountAmount = 30000; // Miễn phí ship tối đa 30k
+        discountAmount = 30000;
       }
 
       return {

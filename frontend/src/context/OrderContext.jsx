@@ -4,6 +4,7 @@ import { usePersistentState } from '../hooks/usePersistentState.js';
 import { orders as mockOrders } from '../mocks/orders.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
+import { orderService } from '../services/orderService.js';
 
 const OrderContext = createContext(null);
 
@@ -13,13 +14,23 @@ export function OrderProvider({ children }) {
 
   const [orders, setOrders] = usePersistentState('sport_orders', () => mockOrders);
 
+  const addOrder = useCallback((newOrder) => {
+    setOrders((prev) => [newOrder, ...prev.filter((o) => String(o.id) !== String(newOrder.id))]);
+  }, [setOrders]);
+
   const cancelOrderById = useCallback(
-    (orderId, reason) => {
+    async (orderId, reason) => {
+      try {
+        await orderService.cancelOrder(orderId, reason);
+      } catch (err) {
+        console.warn('Lỗi gọi API hủy đơn hàng:', err.response?.data?.message || err.message);
+      }
+
       setOrders((prev) =>
         prev.map((o) => {
           if (String(o.id) !== String(orderId) && o.orderCode !== String(orderId)) return o;
 
-          const isPaid = o.payment?.status === 'PAID';
+          const isPaid = o.payment?.status === 'PAID' || o.payments?.[0]?.paymentStatus === 'PAID';
           const updatedPayment = o.payment
             ? { ...o.payment, status: isPaid ? 'REFUND' : 'CANCELLED' }
             : null;
@@ -35,7 +46,7 @@ export function OrderProvider({ children }) {
               {
                 id: Date.now(),
                 status: 'CANCELED',
-                note: `Hủy đơn: ${reason}${isPaid ? ' (Đã kích hoạt hoàn tiền REFUND)' : ''}`,
+                note: `Hủy đơn: ${reason}${isPaid ? ' (Kích hoạt hoàn tiền REFUND)' : ''}`,
                 createdAt: new Date().toISOString(),
                 changedBy: { id: user?.id || 1, fullName: user?.fullName || 'Khách hàng' },
               },
@@ -49,7 +60,21 @@ export function OrderProvider({ children }) {
   );
 
   const updateOrderStatus = useCallback(
-    (orderId, nextStatus, note = '') => {
+    async (orderId, nextStatus, note = '', cancelledReason = '') => {
+      try {
+        await orderService.updateOrderStatus({
+          orderId,
+          newStatus: nextStatus,
+          note,
+          cancelledReason: cancelledReason || (nextStatus === 'CANCELED' ? note : null),
+        });
+      } catch (err) {
+        const errorMsg = err.response?.data?.message || err.message;
+        console.error('Lỗi gọi API cập nhật trạng thái đơn:', errorMsg);
+        showToast(errorMsg || 'Không thể cập nhật trạng thái đơn hàng');
+        throw err;
+      }
+
       setOrders((prev) =>
         prev.map((o) => {
           if (String(o.id) !== String(orderId) && o.orderCode !== String(orderId)) return o;
@@ -99,10 +124,11 @@ export function OrderProvider({ children }) {
     () => ({
       orders,
       setOrders,
+      addOrder,
       cancelOrderById,
       updateOrderStatus,
     }),
-    [orders, setOrders, cancelOrderById, updateOrderStatus]
+    [orders, setOrders, addOrder, cancelOrderById, updateOrderStatus]
   );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
@@ -111,7 +137,7 @@ export function OrderProvider({ children }) {
 export function useOrder() {
   const ctx = useContext(OrderContext);
   if (!ctx) {
-    throw new Error('useOrder must be used within OrderProvider');
+    throw new Error('useOrder phải được sử dụng bên trong OrderProvider');
   }
   return ctx;
 }

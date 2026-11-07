@@ -53,6 +53,7 @@ public class ShipmentServiceImpl implements ShipmentService {
                 .build();
     }
 
+    @Override
     public double calculateShippingFee(String providerCode, UserAddress address, Double subTotal) {
         if (subTotal != null && subTotal >= 1_000_000.0) {
             return 0.0;
@@ -70,6 +71,7 @@ public class ShipmentServiceImpl implements ShipmentService {
 
     }
 
+    @Override
     public LocalDate calculateEstimatedDeliveryDate(String providerCode, UserAddress address) {
         String city = address.getCity() != null ? address.getCity().toLowerCase() : "";
         boolean isLocal = city.contains("hồ chí minh") || city.contains("hcm");
