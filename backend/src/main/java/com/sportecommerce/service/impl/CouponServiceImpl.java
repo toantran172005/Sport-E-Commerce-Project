@@ -6,7 +6,7 @@ import com.sportecommerce.entity.Coupon;
 import com.sportecommerce.entity.CouponUsage;
 import com.sportecommerce.entity.Order;
 import com.sportecommerce.entity.User;
-import com.sportecommerce.exception.InvalidCouponException;
+import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.CouponRepository;
 import com.sportecommerce.repository.CouponUsageRepository;
@@ -75,34 +75,34 @@ public class CouponServiceImpl implements CouponService {
     @Transactional(readOnly = true)
     public Coupon getValidCoupon(String code, Double orderAmount, Long userId) {
         if (code == null || code.trim().isEmpty()) {
-            throw new InvalidCouponException("Mã giảm giá không được để trống");
+            throw new AppException("Mã giảm giá không được để trống");
         }
 
         Coupon coupon = couponRepository.findByCode(code.trim().toUpperCase())
-                .orElseThrow(() -> new InvalidCouponException("Mã không tồn tại hoặc ngưng áp dụng"));
+                .orElseThrow(() -> new AppException("Mã không tồn tại hoặc ngưng áp dụng"));
 
         if (!Boolean.TRUE.equals(coupon.getIsActive())) {
-            throw new InvalidCouponException("Mã không tồn tại hoặc ngưng áp dụng");
+            throw new AppException("Mã không tồn tại hoặc ngưng áp dụng");
         }
 
         Instant now = Instant.now();
         if (coupon.getStartDate() != null && now.isBefore(coupon.getStartDate())) {
-            throw new InvalidCouponException("Mã khuyến mãi chưa đến thời gian áp dụng");
+            throw new AppException("Mã khuyến mãi chưa đến thời gian áp dụng");
         }
         if (coupon.getEndDate() != null && now.isAfter(coupon.getEndDate())) {
-            throw new InvalidCouponException("Mã khuyến mãi đã hết hạn");
+            throw new AppException("Mã khuyến mãi đã hết hạn");
         }
 
         if (coupon.getUsageLimit() != null && coupon.getUsedCount() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-            throw new InvalidCouponException("Mã đã hết lượt sử dụng");
+            throw new AppException("Mã đã hết lượt sử dụng");
         }
 
         if (coupon.getMinOrderAmount() != null && orderAmount != null && orderAmount < coupon.getMinOrderAmount()) {
-            throw new InvalidCouponException("Đơn hàng chưa đạt được giá trị áp dụng tối thiểu của mã giảm giá");
+            throw new AppException("Đơn hàng chưa đạt được giá trị áp dụng tối thiểu của mã giảm giá");
         }
 
         if (userId != null && couponUsageRepository.existsByCouponIdAndUserId(coupon.getId(), userId)) {
-            throw new InvalidCouponException("Bạn đã sử dụng mã giảm giá này rồi!");
+            throw new AppException("Bạn đã sử dụng mã giảm giá này rồi!");
         }
 
         return coupon;
@@ -112,7 +112,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public void recordUsage(String couponCode, Long userId, Long orderId, Double discountAmount) {
         Coupon coupon = couponRepository.findByCode(couponCode)
-                .orElseThrow(() -> new InvalidCouponException("Mã không tồn tại hoặc ngưng áp dụng"));
+                .orElseThrow(() -> new AppException("Mã không tồn tại hoặc ngưng áp dụng"));
 
         User user = userRepository.findUserById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin người dùng!"));

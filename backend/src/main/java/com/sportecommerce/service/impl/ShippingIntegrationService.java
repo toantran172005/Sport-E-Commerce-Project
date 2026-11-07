@@ -156,9 +156,9 @@ public class ShippingIntegrationService {
         }
     }
 
-    public boolean cancelOrderGHN(String orderCode) {
+    public void cancelOrderGHN(String orderCode) {
         if (orderCode == null || orderCode.isBlank()) {
-            return false;
+            return;
         }
         String url = ghnBaseUrl + "/v2/switch-status/cancel";
         HttpHeaders headers = new HttpHeaders();
@@ -172,11 +172,10 @@ public class ShippingIntegrationService {
         try {
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return Integer.valueOf(200).equals(response.getBody().get("code"));
+                response.getBody().get("code");
             }
         } catch (Exception ignored) {
         }
-        return false;
     }
 
     public String createOrderGHTK(Order order) {
@@ -259,9 +258,9 @@ public class ShippingIntegrationService {
         }
     }
 
-    public boolean cancelOrderGHTK(String trackingNumber) {
+    public void cancelOrderGHTK(String trackingNumber) {
         if (trackingNumber == null || trackingNumber.isBlank()) {
-            return false;
+            return;
         }
         String url = ghtkBaseUrl + "/services/shipment/cancel/" + trackingNumber;
         HttpHeaders headers = new HttpHeaders();
@@ -272,11 +271,9 @@ public class ShippingIntegrationService {
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Boolean success = (Boolean) response.getBody().get("success");
-                return Boolean.TRUE.equals(success);
             }
         } catch (Exception ignored) {
         }
-        return false;
     }
 
     public String createOrderViettelPost(Order order) {
@@ -298,7 +295,7 @@ public class ShippingIntegrationService {
         int length = 30, width = 20, height = 15;
 
         if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
-            Product product = order.getOrderItems().get(0).getVariant().getProduct();
+            Product product = order.getOrderItems().getFirst().getVariant().getProduct();
 
             for (ProductAttributes attr : product.getProductAttributes()) {
                 String name = attr.getAttributeName().toLowerCase().trim();

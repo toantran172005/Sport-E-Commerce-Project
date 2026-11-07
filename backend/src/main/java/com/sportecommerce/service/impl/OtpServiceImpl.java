@@ -36,8 +36,7 @@ public class OtpServiceImpl implements OtpService {
     public void generateAndSend(String email, OtpPurpose purpose) {
         String cooldownKey = cooldownKey(email, purpose);
         if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
-            Long remaining = redisTemplate.getExpire(cooldownKey);
-            long seconds = (remaining == null) ? resendCooldownSeconds : remaining;
+            long seconds = redisTemplate.getExpire(cooldownKey);
             throw new AppException(
                     "Vui lòng đợi " + seconds + " giây trước khi yêu cầu gửi lại OTP",
                     HttpStatus.TOO_MANY_REQUESTS
@@ -69,8 +68,8 @@ public class OtpServiceImpl implements OtpService {
 
         Long attempts = redisTemplate.opsForValue().increment(attemptKey);
         if (attempts != null && attempts == 1L) {
-            Long ttl = redisTemplate.getExpire(otpKey);
-            if (ttl != null && ttl > 0) {
+            long ttl = redisTemplate.getExpire(otpKey);
+            if (ttl > 0) {
                 redisTemplate.expire(attemptKey, Duration.ofSeconds(ttl));
             }
         }

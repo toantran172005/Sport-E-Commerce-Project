@@ -18,14 +18,12 @@ import com.sportecommerce.service.ProductService;
 import com.sportecommerce.util.MapperUtil;
 import com.sportecommerce.util.SlugUtil;
 import org.springframework.data.domain.Pageable;
-import org.springframework.jdbc.object.UpdatableSqlQuery;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 

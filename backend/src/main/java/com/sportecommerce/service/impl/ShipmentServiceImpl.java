@@ -4,7 +4,6 @@ import com.sportecommerce.entity.Order;
 import com.sportecommerce.entity.Shipment;
 import com.sportecommerce.entity.ShippingProvider;
 import com.sportecommerce.entity.UserAddress;
-import com.sportecommerce.enums.PaymentStatus;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.ShippingProviderRepository;

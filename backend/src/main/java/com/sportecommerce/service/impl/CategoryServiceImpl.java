@@ -112,7 +112,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (parentId == null) {
             return null;
         }
-        if (currentId != null && parentId.equals(currentId)) {
+        if (parentId.equals(currentId)) {
             throw new AppException("Category không thể là parent của chính nó");
         }
         return categoryRepository.findById(parentId)
