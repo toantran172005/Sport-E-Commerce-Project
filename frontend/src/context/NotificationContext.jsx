@@ -36,7 +36,7 @@ export function NotificationProvider({ children }) {
 export function useNotification() {
   const ctx = useContext(NotificationContext);
   if (!ctx) {
-    throw new Error('useNotification must be used within NotificationProvider');
+    throw new Error('useNotification phải được sử dụng bên trong NotificationProvider');
   }
   return ctx;
 }

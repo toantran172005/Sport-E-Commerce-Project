@@ -33,7 +33,6 @@ export default function AdminOrdersPage() {
   const filteredOrders = orders.filter((o) => {
     if (statusTab !== 'ALL') {
       if (statusTab === 'CANCELLED' && (o.status === 'CANCELLED' || o.status === 'CANCELED')) {
-        // match
       } else if (o.status !== statusTab) {
         return false;
       }
@@ -284,11 +283,14 @@ export default function AdminOrdersPage() {
 
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded bg-surface-2 text-ink text-[11px] font-bold border border-line">
-                            {order.shippingProviderShort || 'GHN'}
+                            {order.shippingProviderShort ||
+                              order.shipment?.provider?.code ||
+                              order.shipment?.provider?.name ||
+                              (order.shipment?.trackingNumber?.startsWith('GHTK') ? 'GHTK' : 'GHN')}
                           </span>
-                          {order.trackingCode && (
+                          {(order.trackingCode || order.shipment?.trackingNumber) && (
                             <p className="text-[10.5px] text-ink-subtle font-mono mt-0.5">
-                              {order.trackingCode}
+                              {order.trackingCode || order.shipment?.trackingNumber}
                             </p>
                           )}
                         </td>

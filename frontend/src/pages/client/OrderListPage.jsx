@@ -178,8 +178,9 @@ export default function OrderListPage() {
       {filteredOrders.length > 0 ? (
         <div className="space-y-3.5">
           {filteredOrders.map((order) => {
-            const firstItem = order.items?.[0] || {};
-            const totalItemsCount = order.items?.reduce((sum, it) => sum + (it.quantity || 1), 0) || 1;
+            const rawItems = order.items || order.orderItems || [];
+            const firstItem = rawItems[0] || {};
+            const totalItemsCount = rawItems.reduce((sum, it) => sum + (it.quantity || 1), 0) || 1;
 
             return (
               <div
@@ -190,7 +191,7 @@ export default function OrderListPage() {
                 <div className="px-5 py-3 border-b border-line flex flex-wrap items-center justify-between gap-3 bg-page/50">
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-extrabold text-[13.5px] text-accent">
-                      {order.code}
+                      {order.code || order.orderCode || `#ORD-${order.id}`}
                     </span>
                     <span className="text-[12px] text-ink-subtle">
                       {order.createdAt}
@@ -219,21 +220,21 @@ export default function OrderListPage() {
 
                     <div className="flex-1 min-w-0">
                       <h4 className="text-[14px] font-bold text-ink line-clamp-1">
-                        {firstItem.name || firstItem.productName || 'Sản phẩm thể thao'}
+                        {firstItem.name || firstItem.productName || firstItem.productNameSnapshot || 'Sản phẩm thể thao'}
                       </h4>
                       <p className="text-[12px] text-ink-muted mt-0.5">
-                        Phân loại: {firstItem.variant || firstItem.variantName || 'Tiêu chuẩn'} · Số lượng: x{firstItem.quantity || 1}
+                        Phân loại: {firstItem.variant || firstItem.variantName || firstItem.variantSnapshot || 'Tiêu chuẩn'} · Số lượng: x{firstItem.quantity || 1}
                       </p>
-                      {order.items && order.items.length > 1 && (
+                      {rawItems.length > 1 && (
                         <p className="text-[11.5px] text-ink-subtle mt-1">
-                          và {order.items.length - 1} sản phẩm khác trong kiện hàng...
+                          và {rawItems.length - 1} sản phẩm khác trong kiện hàng...
                         </p>
                       )}
                     </div>
 
                     <div className="text-right shrink-0">
                       <p className="text-[14px] font-extrabold text-accent">
-                        {formatCurrency(firstItem.price || 0)}
+                        {formatCurrency(firstItem.price || firstItem.unitPrice || 0)}
                       </p>
                     </div>
                   </div>
@@ -252,10 +253,10 @@ export default function OrderListPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {order.status === 'PENDING' && (
+                    {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
                       <button
                         type="button"
-                        onClick={() => openModal('cancel_order_modal', { orderId: order.id })}
+                        onClick={() => openModal('cancel_order_modal', { orderId: order.id, orderCode: order.orderCode || order.code })}
                         className="px-3 py-1.5 rounded-md border border-line text-danger hover:bg-danger-soft text-[12px] font-bold transition"
                       >
                         Hủy đơn

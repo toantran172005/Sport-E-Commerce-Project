@@ -3,7 +3,7 @@ import { users as initialUsers } from '../mocks/users.js';
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 const fakeDelay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let currentUser = initialUsers[0]; // Mặc định là Toàn Trần (CUSTOMER) hoặc Admin
+let currentUser = initialUsers[0];
 
 export const authService = {
   async login({ email, password }) {
@@ -71,7 +71,6 @@ export const authService = {
         const saved = localStorage.getItem('sport_user');
         if (saved) return JSON.parse(saved);
       } catch {
-        // ignore
       }
       return currentUser;
     }

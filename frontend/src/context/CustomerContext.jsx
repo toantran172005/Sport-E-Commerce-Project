@@ -31,7 +31,7 @@ export function CustomerProvider({ children }) {
 export function useCustomer() {
   const ctx = useContext(CustomerContext);
   if (!ctx) {
-    throw new Error('useCustomer must be used within CustomerProvider');
+    throw new Error('useCustomer phải được sử dụng bên trong CustomerProvider');
   }
   return ctx;
 }

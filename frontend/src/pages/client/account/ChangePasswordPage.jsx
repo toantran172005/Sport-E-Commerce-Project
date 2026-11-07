@@ -7,7 +7,7 @@ const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).+$/;
 
 export default function ChangePasswordPage() {
   const { user, showToast } = useStore();
-  const [step, setStep] = useState(1); // 1: Password Form, 2: OTP Verification
+  const [step, setStep] = useState(1);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,7 +20,6 @@ export default function ChangePasswordPage() {
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
-  // Timer for OTP resend countdown
   useEffect(() => {
     let timer;
     if (step === 2 && countdown > 0) {
@@ -105,7 +104,6 @@ export default function ChangePasswordPage() {
         otp: otp.trim(),
       });
       showToast('Cập nhật mật khẩu mới thành công!');
-      // Reset form and back to step 1
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');

@@ -33,7 +33,6 @@ export default function VerifyOtpPage() {
     newOtp[index] = value.slice(-1);
     setOtp(newOtp);
 
-    // Auto focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -90,7 +89,7 @@ export default function VerifyOtpPage() {
   return (
     <div className="min-h-screen bg-page flex flex-col text-ink transition-colors">
       <header className="bg-surface border-b border-line h-16">
-        <div className="max-w-[1360px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
+        <div className="max-w-340 mx-auto px-4 md:px-8 h-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
               <Zap className="w-4 h-4 fill-white" />
@@ -108,7 +107,7 @@ export default function VerifyOtpPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[460px] p-6 md:p-8 space-y-6 text-center">
+        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-115 p-6 md:p-8 space-y-6 text-center">
           <div className="w-14 h-14 rounded-full bg-accent-soft dark:bg-accent/20 text-accent mx-auto flex items-center justify-center">
             <ShieldCheck className="w-7 h-7" />
           </div>

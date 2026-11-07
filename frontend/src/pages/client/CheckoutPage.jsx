@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   MapPin,
@@ -14,10 +14,11 @@ import {
 import { useStore } from '../../context/StoreContext.jsx';
 import { formatCurrency } from '../../utils/formatters.js';
 import { calculateDiscount } from '../../utils/pricing.js';
-import { shippingService } from '../../services/shippingService.js';
+import { shippingService, DEFAULT_SHIPPING_PROVIDERS } from '../../services/shippingService.js';
 import { orderService } from '../../services/orderService.js';
 import { paymentService } from '../../services/paymentService.js';
-import VoucherDropdown from '../../components/common/VoucherDropdown.jsx';
+import { VoucherDropdown } from '../../components/promotion';
+import { PaymentMethodSelector } from '../../components/payment';
 
 export default function CheckoutPage() {
   const {
@@ -31,10 +32,11 @@ export default function CheckoutPage() {
     appliedCoupon,
     openModal,
     showToast,
+    showErrorModal,
+    addOrder,
   } = useStore();
   const navigate = useNavigate();
 
-  // Guard: Guest không được phép truy cập Checkout
   useEffect(() => {
     if (!user) {
       showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
@@ -42,44 +44,118 @@ export default function CheckoutPage() {
     }
   }, [user, navigate, showToast]);
 
-  // Xác định danh sách mặt hàng được mua: ưu tiên các mặt hàng được tick chọn từ trang Cart
-  const checkoutItems =
-    selectedCartItems && selectedCartItems.length > 0 ? selectedCartItems : cart;
-  const checkoutSubtotal =
-    selectedCartItems && selectedCartItems.length > 0
-      ? selectedCartSubtotal
-      : cartSubtotal;
+  // Cố định (freeze) danh sách sản phẩm trong phiên checkout hiện tại
+  // để khi đặt hàng xong và xóa sản phẩm khỏi giỏ hàng, giao diện tóm tắt KHÔNG bị nhảy sang sản phẩm khác (như giày Nike)
+  const [frozenCheckoutItems] = useState(() => {
+    const initialList =
+      selectedCartItems && selectedCartItems.length > 0 ? selectedCartItems : cart;
+    return initialList ? [...initialList] : [];
+  });
 
-  // Shipping Providers from service
+  const checkoutItems =
+    frozenCheckoutItems && frozenCheckoutItems.length > 0
+      ? frozenCheckoutItems
+      : selectedCartItems && selectedCartItems.length > 0
+      ? selectedCartItems
+      : cart;
+
+  const checkoutSubtotal = useMemo(
+    () => checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [checkoutItems]
+  );
+
+  const [isInitializing, setIsInitializing] = useState(true);
   const [shippingProviders, setShippingProviders] = useState([]);
   const [selectedProviderId, setSelectedProviderId] = useState(1);
+  const [shippingQuotes, setShippingQuotes] = useState({});
+  const [shippingFee, setShippingFee] = useState(() => (checkoutSubtotal >= 1000000 ? 0 : 30000));
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
 
-  // Payment method: 'COD' | 'BANK_TRANSFER' (VNPay)
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
 
-  // Note
   const [shippingNote, setShippingNote] = useState('Giao giờ hành chính');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Unified Shipping & Provider initialization pipeline (0 layout shifts)
   useEffect(() => {
-    shippingService.getShippingProviders().then((res) => {
-      setShippingProviders(res);
-      if (res && res.length > 0) setSelectedProviderId(res[0].id);
-    });
-  }, []);
+    let isMounted = true;
 
-  // Điều hướng về cart nếu không có sản phẩm nào
+    const initializeCheckoutShipping = async () => {
+      try {
+        const rawProviders = await shippingService.getShippingProviders();
+        const providers =
+          Array.isArray(rawProviders) && rawProviders.length > 0
+            ? rawProviders
+            : DEFAULT_SHIPPING_PROVIDERS;
+
+        if (!isMounted) return;
+        setShippingProviders(providers);
+
+        const currentProvider =
+          providers.find((p) => p.id === selectedProviderId) || providers[0];
+        const defaultCode = currentProvider?.code || (currentProvider?.id === 2 ? 'GHTK' : 'GHN');
+
+        const quotes = {};
+        await Promise.all(
+          providers.map(async (p) => {
+            const code = p.code || (p.id === 2 ? 'GHTK' : 'GHN');
+            try {
+              const res = await shippingService.calculateShipping({
+                providerCode: code,
+                addressId: selectedAddress?.id,
+                city: selectedAddress?.city,
+                subTotal: checkoutSubtotal,
+              });
+              quotes[code] = res?.data || res;
+            } catch (err) {
+              console.warn('Lỗi tính phí ship cho đơn vị:', code, err);
+            }
+          })
+        );
+
+        if (!isMounted) return;
+        setShippingQuotes(quotes);
+
+        const initialQuote = quotes[defaultCode];
+        if (initialQuote) {
+          setShippingFee(
+            initialQuote.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000)
+          );
+          setEstimatedDeliveryDate(initialQuote.formattedDeliveryDate || '');
+        }
+      } catch (err) {
+        console.warn('Lỗi khởi tạo vận chuyển:', err);
+      } finally {
+        if (isMounted) {
+          setIsInitializing(false);
+        }
+      }
+    };
+
+    initializeCheckoutShipping();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedAddress?.id, selectedAddress?.city, checkoutSubtotal]);
+
+  const safeProviders =
+    Array.isArray(shippingProviders) && shippingProviders.length > 0
+      ? shippingProviders
+      : DEFAULT_SHIPPING_PROVIDERS;
+  const selectedProvider =
+    safeProviders.find((p) => p.id === selectedProviderId) || safeProviders[0];
+  const selectedProviderCode =
+    selectedProvider?.code || (selectedProviderId === 2 ? 'GHTK' : 'GHN');
+
   useEffect(() => {
-    if (checkoutItems.length === 0) {
+    if (!isSubmitting && checkoutItems.length === 0) {
       navigate('/cart', { replace: true });
     }
-  }, [checkoutItems.length, navigate]);
+  }, [checkoutItems.length, isSubmitting, navigate]);
 
-  // Shipping Fee calculation (Free if subtotal >= 500k, otherwise 30k)
-  const isFreeShip = checkoutSubtotal >= 500000;
-  const shippingFee = isFreeShip ? 0 : 30000;
+  const isFreeShip = shippingFee === 0;
 
-  // Discount from applied coupon using safe shared pricing helper
   const discountAmount = calculateDiscount(appliedCoupon, checkoutSubtotal, shippingFee);
   const totalAmount = Math.max(0, checkoutSubtotal + shippingFee - discountAmount);
 
@@ -98,16 +174,22 @@ export default function CheckoutPage() {
 
     setIsSubmitting(true);
     try {
+      const hasRealCartItemIds = checkoutItems.some(
+        (it) => it.cartItemId && typeof it.cartItemId === 'number'
+      );
+
       const orderPayload = {
+        userId: Number(user?.id || 4),
+        shippingAddressId: Number(selectedAddress.id),
+        paymentMethod: paymentMethod === 'BANK_TRANSFER' ? 'BANK_TRANSFER' : 'COD',
+        note: shippingNote || '',
+        shippingProviderCode: selectedProviderId === 2 ? 'GHTK' : 'GHN',
+        couponId: appliedCoupon?.id ? Number(appliedCoupon.id) : null,
         subTotal: checkoutSubtotal,
         discountAmount,
         shippingFee,
         totalAmount,
         shippingAddressSnapshot: `${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`,
-        note: shippingNote,
-        paymentMethod,
-        shippingProviderId: selectedProviderId,
-        couponId: appliedCoupon?.id || null,
         orderItems: checkoutItems.map((item, idx) => ({
           id: Date.now() + idx,
           variantId: item.variantId,
@@ -121,40 +203,99 @@ export default function CheckoutPage() {
         })),
       };
 
-      const newOrder = await orderService.createOrder(orderPayload);
+      if (hasRealCartItemIds) {
+        orderPayload.cartItemIds = checkoutItems
+          .map((item) => item.cartItemId)
+          .filter(Boolean);
+      } else {
+        orderPayload.items = {
+          variantId: Number(checkoutItems[0]?.variantId || 1),
+          quantity: Number(checkoutItems[0]?.quantity || 1),
+        };
+      }
 
-      // Dọn dẹp chính xác các sản phẩm vừa đặt khỏi giỏ (không xóa nhầm sản phẩm khác)
+      const res = await orderService.placeOrder(orderPayload);
+      const newOrder = res?.data || res;
+      const orderId = newOrder?.orderId || newOrder?.id;
+      const orderCode = newOrder?.orderCode || newOrder?.code;
+
+      const orderForContext = {
+        id: orderId,
+        orderCode: orderCode,
+        code: orderCode,
+        status: paymentMethod === 'BANK_TRANSFER' ? 'PENDING' : 'CONFIRMED',
+        total: newOrder?.totalAmount || totalAmount,
+        totalAmount: newOrder?.totalAmount || totalAmount,
+        subTotal: checkoutSubtotal,
+        shippingFee,
+        discountAmount,
+        paymentMethod: paymentMethod === 'BANK_TRANSFER' ? 'VNPAY' : 'COD',
+        shippingAddress: `${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`,
+        receiverName: selectedAddress.recipientName || 'Khách hàng',
+        receiverPhone: selectedAddress.phoneNumber || '0901234567',
+        items: checkoutItems.map((it) => ({
+          id: it.variantId || it.productId,
+          variantId: it.variantId,
+          productId: it.productId,
+          name: it.name,
+          productName: it.name,
+          variant: it.variant,
+          price: it.price,
+          quantity: it.quantity,
+          image: it.imageUrl || it.image,
+          imageUrl: it.imageUrl || it.image,
+        })),
+        createdAt: new Date().toISOString(),
+      };
+
+      if (typeof addOrder === 'function') {
+        addOrder(orderForContext);
+      }
+
       checkoutItems.forEach((item) => {
         removeFromCart(item.productId, item.variantId);
       });
 
       if (paymentMethod === 'BANK_TRANSFER') {
         const paymentRes = await paymentService.createPayment({
-          orderId: newOrder.id,
+          orderId,
           method: 'BANK_TRANSFER',
         });
         openModal('vnpay_qr_modal', {
-          amount: totalAmount,
-          orderCode: newOrder.orderCode,
-          orderId: newOrder.id,
-          paymentUrl: paymentRes?.paymentUrl,
+          amount: newOrder?.totalAmount || totalAmount,
+          orderCode,
+          orderId,
+          paymentUrl: paymentRes?.paymentUrl || paymentRes?.data?.paymentUrl,
         });
       } else {
         await paymentService.createPayment({
-          orderId: newOrder.id,
+          orderId,
           method: 'COD',
         });
         showToast('Đặt hàng thành công!');
         navigate(
-          `/payment-result?orderId=${newOrder.id}&orderCode=${newOrder.orderCode}&method=COD`
+          `/payment-result?orderId=${orderId}&orderCode=${orderCode}&method=COD`
         );
       }
     } catch (err) {
-      showToast(err.message || 'Có lỗi xảy ra khi đặt hàng');
+      console.error('Lỗi khi đặt hàng:', err);
+      showErrorModal(err, { title: 'Đặt Hàng Không Thành Công' });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isInitializing) {
+    return (
+      <div className="max-w-[1360px] w-full mx-auto px-4 py-32 flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+        <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+        <div className="text-center space-y-1">
+          <p className="text-[15px] font-bold text-ink">Đang tải đơn vị vận chuyển & biểu phí...</p>
+          <p className="text-[12.5px] text-ink-muted">Hệ thống đang kết nối dữ liệu vận chuyển từ Backend</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1360px] w-full mx-auto px-4 md:px-6 py-6 text-ink">
@@ -237,12 +378,21 @@ export default function CheckoutPage() {
             </h2>
 
             <div className="space-y-2.5">
-              {shippingProviders.map((provider) => {
+              {safeProviders.map((provider) => {
                 const isSelected = selectedProviderId === provider.id;
+                const code = provider.code || (provider.id === 2 ? 'GHTK' : 'GHN');
+                const quote = shippingQuotes[code];
+                const providerFee = quote?.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000);
+                const providerDate = quote?.formattedDeliveryDate;
+
                 return (
                   <div
                     key={provider.id}
-                    onClick={() => setSelectedProviderId(provider.id)}
+                    onClick={() => {
+                      setSelectedProviderId(provider.id);
+                      setShippingFee(providerFee);
+                      if (providerDate) setEstimatedDeliveryDate(providerDate);
+                    }}
                     className={`p-3.5 rounded-md border flex items-center justify-between cursor-pointer transition ${
                       isSelected
                         ? 'border-accent bg-accent-soft'
@@ -258,22 +408,31 @@ export default function CheckoutPage() {
                         {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-surface" />}
                       </div>
                       <div>
-                        <p className="text-[13px] font-bold text-ink">
-                          {provider.name} ({provider.code})
+                        <p className="text-[13px] font-bold text-ink flex items-center gap-2">
+                          <span>{provider.name}</span>
+                          <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-surface-2 text-accent border border-line">
+                            {code}
+                          </span>
                         </p>
-                        <p className="text-[11px] text-ink-muted">
-                          Thời gian giao hàng dự kiến: 2-3 ngày làm việc
+                        <p className="text-[11px] text-ink-muted mt-0.5">
+                          {providerDate ? (
+                            <>
+                              Dự kiến giao hàng: <strong className="text-accent">{providerDate}</strong>
+                            </>
+                          ) : (
+                            'Thời gian giao hàng: 2-3 ngày làm việc'
+                          )}
                         </p>
                       </div>
                     </div>
 
                     <span className="text-[13px] font-bold text-ink">
-                      {isFreeShip ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">
-                          Miễn phí
+                      {providerFee === 0 ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                          Miễn phí (Freeship)
                         </span>
                       ) : (
-                        formatCurrency(30000)
+                        formatCurrency(providerFee)
                       )}
                     </span>
                   </div>
@@ -297,76 +456,10 @@ export default function CheckoutPage() {
           </div>
 
           {/* 3. Payment Method */}
-          <div className="bg-surface rounded-lg border border-line p-5 shadow-xs">
-            <h2 className="text-[15px] font-bold text-ink flex items-center gap-2 mb-3">
-              <CreditCard className="w-4 h-4 text-accent" />
-              <span>Phương Thức Thanh Toán</span>
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* VNPay QR */}
-              <div
-                onClick={() => setPaymentMethod('BANK_TRANSFER')}
-                className={`p-3.5 rounded-md border flex items-center gap-3 cursor-pointer transition ${
-                  paymentMethod === 'BANK_TRANSFER'
-                    ? 'border-accent bg-accent-soft'
-                    : 'border-line bg-surface hover:bg-surface-2'
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
-                    paymentMethod === 'BANK_TRANSFER'
-                      ? 'border-accent bg-accent'
-                      : 'border-line bg-surface'
-                  }`}
-                >
-                  {paymentMethod === 'BANK_TRANSFER' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-surface" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <QrCode className="w-4 h-4 text-accent" />
-                    <p className="text-[13px] font-bold text-ink">Chuyển Khoản VNPay QR</p>
-                  </div>
-                  <p className="text-[11px] text-ink-muted mt-0.5">
-                    Quét mã QR qua ứng dụng ngân hàng
-                  </p>
-                </div>
-              </div>
-
-              {/* COD */}
-              <div
-                onClick={() => setPaymentMethod('COD')}
-                className={`p-3.5 rounded-md border flex items-center gap-3 cursor-pointer transition ${
-                  paymentMethod === 'COD'
-                    ? 'border-accent bg-accent-soft'
-                    : 'border-line bg-surface hover:bg-surface-2'
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
-                    paymentMethod === 'COD'
-                      ? 'border-accent bg-accent'
-                      : 'border-line bg-surface'
-                  }`}
-                >
-                  {paymentMethod === 'COD' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-surface" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <p className="text-[13px] font-bold text-ink">Thanh Toán Khi Nhận (COD)</p>
-                  </div>
-                  <p className="text-[11px] text-ink-muted mt-0.5">
-                    Kiểm tra hàng rồi thanh toán tiền mặt
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PaymentMethodSelector
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+          />
         </div>
 
         {/* Right Column: Order Summary (5 cols) */}
@@ -427,7 +520,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="flex justify-between text-ink-muted">
-                <span>Phí vận chuyển:</span>
+                <span>Phí vận chuyển ({selectedProviderCode}):</span>
                 <span className="font-bold text-ink">
                   {isFreeShip ? (
                     <span className="text-emerald-600 dark:text-emerald-400">
@@ -438,6 +531,13 @@ export default function CheckoutPage() {
                   )}
                 </span>
               </div>
+
+              {estimatedDeliveryDate && (
+                <div className="flex justify-between text-[11.5px] text-ink-subtle">
+                  <span>Dự kiến giao hàng:</span>
+                  <span className="font-semibold text-accent">{estimatedDeliveryDate}</span>
+                </div>
+              )}
 
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">

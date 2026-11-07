@@ -20,7 +20,6 @@ export function CatalogProvider({ children }) {
   const [reviews, setReviews] = useState(mockReviews);
   const [coupons, setCoupons] = useState(mockCoupons);
 
-  // Category Actions
   const addCategory = useCallback((catData) => {
     const newCat = {
       ...catData,
@@ -45,7 +44,6 @@ export function CatalogProvider({ children }) {
     showToast('Đã xóa danh mục thành công');
   }, [showToast]);
 
-  // Brand Actions
   const addBrand = useCallback((brandData) => {
     const newBrand = {
       ...brandData,
@@ -70,12 +68,11 @@ export function CatalogProvider({ children }) {
     showToast('Đã xóa thương hiệu thành công');
   }, [showToast]);
 
-  // Product Actions
   const addProduct = useCallback((productData) => {
     const newProd = {
       ...productData,
       id: Date.now(),
-      status: productData.status || 'DRAFT', // Always DRAFT on creation unless specified
+      status: productData.status || 'DRAFT',
       isActive: productData.status === 'ACTIVE',
       soldCount: 0,
       avgRating: 5.0,
@@ -309,7 +306,7 @@ export function CatalogProvider({ children }) {
 export function useCatalog() {
   const ctx = useContext(CatalogContext);
   if (!ctx) {
-    throw new Error('useCatalog must be used within CatalogProvider');
+    throw new Error('useCatalog phải được sử dụng bên trong CatalogProvider');
   }
   return ctx;
 }

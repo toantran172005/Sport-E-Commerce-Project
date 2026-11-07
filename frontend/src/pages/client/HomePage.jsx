@@ -1,24 +1,21 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
-import ProductCard from '../../components/common/ProductCard.jsx';
+import { ProductCard } from '../../components/product';
 import { useStore } from '../../context/StoreContext.jsx';
 
 export default function HomePage() {
   const { products, categoriesList } = useStore();
   const navigate = useNavigate();
 
-  // 6 danh mục phẳng dạng thẻ chữ (Text Card Grid)
   const mainCategories = useMemo(() => {
     return categoriesList.slice(0, 6);
   }, [categoriesList]);
 
-  // Khối sản phẩm mới nhất (New Arrivals)
   const newArrivals = useMemo(() => {
     return [...products].sort((a, b) => b.id - a.id).slice(0, 4);
   }, [products]);
 
-  // Khối sản phẩm bán chạy nhất (Best Sellers)
   const bestSellers = useMemo(() => {
     return [...products].sort((a, b) => b.soldCount - a.soldCount).slice(0, 8);
   }, [products]);

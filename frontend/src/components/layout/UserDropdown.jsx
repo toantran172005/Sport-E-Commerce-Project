@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from "react-router-dom";
 import {
   User,
   Package,
@@ -8,8 +8,8 @@ import {
   LogOut,
   Sun,
   Moon,
-} from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+} from "lucide-react";
+import { useStore } from "../../context/StoreContext.jsx";
 
 export default function UserDropdown() {
   const {
@@ -29,16 +29,16 @@ export default function UserDropdown() {
 
   const handleLogout = () => {
     setIsUserMenuOpen(false);
-    localStorage.removeItem('sport_user');
-    localStorage.removeItem('token');
+    localStorage.removeItem("sport_user");
+    localStorage.removeItem("token");
     setUser(null);
-    showToast('Đã đăng xuất thành công');
-    navigate('/login');
+    showToast("Đã đăng xuất thành công");
+    navigate("/login");
   };
 
-  const displayName = user?.fullName || user?.name || 'Khách hàng';
-  const displayEmail = user?.email || 'khach@sannha.vn';
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
+  const displayName = user?.fullName || user?.name || "Khách hàng";
+  const displayEmail = user?.email || "khach@sannha.vn";
+  const isAdmin = user?.role === "ADMIN" || user?.role === "STAFF";
 
   return (
     <>
@@ -47,7 +47,7 @@ export default function UserDropdown() {
         onClick={() => setIsUserMenuOpen(false)}
       />
 
-      <div className="absolute right-0 top-[calc(100%+8px)] w-[280px] bg-surface rounded-lg shadow-xl border border-line z-50 overflow-hidden animate-in fade-in duration-150 text-ink">
+      <div className="absolute right-0 top-[calc(100%+8px)] w-70 bg-surface rounded-lg shadow-xl border border-line z-50 overflow-hidden animate-in fade-in duration-150 text-ink">
         {/* User profile header */}
         <div className="p-4 border-b border-line flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-accent text-white font-bold text-base flex items-center justify-center shrink-0">
@@ -57,9 +57,11 @@ export default function UserDropdown() {
             <h4 className="text-[14px] font-bold text-ink truncate">
               {displayName}
             </h4>
-            <p className="text-[11.5px] text-ink-muted truncate">{displayEmail}</p>
+            <p className="text-[11.5px] text-ink-muted truncate">
+              {displayEmail}
+            </p>
             <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-accent-soft text-accent text-[10.5px] font-bold">
-              {isAdmin ? 'Quản trị viên' : 'Khách hàng thân thiết'}
+              {isAdmin ? "Quản trị viên" : "Khách hàng thân thiết"}
             </span>
           </div>
         </div>
@@ -140,8 +142,12 @@ export default function UserDropdown() {
             className="w-full flex items-center justify-between px-3 py-2 rounded-md text-[12.5px] font-semibold text-ink-muted hover:bg-surface-2 transition cursor-pointer"
           >
             <span className="flex items-center gap-2.5">
-              {isDarkMode ? <Sun className="w-4 h-4 text-warning" /> : <Moon className="w-4 h-4" />}
-              <span>{isDarkMode ? 'Chế độ Sáng' : 'Chế độ Tối'}</span>
+              {isDarkMode ? (
+                <Sun className="w-4 h-4 text-warning" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+              <span>{isDarkMode ? "Chế độ Sáng" : "Chế độ Tối"}</span>
             </span>
           </button>
 

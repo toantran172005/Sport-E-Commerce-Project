@@ -91,12 +91,13 @@ public class OrderServiceImpl implements OrderService {
 
                 ProductVariant variant = cartItem.getVariant();
 
+                String prodName = variant.getProduct() != null ? variant.getProduct().getName() : variant.getSku();
                 if (variant.getStock() < cartItem.getQuantity()) {
-                    throw new BadRequestException("Sản phẩm " + variant.getSku() + " không đủ số lượng trong kho!");
+                    throw new BadRequestException("Sản phẩm '" + prodName + "' không đủ số lượng trong kho (chỉ còn " + variant.getStock() + " sản phẩm)!");
                 }
 
                 if (!Boolean.TRUE.equals(variant.getIsActive())) {
-                    throw new BadRequestException("Sản phẩm " + variant.getSku() + " đã ngưng hoạt động!");
+                    throw new BadRequestException("Sản phẩm '" + prodName + "' đã ngưng hoạt động!");
                 }
 
                 Product product = variant.getProduct();
@@ -135,12 +136,13 @@ public class OrderServiceImpl implements OrderService {
                     .findById(itemRequest.getVariantId())
                     .orElseThrow(() -> new ResourceNotFoundException("Variant không tồn tại!"));
 
+            String prodName = variant.getProduct() != null ? variant.getProduct().getName() : variant.getSku();
             if (variant.getStock() < itemRequest.getQuantity()) {
-                throw new BadRequestException("Sản phẩm " + variant.getSku() + " không đủ số lượng!");
+                throw new BadRequestException("Sản phẩm '" + prodName + "' không đủ số lượng trong kho (chỉ còn " + variant.getStock() + " sản phẩm)!");
             }
 
             if (!Boolean.TRUE.equals(variant.getIsActive())) {
-                throw new BadRequestException("Sản phẩm " + variant.getSku() + " đã ngưng hoạt động!");
+                throw new BadRequestException("Sản phẩm '" + prodName + "' đã ngưng hoạt động!");
             }
 
             Product product = variant.getProduct();
@@ -229,8 +231,6 @@ public class OrderServiceImpl implements OrderService {
             couponService.recordUsage(coupon.getCode(), userId, completedOrder.getId(), discountAmount);
         }
 
-        // Bao cho staff biet co don hang moi can xu ly (module Notification).
-        // Dung Spring Event de khong lam OrderServiceImpl phu thuoc truc tiep vao NotificationService.
         eventPublisher.publishEvent(new OrderPlacedEvent(completedOrder.getId(), completedOrder.getOrderCode(), userId));
 
         return ApiResponse.success("Đặt hàng thành công", mapperUtil.mapOrderToPlaceOrderResponse(completedOrder));
@@ -273,11 +273,15 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng mã: " + orderId));
 
-        if (user.getRole().equals(UserRole.CUSTOMER)) {
-            throw new BadRequestException("Khách hàng không được phép chỉnh sửa đơn hàng!");
-        }
-
         OrderStatus currentStatus = order.getStatus();
+
+        if (user.getRole().equals(UserRole.CUSTOMER)) {
+            if (!(newStatus.equals(OrderStatus.CANCELED)
+                    && order.getUser().getId().equals(userId)
+                    && (currentStatus.equals(OrderStatus.PENDING) || currentStatus.equals(OrderStatus.CONFIRMED)))) {
+                throw new BadRequestException("Khách hàng chỉ được phép hủy đơn hàng của chính mình khi đơn ở trạng thái PENDING hoặc CONFIRMED!");
+            }
+        }
 
         if (currentStatus.equals(OrderStatus.PENDING) && newStatus.equals(OrderStatus.CONFIRMED)) {
             Payment payment = order.getPayment();
@@ -375,27 +379,40 @@ public class OrderServiceImpl implements OrderService {
                 newStatus.equals(OrderStatus.CANCELED)) {
             List<OrderItem> orderItems = order.getOrderItems();
 
-            for (OrderItem orderItem : orderItems) {
-                ProductVariant variant = orderItem.getVariant();
-                variant.setStock(variant.getStock() + orderItem.getQuantity());
+            if (orderItems != null) {
+                for (OrderItem orderItem : orderItems) {
+                    ProductVariant variant = orderItem.getVariant();
+                    if (variant != null) {
+                        variant.setStock(variant.getStock() + orderItem.getQuantity());
+                        variantRepository.save(variant);
+                    }
+                }
             }
 
             Coupon coupon = order.getCoupon();
             if (coupon != null) {
-                coupon.setUsedCount(coupon.getUsedCount() - 1);
+                coupon.setUsedCount(Math.max(0, coupon.getUsedCount() - 1));
+                couponRepository.save(coupon);
                 couponUsageRepository.deleteByOrder_Id(order.getId());
             }
 
             Payment payment = order.getPayment();
-            if (payment.getStatus().equals(PaymentStatus.PAID)) {
-                payment.setStatus(PaymentStatus.REFUND);
-            } else {
-                payment.setStatus(PaymentStatus.CANCELLED);
+            if (payment != null) {
+                if (PaymentStatus.PAID.equals(payment.getStatus())) {
+                    payment.setStatus(PaymentStatus.REFUND);
+                } else {
+                    payment.setStatus(PaymentStatus.CANCELLED);
+                }
+            }
+
+            Shipment shipment = order.getShipment();
+            if (shipment != null) {
+                shipment.setStatus(ShipmentStatus.CANCELLED);
             }
 
             order.setStatus(OrderStatus.CANCELED);
             order.setCanceledAt(Instant.now());
-            order.setCancelReason(cancelledReason);
+            order.setCancelReason(cancelledReason != null && !cancelledReason.isBlank() ? cancelledReason : note);
 
             OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
                     .status(OrderStatus.CANCELED)
@@ -454,9 +471,6 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("Không thể chuyển trạng thái đơn hàng từ " + currentStatus + " sang " + newStatus);
         }
 
-        // Bao cho khach hang biet don hang cua ho vua doi trang thai (module Notification).
-        // currentStatus o day van la trang thai TRUOC khi doi (duoc doc o dau ham, truoc khi
-        // cac nhanh if/else-if ben tren goi order.setStatus(...)).
         eventPublisher.publishEvent(new OrderStatusChangedEvent(
                 order.getId(), order.getOrderCode(), order.getUser().getId(), currentStatus, newStatus));
 
@@ -464,4 +478,16 @@ public class OrderServiceImpl implements OrderService {
                 mapperUtil.mapOrderToPlaceOrderResponse(order));
     }
 
+
+    @Override
+    @Transactional
+    public ApiResponse<?> cancelOrder(Long userId, Long orderId, String reason) {
+        UpdateOrderStatusRequest request = UpdateOrderStatusRequest.builder()
+                .orderId(orderId)
+                .newStatus(OrderStatus.CANCELED)
+                .cancelledReason(reason)
+                .note(reason)
+                .build();
+        return updateOrderStatus(userId, request);
+    }
 }

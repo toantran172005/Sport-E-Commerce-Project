@@ -2,11 +2,9 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes, Navigate, useParams } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
 
-// Layouts (Lazy loaded)
 const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
 const AccountLayout = lazy(() => import('../layouts/AccountLayout'));
 
-// Client Storefront Pages (Lazy loaded)
 const HomePage = lazy(() => import('../pages/client/HomePage'));
 const CatalogPage = lazy(() => import('../pages/client/CatalogPage'));
 const ProductDetailPage = lazy(() => import('../pages/client/ProductDetailPage'));
@@ -15,20 +13,17 @@ const CheckoutPage = lazy(() => import('../pages/client/CheckoutPage'));
 const PaymentResultPage = lazy(() => import('../pages/client/PaymentResultPage'));
 const WishlistPage = lazy(() => import('../pages/client/WishlistPage'));
 
-// Account Sub-pages (Lazy loaded)
 const ProfilePage = lazy(() => import('../pages/client/account/ProfilePage'));
 const AddressesPage = lazy(() => import('../pages/client/account/AddressesPage'));
 const ChangePasswordPage = lazy(() => import('../pages/client/account/ChangePasswordPage'));
 const OrderListPage = lazy(() => import('../pages/client/OrderListPage'));
 const OrderDetailPage = lazy(() => import('../pages/client/OrderDetailPage'));
 
-// Auth Pages (Lazy loaded)
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
 const VerifyOtpPage = lazy(() => import('../pages/auth/VerifyOtpPage'));
 
-// Admin CMS Pages (Lazy loaded)
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage'));
 const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage'));
 const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage'));
@@ -36,7 +31,6 @@ const AdminCouponsPage = lazy(() => import('../pages/admin/AdminCouponsPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
 
-// Common Pages
 const NotFoundPage = lazy(() => import('../pages/common/NotFoundPage'));
 
 function RouteLoadingFallback() {
@@ -55,7 +49,6 @@ function LegacyOrderDetailRedirect() {
   return <Navigate to={`/account/orders/${id}`} replace />;
 }
 
-// Protected Route for Admin CMS
 function AdminRoute({ children }) {
   const { user } = useAuth();
   const { showToast } = useUI();
@@ -69,7 +62,6 @@ function AdminRoute({ children }) {
   return children;
 }
 
-// Protected Route for Customer / Logged-in Users
 function CustomerRoute({ children, redirect = '/login?redirect=/account/profile' }) {
   const { user } = useAuth();
   const { showToast } = useUI();

@@ -39,7 +39,6 @@ export default function Header() {
   const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
   const searchContainerRef = useRef(null);
 
-  // Suggestions filter
   const suggestions = searchTerm.trim()
     ? products
         .filter(

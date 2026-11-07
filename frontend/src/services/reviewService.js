@@ -101,7 +101,7 @@ export const reviewService = {
         userId: data.userId || 1,
         rating: Number(data.rating),
         comment: data.comment,
-        status: 'PENDING', // Cần duyệt
+        status: 'PENDING',
         images: data.images || [],
         createdAt: new Date().toISOString(),
         reply: null,

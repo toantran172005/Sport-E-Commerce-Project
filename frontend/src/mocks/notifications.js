@@ -1,4 +1,3 @@
-// Dữ liệu Mock tĩnh bám sát Entity Java
 export const notifications = [
   {
     "id": 1,
