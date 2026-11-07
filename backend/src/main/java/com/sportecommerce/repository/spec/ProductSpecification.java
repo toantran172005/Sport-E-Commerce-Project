@@ -15,6 +15,7 @@ public class ProductSpecification {
 
     public static Specification<Product> filterBy(ProductStatus status, Long categoryId, Long brandId, String keyword){
         return (root, query, cb) -> {
+            assert query != null;
             if(query.getResultType() != Long.class){
                 root.fetch("category", JoinType.LEFT);
                 root.fetch("brand", JoinType.LEFT);

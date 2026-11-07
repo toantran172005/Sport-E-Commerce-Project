@@ -7,7 +7,6 @@ import com.sportecommerce.dto.request.ResendOtpRequest;
 import com.sportecommerce.dto.request.ResetPasswordRequest;
 import com.sportecommerce.dto.request.VerifyOtpRequest;
 import com.sportecommerce.dto.response.AuthResponse;
-import com.sportecommerce.dto.response.UserResponse;
 import com.sportecommerce.entity.RefreshToken;
 import com.sportecommerce.entity.User;
 import com.sportecommerce.enums.OtpPurpose;

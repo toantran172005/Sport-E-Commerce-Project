@@ -1,0 +1,35 @@
+import { ThemeProvider } from './ThemeContext.jsx';
+import { UIProvider } from './UIContext.jsx';
+import { AuthProvider } from './AuthContext.jsx';
+import { CatalogProvider } from './CatalogContext.jsx';
+import { CustomerProvider } from './CustomerContext.jsx';
+import { WishlistProvider } from './WishlistContext.jsx';
+import { NotificationProvider } from './NotificationContext.jsx';
+import { AddressProvider } from './AddressContext.jsx';
+import { OrderProvider } from './OrderContext.jsx';
+import { CartProvider } from './CartContext.jsx';
+
+const providers = [
+  ThemeProvider,
+  UIProvider,
+  AuthProvider,
+  CatalogProvider,
+  CustomerProvider,
+  WishlistProvider,
+  NotificationProvider,
+  AddressProvider,
+  OrderProvider,
+  CartProvider,
+];
+
+/**
+ * AppProviders: Composes all modular domain providers cleanly without deep nesting.
+ */
+export default function AppProviders({ children }) {
+  return providers.reduceRight(
+    (nested, Provider) => <Provider>{nested}</Provider>,
+    children
+  );
+}
+
+export { AppProviders };
