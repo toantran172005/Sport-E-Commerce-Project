@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets
+.agent
+.env
+.env.*
+_progress/.env
+_progress/tools/.cache/
+
+_progress/backups/
+_progress/tools/.cache/
+_progress/reports/screenshots/

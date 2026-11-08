@@ -16,6 +16,6 @@ import lombok.Setter;
 public class ChangePhoneRequest {
 
     @NotBlank
-    @Pattern(regexp = "^[0-9]{9,15}$", message = "So dien thoai khong hop le")
+    @Pattern(regexp = "^[0-9]{9,15}$", message = "Số điện thoại không hợp lệ")
     private String newPhoneNumber;
 }

@@ -86,7 +86,7 @@ public class Product {
 
     @OneToMany(mappedBy = "product")
     @Builder.Default
-    private List<ProductAttribute> productAttributes = new ArrayList<>();
+    private List<ProductAttributes> productAttributes = new ArrayList<>();
 
     @OneToMany(mappedBy = "product")
     @Builder.Default
@@ -103,4 +103,14 @@ public class Product {
     @OneToMany(mappedBy = "product")
     @Builder.Default
     private List<Wishlist> wishlists = new ArrayList<>();
+
+    public void addVariant(ProductVariant variant) {
+        productVariants.add(variant);
+        variant.setProduct(this);
+    }
+
+    public void addImage(ProductImage image) {
+        productImages.add(image);
+        image.setProduct(this);
+    }
 }

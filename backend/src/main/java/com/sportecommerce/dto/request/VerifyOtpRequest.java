@@ -19,13 +19,13 @@ import lombok.Setter;
 public class VerifyOtpRequest {
 
     @NotBlank
-    @Email(message = "Email khong hop le")
+    @Email(message = "Email không hợp lệ")
     private String email;
 
     @NotBlank
-    @Pattern(regexp = "^[0-9]{4,8}$", message = "Ma OTP khong hop le")
+    @Pattern(regexp = "^[0-9]{4,8}$", message = "Mã OTP không hợp lệ")
     private String otp;
 
-    @NotNull(message = "Muc dich xac thuc OTP khong duoc de trong")
+    @NotNull(message = "Mục đích xác thực OTP không được để trống")
     private OtpPurpose purpose;
 }

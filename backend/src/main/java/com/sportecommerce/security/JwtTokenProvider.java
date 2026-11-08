@@ -34,7 +34,7 @@ public class JwtTokenProvider {
         return accessTokenExpirationMs;
     }
 
-    public String generateAccessToken(Long userId, String email, String role) {
+    public String generateAccessToken(Long userId, String email, String role, String fullName) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessTokenExpirationMs);
 
@@ -42,6 +42,7 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("role", role)
+                .claim("full_name", fullName)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -61,9 +62,9 @@ public class JwtTokenProvider {
             parseClaims(token);
             return true;
         } catch (ExpiredJwtException e) {
-            log.debug("JWT het han: {}", e.getMessage());
+            log.debug("JWT hết hạn: {}", e.getMessage());
         } catch (JwtException | IllegalArgumentException e) {
-            log.debug("JWT khong hop le: {}", e.getMessage());
+            log.debug("JWT không hợp lệ: {}", e.getMessage());
         }
         return false;
     }

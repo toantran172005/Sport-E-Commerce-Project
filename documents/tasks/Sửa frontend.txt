@@ -1,0 +1,16 @@
+===Payment và Voucher===
+Gọi api thanh toán vnpay
+Thêm xoá mã khuyễn mãi
+Mã khuyến mãi: thêm hiển thị ngày bắt đầu , ngày kết thúc, hoàn thiện chức chỉnh sửa mã khuyến mãi
+
+===Wishlist và Review===
+Voucher: Sửa lại áp dụng voucher lúc thanh toán
+Admin – Review: Thêm review chờ duyệt, Link ảnh chụp thực tế sửa thành chọn file, thêm chức năng gửi phản hồi, thêm tên sản phẩm
+Admin – Tổng quan: Sửa lại đánh giá tích cực thành so sánh đánh giá tích cực (4-5 sao) với đánh giá tiêu cực (1-3 sao), phần đánh giá khách hàng vẫn là trung bình toàn bộ đánh giá
+
+====Order và Shipment====
+Lọc theo shipment ở admin không được (lọc theo đơn vị ấy, sửa thành lọc theo đơn vị vận chuyển đi)
+Phần chỉnh sửa trạng thái đơn hàng, vào backend đọc cái logic nghiệp vụ và xóa các trạng thái không được phép đổi khi đang đứng ở trạng thái đó (ví dụ đang giao thì không được phép hủy, chỉ khi đã giao thì được phép hoàn trả...)
+Hình như thiếu 1 phần refund thì phải, đọc backend và làm đi
+Xóa cái xuất báo cáo và đồng bộ vận đơn ở Quản lý đơn hàng, đưa xuất báo cáo vào Tổng quan ấy
+

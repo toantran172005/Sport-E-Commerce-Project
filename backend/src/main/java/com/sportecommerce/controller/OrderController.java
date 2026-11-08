@@ -1,30 +1,65 @@
 package com.sportecommerce.controller;
 
 import com.sportecommerce.common.ApiResponse;
-import com.sportecommerce.dto.response.OrderResponse;
+import com.sportecommerce.dto.request.CancelOrderRequest;
+import com.sportecommerce.dto.request.PlaceOrderRequest;
+import com.sportecommerce.dto.request.UpdateOrderStatusRequest;
+import com.sportecommerce.dto.response.OrderDetailResponse;
+import com.sportecommerce.dto.response.PlaceOrderResponse;
+import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.OrderService;
+import com.sportecommerce.util.MapperUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/api/orders")
 @RequiredArgsConstructor
-@RequestMapping("/api/order")
 public class OrderController {
+    private final OrderService orderService;
+    private final MapperUtil mapperUtil;
 
-    public final OrderService orderService;
+    @PostMapping("/place-order")
+    public ResponseEntity<ApiResponse<PlaceOrderResponse>> placeOrder(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody PlaceOrderRequest request) {
+        Long userId = (userPrincipal != null) ? userPrincipal.getId() : (request.getUserId() != null ? request.getUserId() : 4L);
+        ApiResponse<PlaceOrderResponse> response = orderService.placeOrder(userId, request);
 
-    @GetMapping("/get-order-by-userid/{userId}")
-    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrdersByUserId
-            (
-                   @PathVariable Long userId
-            ) {
-        return ResponseEntity.ok(orderService.getAllOrdersByUserId(userId));
+        return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/update-order-status")
+    public ResponseEntity<?> updateOrderStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody UpdateOrderStatusRequest request
+    ) {
+        Long userId = (userPrincipal != null) ? userPrincipal.getId() : 4L;
+        ApiResponse<?> response = orderService.updateOrderStatus(userId, request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelOrder(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable Long id,
+            @Valid @RequestBody(required = false) CancelOrderRequest request
+    ) {
+        Long userId = (userPrincipal != null) ? userPrincipal.getId() : 4L;
+        String reason = (request != null && request.getReason() != null && !request.getReason().isBlank())
+                ? request.getReason()
+                : "Khách hàng yêu cầu hủy đơn";
+        ApiResponse<?> response = orderService.cancelOrder(userId, id, reason);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getOrderById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin đơn hàng thành công", mapperUtil.mapOrderToOrderDetailResponse(orderService.getOrderById(id))));
+    }
 }

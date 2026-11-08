@@ -1,0 +1,204 @@
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Zap,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  ArrowRight,
+} from 'lucide-react';
+import { useStore } from '../../context/StoreContext.jsx';
+import { authService } from '../../services/authService.js';
+
+export default function RegisterPage() {
+  const { setUser, showToast } = useStore();
+  const navigate = useNavigate();
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Mật khẩu phải từ 6 ký tự trở lên');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await authService.register({
+        fullName,
+        email,
+        phoneNumber,
+        password,
+      });
+      setUser(res.user);
+      showToast('Đăng ký tài khoản thành công! Vui lòng xác thực mã OTP.');
+      navigate(`/verify-otp?email=${encodeURIComponent(email)}&purpose=REGISTER`);
+    } catch (err) {
+      setError(err.message || 'Lỗi khi đăng ký tài khoản');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-page flex flex-col text-ink transition-colors">
+      <header className="bg-surface border-b border-line h-16">
+        <div className="max-w-[1360px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
+              <Zap className="w-4 h-4 fill-white" />
+            </div>
+            <span className="text-[18px] font-extrabold tracking-tight">SÂN NHÀ SPORT</span>
+          </Link>
+
+          <Link
+            to="/login"
+            className="text-[12.5px] font-bold text-accent hover:underline"
+          >
+            Đã có tài khoản? Đăng nhập →
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 flex items-center justify-center p-4 md:p-8">
+        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[540px] p-6 md:p-8 space-y-5">
+          <div>
+            <h1 className="text-2xl font-bold text-ink">
+              Đăng Ký Tài Khoản Mới
+            </h1>
+            <p className="text-[13px] text-ink-muted mt-1">
+              Trở thành thành viên để tích lũy điểm và nhận ưu đãi độc quyền
+            </p>
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 text-danger text-[12px] font-medium">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            <div>
+              <label className="block text-[12px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Họ và tên *
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Nguyễn Văn A"
+                  className="w-full h-9.5 pl-9 pr-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[13px] focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Email *
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="ban@example.com"
+                    className="w-full h-9.5 pl-9 pr-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[13px] focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Số điện thoại *
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="tel"
+                    required
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="0912 345 678"
+                    className="w-full h-9.5 pl-9 pr-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[13px] focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Mật khẩu *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Từ 6 ký tự"
+                    className="w-full h-9.5 pl-9 pr-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[13px] focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Xác nhận mật khẩu *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu"
+                    className="w-full h-9.5 pl-9 pr-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[13px] focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-10 rounded-md bg-accent hover:bg-accent-hover text-white text-[13.5px] font-bold shadow-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
+              >
+                <span>{loading ? 'Đang khởi tạo tài khoản...' : 'Đăng Ký & Nhận Mã OTP'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+
+          <p className="text-[12px] text-center text-ink-subtle pt-2">
+            Bằng việc đăng ký, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của Sân Nhà.
+          </p>
+        </div>
+      </main>
+    </div>
+  );
+}
