@@ -10,6 +10,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useStore } from "../../context/StoreContext.jsx";
+import { authService } from "../../services/authService.js";
 
 export default function UserDropdown() {
   const {
@@ -29,8 +30,8 @@ export default function UserDropdown() {
 
   const handleLogout = () => {
     setIsUserMenuOpen(false);
-    localStorage.removeItem("sport_user");
-    localStorage.removeItem("token");
+    // Thu hồi refresh token ở backend và xóa phiên phía client (không chờ để UI phản hồi ngay)
+    authService.logout();
     setUser(null);
     showToast("Đã đăng xuất thành công");
     navigate("/login");

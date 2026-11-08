@@ -15,6 +15,13 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
+import { USE_MOCK } from '../../config/env.js';
+
+
+const DEMO = {
+  admin: { email: 'admin@sannha.vn', password: 'admin123' },
+  customer: { email: 'toan.tran@gmail.com', password: '123456' },
+};
 
 export default function LoginPage() {
   const { setUser, showToast } = useStore();
@@ -22,8 +29,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
 
-  const [email, setEmail] = useState('toan.tran@gmail.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState(USE_MOCK ? DEMO.customer.email : '');
+  const [password, setPassword] = useState(USE_MOCK ? DEMO.customer.password : '');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,12 +43,24 @@ export default function LoginPage() {
       setUser(res.user);
       showToast(`Đăng nhập thành công! Xin chào ${res.user.fullName || res.user.name}`);
       
-      if (res.user.role === 'ADMIN' && (redirectUrl === '/' || redirectUrl === '/admin')) {
+      if (res.user.mustChangePassword) {
+        // Tài khoản do Admin tạo, còn mật khẩu mặc định → bắt buộc đổi trước khi dùng
+        navigate('/force-change-password', { replace: true });
+      } else if (
+        (res.user.role === 'ADMIN' || res.user.role === 'STAFF') &&
+        (redirectUrl === '/' || redirectUrl === '/admin')
+      ) {
         navigate('/admin');
       } else {
         navigate(redirectUrl);
       }
     } catch (err) {
+      // Backend trả 403 khi tài khoản đăng ký xong nhưng chưa nhập OTP (trạng thái PENDING)
+      if (err.status === 403 && /xác thực/i.test(err.message || '')) {
+        showToast('Tài khoản chưa xác thực email. Vui lòng nhập mã OTP đã gửi tới email của bạn.');
+        navigate(`/verify-otp?email=${encodeURIComponent(loginEmail.trim())}&purpose=REGISTER`);
+        return;
+      }
       setError(err.message || 'Email hoặc mật khẩu không chính xác');
     } finally {
       setLoading(false);
@@ -54,20 +73,21 @@ export default function LoginPage() {
   };
 
   const handleLoginAsCustomer = () => {
-    setEmail('toan.tran@gmail.com');
-    setPassword('123456');
-    executeLogin('toan.tran@gmail.com', '123456');
+    setEmail(DEMO.customer.email);
+    setPassword(DEMO.customer.password);
+    executeLogin(DEMO.customer.email, DEMO.customer.password);
   };
 
   const handleLoginAsAdmin = () => {
-    setEmail('admin@sannha.vn');
-    setPassword('admin123');
-    executeLogin('admin@sannha.vn', 'admin123');
+    setEmail(DEMO.admin.email);
+    setPassword(DEMO.admin.password);
+    executeLogin(DEMO.admin.email, DEMO.admin.password);
   };
 
   const handleContinueAsGuest = () => {
     localStorage.removeItem('sport_user');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setUser(null);
     showToast('Đang duyệt web với tư cách Khách vãng lai (Guest)');
     navigate('/');
@@ -169,10 +189,12 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <p className="text-[11.5px] font-bold text-ink-subtle uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-accent" />
-                  <span>Chọn nhanh vai trò thử nghiệm:</span>
+                  <span>{USE_MOCK ? 'Chọn nhanh vai trò thử nghiệm:' : 'Hoặc duyệt web không cần đăng nhập:'}</span>
                 </p>
 
                 <div className="grid grid-cols-1 gap-2">
+                  {USE_MOCK && (
+                  <>
                   {/* Option 1: Admin */}
                   <button
                     type="button"
@@ -189,7 +211,7 @@ export default function LoginPage() {
                           Đăng nhập vai trò Admin (Người bán / Shop Owner)
                         </p>
                         <p className="text-[11px] text-ink-muted truncate">
-                          admin@sannha.vn • Có đủ chức năng mua sắm + Kênh Người Bán
+                          {DEMO.admin.email} • Có đủ chức năng mua sắm + Kênh Người Bán
                         </p>
                       </div>
                     </div>
@@ -214,7 +236,7 @@ export default function LoginPage() {
                           Đăng nhập vai trò Customer (Khách hàng)
                         </p>
                         <p className="text-[11px] text-ink-muted truncate">
-                          toan.tran@gmail.com • Đặt hàng, sổ địa chỉ, không có admin
+                          {DEMO.customer.email} • Đặt hàng, sổ địa chỉ, không có admin
                         </p>
                       </div>
                     </div>
@@ -222,6 +244,9 @@ export default function LoginPage() {
                       Customer
                     </span>
                   </button>
+
+                  </>
+                  )}
 
                   {/* Option 3: Guest */}
                   <button
@@ -268,7 +293,7 @@ export default function LoginPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@sannha.vn hoặc toan.tran@gmail.com"
+                      placeholder="Nhập email đăng nhập"
                       className="w-full h-10 pl-9 pr-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[13px] focus:outline-none focus:border-accent"
                     />
                   </div>

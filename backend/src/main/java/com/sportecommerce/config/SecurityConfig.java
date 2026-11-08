@@ -48,6 +48,13 @@ public class SecurityConfig {
             "/api/auth/**"
     };
 
+    private static final String[] PROTECTED_ENDPOINTS = {
+            "/api/users/**",
+            "/api/notifications/**",
+            "/api/auth/logout-all",
+            "/api/admin/**"
+    };
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -88,6 +95,9 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Phai dat TRUOC rule permitAll: cac endpoint can dang nhap (module User/Auth/Notification).
+                        // Neu khong, request khong co token se lot vao controller voi principal = null -> loi 500 thay vi 401.
+                        .requestMatchers(PROTECTED_ENDPOINTS).authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/api/**").permitAll()
                         .anyRequest().authenticated()

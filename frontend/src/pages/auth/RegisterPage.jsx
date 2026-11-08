@@ -12,7 +12,7 @@ import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
 
 export default function RegisterPage() {
-  const { setUser, showToast } = useStore();
+  const { showToast } = useStore();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -32,21 +32,16 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Mật khẩu phải từ 6 ký tự trở lên');
+    if (password.length < 8 || !/^(?=.*[A-Za-z])(?=.*\d).+$/.test(password)) {
+      setError('Mật khẩu phải từ 8 ký tự và gồm cả chữ và số');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await authService.register({
-        fullName,
-        email,
-        phoneNumber,
-        password,
-      });
-      setUser(res.user);
-      showToast('Đăng ký tài khoản thành công! Vui lòng xác thực mã OTP.');
+      // Backend tạo tài khoản ở trạng thái PENDING và gửi OTP qua email (chưa cấp token)
+      await authService.register({ fullName, email, phoneNumber, password });
+      showToast('Đã gửi mã OTP tới email của bạn. Nhập mã để kích hoạt tài khoản.');
       navigate(`/verify-otp?email=${encodeURIComponent(email)}&purpose=REGISTER`);
     } catch (err) {
       setError(err.message || 'Lỗi khi đăng ký tài khoản');
@@ -158,7 +153,7 @@ export default function RegisterPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Từ 6 ký tự"
+                    placeholder="Từ 8 ký tự, gồm chữ và số"
                     className="w-full h-9.5 pl-9 pr-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[13px] focus:outline-none focus:border-accent"
                   />
                 </div>

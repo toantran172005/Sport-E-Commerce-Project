@@ -29,6 +29,7 @@ public class UserResponse {
     private LocalDate dateOfBirth;
     private UserRole role;
     private UserStatus status;
+    private Boolean mustChangePassword;
     private OffsetDateTime emailVerifiedAt;
     private OffsetDateTime phoneVerifiedAt;
     private OffsetDateTime lastLoginAt;

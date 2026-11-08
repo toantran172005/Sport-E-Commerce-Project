@@ -185,6 +185,7 @@ public class AuthServiceImpl implements AuthService {
         otpService.verify(request.getEmail(), OtpPurpose.RESET_PASSWORD, request.getOtp());
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
         userRepository.save(user);
 
         logoutAll(user.getId());

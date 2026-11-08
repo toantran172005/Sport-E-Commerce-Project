@@ -10,6 +10,7 @@ import {
   Search,
   Zap,
   ExternalLink,
+  UserCog,
 } from 'lucide-react';
 import { useOrder, useAuth, useCatalog } from '../context';
 
@@ -19,6 +20,7 @@ const ADMIN_NAV_ITEMS = [
   { to: '/admin/orders', end: false, icon: ClipboardList, label: 'Quản Lý Đơn Hàng', badge: 'orders' },
   { to: '/admin/coupons', end: false, icon: Tag, label: 'Mã Khuyến Mãi (Coupon)', badge: null },
   { to: '/admin/reviews', end: false, icon: Star, label: 'Đánh Giá Khách Hàng', badge: 'reviews' },
+  { to: '/admin/staff', end: false, icon: UserCog, label: 'Tài Khoản Nhân Viên', badge: null, adminOnly: true },
   { to: '/admin/settings', end: false, icon: Settings, label: 'Cài Đặt Cửa Hàng', badge: null },
 ];
 
@@ -63,7 +65,7 @@ export default function AdminLayout({
 
           {/* Navigation Links */}
           <nav className="space-y-1">
-            {ADMIN_NAV_ITEMS.map((item) => {
+            {ADMIN_NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === 'ADMIN').map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink

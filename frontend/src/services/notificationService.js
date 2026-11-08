@@ -1,20 +1,32 @@
+import axiosClient from '../api/axiosClient.js';
 import { notifications as initialNotifications } from '../mocks/notifications.js';
+import { USE_MOCK } from '../config/env.js';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 const fakeDelay = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let mockNotifications = [...initialNotifications];
 
 export const notificationService = {
-  async getNotifications(userId) {
+  /** GET /api/notifications?page&size → backend trả PageResponse, hàm này trả mảng content (mới nhất trước) */
+  async getNotifications({ page = 0, size = 30 } = {}) {
     if (USE_MOCK) {
       await fakeDelay();
       return [...mockNotifications];
     }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/notifications', { params: { userId } });
+    const data = await axiosClient.get('/notifications', { params: { page, size } });
+    return data?.content ?? [];
   },
 
+  /** GET /api/notifications/unread-count */
+  async getUnreadCount() {
+    if (USE_MOCK) {
+      await fakeDelay(100);
+      return mockNotifications.filter((n) => !n.isRead).length;
+    }
+    return axiosClient.get('/notifications/unread-count');
+  },
+
+  /** PATCH /api/notifications/{id}/read */
   async markAsRead(id) {
     if (USE_MOCK) {
       await fakeDelay(100);
@@ -22,18 +34,19 @@ export const notificationService = {
       if (notif) notif.isRead = true;
       return { success: true };
     }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.put(`/notifications/${id}/read`);
+    await axiosClient.patch(`/notifications/${id}/read`);
+    return { success: true };
   },
 
+  /** PATCH /api/notifications/read-all */
   async markAllAsRead() {
     if (USE_MOCK) {
       await fakeDelay(100);
       mockNotifications.forEach((n) => (n.isRead = true));
       return { success: true };
     }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.put('/notifications/read-all');
+    await axiosClient.patch('/notifications/read-all');
+    return { success: true };
   },
 };
 

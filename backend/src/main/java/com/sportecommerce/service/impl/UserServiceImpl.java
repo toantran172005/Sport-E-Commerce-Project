@@ -67,7 +67,13 @@ public class UserServiceImpl implements UserService {
             throw new AppException("Mật khẩu hiện tại không đúng", HttpStatus.BAD_REQUEST);
         }
 
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new AppException("Mật khẩu mới phải khác mật khẩu hiện tại", HttpStatus.BAD_REQUEST);
+        }
+
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        // Da doi mat khau -> go co bat buoc doi mat khau mac dinh (tai khoan do Admin tao)
+        user.setMustChangePassword(false);
         userRepository.save(user);
     }
 

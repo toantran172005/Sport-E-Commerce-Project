@@ -103,6 +103,7 @@ Table users {
 
   role user_role [default: 'CUSTOMER']
   status user_status [default: 'PENDING']
+  must_change_password boolean [not null, default: false, note: 'true = Admin tao tai khoan voi mat khau mac dinh, bat buoc doi mat khau o lan dang nhap dau']
 
   email_verified_at timestamptz
   phone_verified_at timestamptz

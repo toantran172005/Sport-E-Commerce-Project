@@ -1,28 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../../context/StoreContext';
+import { userService } from '../../../services/userService';
 
 export default function ProfilePage() {
   const { user, setUser, showToast } = useStore();
 
-  const [fullName, setFullName] = useState(user?.fullName || user?.name || 'Trần Thanh Toàn');
-  const [email, setEmail] = useState(user?.email || 'toantran@gmail.com');
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || user?.phone || '0912 345 678');
+  const [fullName, setFullName] = useState(user?.fullName || '');
   const [gender, setGender] = useState(user?.gender || 'MALE');
-  const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth || '1998-05-15');
+  const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth || '');
+  const [saving, setSaving] = useState(false);
 
-  const handleSaveProfile = (e) => {
+  // Mở trang → lấy hồ sơ mới nhất từ backend (GET /api/users/me)
+  useEffect(() => {
+    let cancelled = false;
+    userService
+      .getProfile()
+      .then((profile) => {
+        if (cancelled || !profile) return;
+        setUser(profile);
+        setFullName(profile.fullName || '');
+        setGender(profile.gender || 'MALE');
+        setDateOfBirth(profile.dateOfBirth || '');
+      })
+      .catch((err) => {
+        if (!cancelled) showToast(err.message || 'Không tải được hồ sơ cá nhân');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [setUser, showToast]);
+
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setUser((prev) => ({
-      ...prev,
-      fullName,
-      name: fullName,
-      email,
-      phoneNumber,
-      phone: phoneNumber,
-      gender,
-      dateOfBirth,
-    }));
-    showToast('Đã lưu thông tin hồ sơ cá nhân thành công!');
+    if (!fullName.trim()) {
+      showToast('Họ và tên không được để trống');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const updated = await userService.updateProfile({
+        fullName: fullName.trim(),
+        gender,
+        // Ngày sinh rỗng phải gửi undefined (chuỗi rỗng làm backend lỗi định dạng LocalDate)
+        dateOfBirth: dateOfBirth || undefined,
+      });
+      setUser(updated);
+      showToast('Đã lưu thông tin hồ sơ cá nhân thành công!');
+    } catch (err) {
+      showToast(err.message || 'Không thể lưu hồ sơ, vui lòng thử lại');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -54,9 +83,10 @@ export default function ProfilePage() {
             </label>
             <input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-10 px-3.5 rounded-md bg-page border border-line text-[13px] text-ink focus:outline-none focus:border-accent"
+              value={user?.email || ''}
+              readOnly
+              disabled
+              className="w-full h-10 px-3.5 rounded-md bg-surface-2 border border-line text-[13px] text-ink-muted cursor-not-allowed"
             />
           </div>
           <div>
@@ -65,12 +95,16 @@ export default function ProfilePage() {
             </label>
             <input
               type="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full h-10 px-3.5 rounded-md bg-page border border-line text-[13px] text-ink focus:outline-none focus:border-accent"
+              value={user?.phoneNumber || ''}
+              readOnly
+              disabled
+              className="w-full h-10 px-3.5 rounded-md bg-surface-2 border border-line text-[13px] text-ink-muted cursor-not-allowed"
             />
           </div>
         </div>
+        <p className="text-[11.5px] text-ink-subtle -mt-2">
+          Email và số điện thoại chỉ đổi được qua xác thực OTP nên không chỉnh sửa trực tiếp tại đây.
+        </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -84,7 +118,6 @@ export default function ProfilePage() {
             >
               <option value="MALE">Nam (Male)</option>
               <option value="FEMALE">Nữ (Female)</option>
-              <option value="OTHER">Khác (Other)</option>
             </select>
           </div>
 
@@ -104,9 +137,10 @@ export default function ProfilePage() {
         <div className="pt-2">
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-md bg-accent hover:bg-accent-hover text-white text-[13px] font-bold shadow-xs transition"
+            disabled={saving}
+            className="px-6 py-2.5 rounded-md bg-accent hover:bg-accent-hover text-white text-[13px] font-bold shadow-xs transition disabled:opacity-60"
           >
-            Lưu Thay Đổi
+            {saving ? 'Đang lưu...' : 'Lưu Thay Đổi'}
           </button>
         </div>
       </form>

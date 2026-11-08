@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes, Navigate, useParams } from 'react-router-dom';
+import { Route, Routes, Navigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
 
 const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
@@ -23,6 +23,7 @@ const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
 const VerifyOtpPage = lazy(() => import('../pages/auth/VerifyOtpPage'));
+const ForceChangePasswordPage = lazy(() => import('../pages/auth/ForceChangePasswordPage'));
 
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage'));
 const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage'));
@@ -30,6 +31,7 @@ const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage'));
 const AdminCouponsPage = lazy(() => import('../pages/admin/AdminCouponsPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
+const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 
 const NotFoundPage = lazy(() => import('../pages/common/NotFoundPage'));
 
@@ -49,7 +51,17 @@ function LegacyOrderDetailRedirect() {
   return <Navigate to={`/account/orders/${id}`} replace />;
 }
 
-function AdminRoute({ children }) {
+// Tài khoản do Admin tạo (mật khẩu mặc định) bị khóa ở màn hình đổi mật khẩu cho tới khi đổi xong.
+function PasswordChangeGate({ children }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  if (user?.mustChangePassword && pathname !== '/force-change-password') {
+    return <Navigate to="/force-change-password" replace />;
+  }
+  return children;
+}
+
+function AdminRoute({ children, adminOnly = false }) {
   const { user } = useAuth();
   const { showToast } = useUI();
   if (!user) {
@@ -58,6 +70,10 @@ function AdminRoute({ children }) {
   if (user.role !== 'ADMIN' && user.role !== 'STAFF') {
     showToast('Tài khoản khách hàng không có quyền truy cập trang quản trị!');
     return <Navigate to="/" replace />;
+  }
+  if (adminOnly && user.role !== 'ADMIN') {
+    showToast('Chỉ quản trị viên (ADMIN) mới có quyền truy cập trang này!');
+    return <Navigate to="/admin" replace />;
   }
   return children;
 }
@@ -79,6 +95,7 @@ function CustomerRoute({ children, redirect = '/login?redirect=/account/profile'
 export default function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
+      <PasswordChangeGate>
       <Routes>
         {/* Client Storefront Layout Wrapper */}
         <Route element={<ClientLayout />}>
@@ -135,6 +152,7 @@ export default function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route path="/force-change-password" element={<ForceChangePasswordPage />} />
 
         {/* Admin CMS Routes (Strictly Protected for Admin/Staff only) */}
         <Route
@@ -178,6 +196,14 @@ export default function AppRoutes() {
           }
         />
         <Route
+          path="/admin/staff"
+          element={
+            <AdminRoute adminOnly>
+              <AdminStaffPage />
+            </AdminRoute>
+          }
+        />
+        <Route
           path="/admin/settings"
           element={
             <AdminRoute>
@@ -186,6 +212,7 @@ export default function AppRoutes() {
           }
         />
       </Routes>
+      </PasswordChangeGate>
     </Suspense>
   );
 }
