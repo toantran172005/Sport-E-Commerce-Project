@@ -2,6 +2,7 @@
 import { useTheme } from './ThemeContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { useAuth } from './AuthContext.jsx';
+import { useStaff } from './StaffContext.jsx';
 import { useCatalog } from './CatalogContext.jsx';
 import { useCustomer } from './CustomerContext.jsx';
 import { useWishlist } from './WishlistContext.jsx';
@@ -20,6 +21,7 @@ export function useStore() {
   const theme = useTheme();
   const ui = useUI();
   const auth = useAuth();
+  const staff = useStaff();
   const catalog = useCatalog();
   const customer = useCustomer();
   const wishlist = useWishlist();
@@ -30,23 +32,15 @@ export function useStore() {
 
   return {
     ...theme,
-
     ...ui,
-
     ...auth,
-
+    ...staff,
     ...catalog,
-
     ...customer,
-
     ...wishlist,
-
     ...notification,
-
     ...address,
-
     ...order,
-
     ...cart,
   };
 }
@@ -59,6 +53,8 @@ export const StoreProvider = AppProviders;
 export { useTheme, ThemeProvider } from './ThemeContext.jsx';
 export { useUI, UIProvider } from './UIContext.jsx';
 export { useAuth, AuthProvider } from './AuthContext.jsx';
+export { useStaff, StaffProvider } from './StaffContext.jsx';
+export { useChatbot, ChatbotProvider } from './ChatbotContext.jsx';
 export { useCatalog, CatalogProvider } from './CatalogContext.jsx';
 export { useCustomer, CustomerProvider } from './CustomerContext.jsx';
 export { useWishlist, WishlistProvider } from './WishlistContext.jsx';

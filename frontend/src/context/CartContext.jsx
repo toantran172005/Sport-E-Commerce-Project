@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { products as mockProducts } from '../mocks/products.js';
 import { useUI } from './UIContext.jsx';
@@ -41,25 +41,8 @@ export function CartProvider({ children }) {
   const { showToast } = useUI();
 
   const [cart, setCart] = usePersistentState('sport_cart', DEFAULT_CART_ITEMS);
-  const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState('sport_selected_cart', [
-    '1_11',
-    '1_10',
-  ]);
+  const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState('sport_selected_cart', []);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
-
-  // Tự động đồng bộ giỏ hàng sang 2 sản phẩm test DB nếu giỏ hàng hiện tại chứa dữ liệu mock cũ
-  useEffect(() => {
-    const hasTestItems = cart && cart.some((item) => item.variantId === 11 || item.variantId === 10);
-    if (!hasTestItems || !cart || cart.length === 0) {
-      const defaultItems = DEFAULT_CART_ITEMS();
-      setCart(defaultItems);
-      setSelectedCartItemKeys(['1_11', '1_10']);
-    } else if (cart.some((it) => it.variantId === 10 && it.stock < 20)) {
-      setCart((prev) =>
-        prev.map((it) => (it.variantId === 10 ? { ...it, stock: 20 } : it))
-      );
-    }
-  }, [cart, setCart, setSelectedCartItemKeys]);
 
   const getCartItemKey = useCallback((item) => `${item.productId}_${item.variantId || 'def'}`, []);
 
@@ -81,14 +64,16 @@ export function CartProvider({ children }) {
   }, [setSelectedCartItemKeys]);
 
   const removeSelectedCartItems = useCallback(() => {
+    if (!selectedCartItemKeys || selectedCartItemKeys.length === 0) return;
     setCart((prev) => prev.filter((item) => !selectedCartItemKeys.includes(getCartItemKey(item))));
     setSelectedCartItemKeys([]);
+    showToast('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng');
   }, [getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys, showToast]);
 
   const resetTestCart = useCallback(() => {
     const defaultItems = DEFAULT_CART_ITEMS();
     setCart(defaultItems);
-    setSelectedCartItemKeys(['1_11', '1_10']);
+    setSelectedCartItemKeys([]);
     showToast('Đã khôi phục giỏ hàng về 2 sản phẩm Test DB');
   }, [setCart, setSelectedCartItemKeys, showToast]);
 
@@ -147,7 +132,7 @@ export function CartProvider({ children }) {
           if (!isMatch) return item;
           const newQty = item.quantity + delta;
           const maxStock = item.stock ?? 99;
-          return { ...item, quantity: Math.max(1, newQty) };
+          return { ...item, quantity: Math.min(maxStock, Math.max(1, newQty)) };
         })
       );
     },
@@ -158,15 +143,28 @@ export function CartProvider({ children }) {
     (productId, variantId = null) => {
       setCart((prev) =>
         prev.filter((item) => {
-          if (variantId) return !(item.productId === productId && item.variantId === variantId);
+          if (variantId !== null && variantId !== undefined) {
+            return !(item.productId === productId && item.variantId === variantId);
+          }
           return item.productId !== productId;
         })
       );
+      setSelectedCartItemKeys((prev) =>
+        prev.filter((key) => {
+          if (variantId !== null && variantId !== undefined) {
+            return key !== `${productId}_${variantId}`;
+          }
+          return !key.startsWith(`${productId}_`);
+        })
+      );
     },
-    [setCart, showToast]
+    [setCart, setSelectedCartItemKeys]
   );
 
-  const clearCart = useCallback(() => setCart([]), [setCart]);
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setSelectedCartItemKeys([]);
+  }, [setCart, setSelectedCartItemKeys]);
 
   const cartItemCount = cart.length;
   const cartTotalUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);

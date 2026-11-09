@@ -4,6 +4,9 @@ export { default as ErrorModal } from './ErrorModal.jsx';
 export { default as Pagination } from './Pagination.jsx';
 export { default as Skeleton } from './Skeleton.jsx';
 export { default as Toast } from './Toast.jsx';
+export { default as LineNumberBadge } from './LineNumberBadge.jsx';
+export { default as AdminStaffModal } from './AdminStaffModal.jsx';
+export { default as ConfirmModal } from './ConfirmModal.jsx';
 
 export { default as ProductCard } from '../product/ProductCard.jsx';
 export { default as VoucherDropdown } from '../promotion/VoucherDropdown.jsx';

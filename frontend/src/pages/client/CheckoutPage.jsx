@@ -3,10 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   MapPin,
   Truck,
-  CreditCard,
   ShieldCheck,
-  QrCode,
-  Banknote,
   ArrowRight,
   Plus,
   ArrowLeft,
@@ -14,9 +11,10 @@ import {
 import { useStore } from '../../context/StoreContext.jsx';
 import { formatCurrency } from '../../utils/formatters.js';
 import { calculateDiscount } from '../../utils/pricing.js';
-import { shippingService, DEFAULT_SHIPPING_PROVIDERS } from '../../services/shippingService.js';
 import { orderService } from '../../services/orderService.js';
 import { paymentService } from '../../services/paymentService.js';
+import { useShippingQuotes } from '../../hooks/useShippingQuotes.js';
+import LineNumberBadge from '../../components/common/LineNumberBadge.jsx';
 import { VoucherDropdown } from '../../components/promotion';
 import { PaymentMethodSelector } from '../../components/payment';
 
@@ -24,9 +22,7 @@ export default function CheckoutPage() {
   const {
     user,
     cart,
-    cartSubtotal,
     selectedCartItems,
-    selectedCartSubtotal,
     removeFromCart,
     selectedAddress,
     appliedCoupon,
@@ -45,7 +41,6 @@ export default function CheckoutPage() {
   }, [user, navigate, showToast]);
 
   // Cố định (freeze) danh sách sản phẩm trong phiên checkout hiện tại
-  // để khi đặt hàng xong và xóa sản phẩm khỏi giỏ hàng, giao diện tóm tắt KHÔNG bị nhảy sang sản phẩm khác (như giày Nike)
   const [frozenCheckoutItems] = useState(() => {
     const initialList =
       selectedCartItems && selectedCartItems.length > 0 ? selectedCartItems : cart;
@@ -64,97 +59,31 @@ export default function CheckoutPage() {
     [checkoutItems]
   );
 
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [shippingProviders, setShippingProviders] = useState([]);
-  const [selectedProviderId, setSelectedProviderId] = useState(1);
-  const [shippingQuotes, setShippingQuotes] = useState({});
-  const [shippingFee, setShippingFee] = useState(() => (checkoutSubtotal >= 1000000 ? 0 : 30000));
-  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
-
+  // Selected carrier: synchronous selection without mirrored state
+  const [selectedProviderCode, setSelectedProviderCode] = useState('GHN');
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
-
   const [shippingNote, setShippingNote] = useState('Giao giờ hành chính');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Unified Shipping & Provider initialization pipeline (0 layout shifts)
-  useEffect(() => {
-    let isMounted = true;
+  // Hook-based shipping quotes with caching & debouncing
+  const { providers, quotes, loading: shippingLoading } = useShippingQuotes({
+    addressId: selectedAddress?.id,
+    city: selectedAddress?.city,
+    subTotal: checkoutSubtotal,
+  });
 
-    const initializeCheckoutShipping = async () => {
-      try {
-        const rawProviders = await shippingService.getShippingProviders();
-        const providers =
-          Array.isArray(rawProviders) && rawProviders.length > 0
-            ? rawProviders
-            : DEFAULT_SHIPPING_PROVIDERS;
-
-        if (!isMounted) return;
-        setShippingProviders(providers);
-
-        const currentProvider =
-          providers.find((p) => p.id === selectedProviderId) || providers[0];
-        const defaultCode = currentProvider?.code || (currentProvider?.id === 2 ? 'GHTK' : 'GHN');
-
-        const quotes = {};
-        await Promise.all(
-          providers.map(async (p) => {
-            const code = p.code || (p.id === 2 ? 'GHTK' : 'GHN');
-            try {
-              const res = await shippingService.calculateShipping({
-                providerCode: code,
-                addressId: selectedAddress?.id,
-                city: selectedAddress?.city,
-                subTotal: checkoutSubtotal,
-              });
-              quotes[code] = res?.data || res;
-            } catch (err) {
-              console.warn('Lỗi tính phí ship cho đơn vị:', code, err);
-            }
-          })
-        );
-
-        if (!isMounted) return;
-        setShippingQuotes(quotes);
-
-        const initialQuote = quotes[defaultCode];
-        if (initialQuote) {
-          setShippingFee(
-            initialQuote.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000)
-          );
-          setEstimatedDeliveryDate(initialQuote.formattedDeliveryDate || '');
-        }
-      } catch (err) {
-        console.warn('Lỗi khởi tạo vận chuyển:', err);
-      } finally {
-        if (isMounted) {
-          setIsInitializing(false);
-        }
-      }
-    };
-
-    initializeCheckoutShipping();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedAddress?.id, selectedAddress?.city, checkoutSubtotal]);
-
-  const safeProviders =
-    Array.isArray(shippingProviders) && shippingProviders.length > 0
-      ? shippingProviders
-      : DEFAULT_SHIPPING_PROVIDERS;
-  const selectedProvider =
-    safeProviders.find((p) => p.id === selectedProviderId) || safeProviders[0];
-  const selectedProviderCode =
-    selectedProvider?.code || (selectedProviderId === 2 ? 'GHTK' : 'GHN');
+  // Derive fee and delivery date directly from quote (0ms carrier toggle)
+  const currentQuote = quotes[selectedProviderCode];
+  const shippingFee =
+    currentQuote?.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000);
+  const estimatedDeliveryDate = currentQuote?.formattedDeliveryDate || '';
+  const isFreeShip = shippingFee === 0;
 
   useEffect(() => {
     if (!isSubmitting && checkoutItems.length === 0) {
       navigate('/cart', { replace: true });
     }
   }, [checkoutItems.length, isSubmitting, navigate]);
-
-  const isFreeShip = shippingFee === 0;
 
   const discountAmount = calculateDiscount(appliedCoupon, checkoutSubtotal, shippingFee);
   const totalAmount = Math.max(0, checkoutSubtotal + shippingFee - discountAmount);
@@ -183,7 +112,7 @@ export default function CheckoutPage() {
         shippingAddressId: Number(selectedAddress.id),
         paymentMethod: paymentMethod === 'BANK_TRANSFER' ? 'BANK_TRANSFER' : 'COD',
         note: shippingNote || '',
-        shippingProviderCode: selectedProviderId === 2 ? 'GHTK' : 'GHN',
+        shippingProviderCode: selectedProviderCode,
         couponId: appliedCoupon?.id ? Number(appliedCoupon.id) : null,
         subTotal: checkoutSubtotal,
         discountAmount,
@@ -285,18 +214,6 @@ export default function CheckoutPage() {
     }
   };
 
-  if (isInitializing) {
-    return (
-      <div className="max-w-[1360px] w-full mx-auto px-4 py-32 flex flex-col items-center justify-center gap-4 min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-        <div className="text-center space-y-1">
-          <p className="text-[15px] font-bold text-ink">Đang tải đơn vị vận chuyển & biểu phí...</p>
-          <p className="text-[12.5px] text-ink-muted">Hệ thống đang kết nối dữ liệu vận chuyển từ Backend</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-[1360px] w-full mx-auto px-4 md:px-6 py-6 text-ink">
       {/* Breadcrumb & Navigation */}
@@ -372,27 +289,31 @@ export default function CheckoutPage() {
 
           {/* 2. Shipping Provider */}
           <div className="bg-surface rounded-lg border border-line p-5 shadow-xs">
-            <h2 className="text-[15px] font-bold text-ink flex items-center gap-2 mb-3">
-              <Truck className="w-4 h-4 text-accent" />
-              <span>Đơn Vị Vận Chuyển</span>
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[15px] font-bold text-ink flex items-center gap-2">
+                <Truck className="w-4 h-4 text-accent" />
+                <span>Đơn Vị Vận Chuyển</span>
+              </h2>
+              {shippingLoading && (
+                <span className="text-[11px] text-ink-subtle animate-pulse">
+                  Đang cập nhật biểu phí...
+                </span>
+              )}
+            </div>
 
             <div className="space-y-2.5">
-              {safeProviders.map((provider) => {
-                const isSelected = selectedProviderId === provider.id;
-                const code = provider.code || (provider.id === 2 ? 'GHTK' : 'GHN');
-                const quote = shippingQuotes[code];
-                const providerFee = quote?.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000);
+              {providers.map((provider) => {
+                const code = provider.code;
+                const isSelected = selectedProviderCode === code;
+                const quote = quotes[code];
+                const providerFee =
+                  quote?.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000);
                 const providerDate = quote?.formattedDeliveryDate;
 
                 return (
                   <div
-                    key={provider.id}
-                    onClick={() => {
-                      setSelectedProviderId(provider.id);
-                      setShippingFee(providerFee);
-                      if (providerDate) setEstimatedDeliveryDate(providerDate);
-                    }}
+                    key={provider.code || provider.id}
+                    onClick={() => setSelectedProviderCode(code)}
                     className={`p-3.5 rounded-md border flex items-center justify-between cursor-pointer transition ${
                       isSelected
                         ? 'border-accent bg-accent-soft'
@@ -472,17 +393,19 @@ export default function CheckoutPage() {
               </Link>
             </h2>
 
-            {/* Items List */}
+            {/* Items List with LineNumberBadge */}
             <div className="space-y-3 max-h-64 overflow-y-auto divide-y divide-line pr-1">
-              {checkoutItems.map((item) => (
+              {checkoutItems.map((item, idx) => (
                 <div
-                  key={`${item.productId}-${item.variantId}`}
+                  key={`${item.productId}-${item.variantId || idx}`}
                   className="pt-2.5 first:pt-0 flex items-center justify-between gap-3 text-[12.5px]"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
+                    <LineNumberBadge n={idx + 1} />
                     <img
                       src={
                         item.imageUrl ||
+                        item.image ||
                         'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100'
                       }
                       alt={item.name}

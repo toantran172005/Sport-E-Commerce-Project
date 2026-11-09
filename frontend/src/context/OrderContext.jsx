@@ -1,6 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useCallback } from 'react';
-import { usePersistentState } from '../hooks/usePersistentState.js';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { orders as mockOrders } from '../mocks/orders.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
@@ -12,7 +11,16 @@ export function OrderProvider({ children }) {
   const { user } = useAuth();
   const { showToast } = useUI();
 
-  const [orders, setOrders] = usePersistentState('sport_orders', () => mockOrders);
+  const [orders, setOrders] = useState(() => mockOrders);
+
+  // Tự động xóa sạch key sport_orders thừa trong localStorage nếu từng tồn tại
+  useEffect(() => {
+    try {
+      localStorage.removeItem('sport_orders');
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const addOrder = useCallback((newOrder) => {
     setOrders((prev) => [newOrder, ...prev.filter((o) => String(o.id) !== String(newOrder.id))]);

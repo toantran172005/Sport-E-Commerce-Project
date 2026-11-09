@@ -11,21 +11,18 @@ export default function AddressesPage() {
   const userAddresses = useMemo(() => {
     const currentUserId = user?.id || 4;
     const effectiveList = addresses && addresses.length > 0 ? addresses : fallbackAddresses;
-    const list = effectiveList.filter((a) => !a.userId || a.userId === currentUserId || a.userId === 4 || a.userId === 1);
+    const list = effectiveList.filter(
+      (a) => !a.userId || a.userId === currentUserId || a.userId === 4 || a.userId === 1
+    );
     const resultList = list.length > 0 ? list : effectiveList;
 
-    let hasDefaultFound = false;
-    const mapped = resultList.map((a) => {
-      if (a.isDefault && !hasDefaultFound) {
-        hasDefaultFound = true;
-        return { ...a, isDefault: true };
-      }
-      return { ...a, isDefault: false };
-    });
-    if (!hasDefaultFound && mapped.length > 0) {
-      mapped[0].isDefault = true;
-    }
-    return mapped;
+    const defaultIndex = resultList.findIndex((a) => a.isDefault);
+    const resolvedDefaultIndex = defaultIndex >= 0 ? defaultIndex : 0;
+
+    return resultList.map((a, idx) => ({
+      ...a,
+      isDefault: idx === resolvedDefaultIndex,
+    }));
   }, [addresses, user?.id]);
 
   return (

@@ -35,7 +35,7 @@ Truy cập: `http://localhost:5173`
 ```bash
 npm test
 ```
-*Thực thi 26 kiểm thử tự động về quy tắc giảm giá, kiểm duyệt đánh giá, quản lý địa chỉ mặc định và định dạng tiền tệ.*
+*Thực thi 23+ kiểm thử tự động về quy tắc số thứ tự STT liên tục, ma trận phân quyền RBAC, TTL Cache LRU, Shipping cache key và chuẩn hóa dữ liệu vận chuyển.*
 
 ### 5. Kiểm tra mã nguồn (ESLint)
 ```bash
@@ -49,32 +49,54 @@ npm run build
 
 ---
 
-## 📂 Cấu Trúc Thư Mục
+## 💬 Tích Hợp Chatbot Hỗ Trợ Khách Hàng
 
-```text
-frontend/
-├── .agent/              # Báo cáo tiến độ và trạng thái kiểm thử của APEX
-├── src/
-│   ├── api/             # Cấu hình Axios Client & Interceptors
-│   ├── components/      # UI Components dùng chung & Layout
-│   │   ├── common/      # Modals, Pagination, ProductCard, ErrorBoundary...
-│   │   └── layout/      # Header, Footer, Dropdowns, Mega-Menu...
-│   ├── context/         # Modular State Contexts (Auth, Cart, Catalog, Order...)
-│   ├── layouts/         # ClientLayout, AdminLayout, AccountLayout
-│   ├── mocks/           # Dữ liệu tĩnh chân thực bám sát Entity Backend
-│   ├── pages/           # Storefront & Admin CMS Views
-│   │   ├── admin/       # Dashboard, Products, Orders, Coupons, Reviews, Settings
-│   │   ├── auth/        # Login, Register, Forgot Password, OTP
-│   │   └── client/      # Home, Catalog, ProductDetail, Cart, Checkout...
-│   ├── routes/          # Hệ thống điều hướng AppRoutes & Route Guards
-│   ├── services/        # Service gọi API Backend kèm Mock Fallback
-│   └── utils/           # Helper định dạng formatters & tính giá pricing
-└── tests/               # Test suites chạy bằng Node 22 Test Runner
-```
+Giao diện Storefront tích hợp nút nổi (floating launcher) góc phải dưới màn hình và khung panel trò chuyện:
+
+1. **Cấu hình qua Biến môi trường (`.env`)**:
+   - Khai báo `VITE_CHATBOT_URL`:
+     ```env
+     VITE_CHATBOT_URL=https://your-chatbot-service.com/widget
+     ```
+   - Nếu `VITE_CHATBOT_URL` được định nghĩa, panel sẽ nhúng iframe an toàn (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`).
+   - Nếu để trống, panel tự động kích hoạt chế độ DEV mock assistant với các kịch bản câu hỏi thường gặp (tra cứu đơn hàng, chính sách freeship, đổi trả).
+
+2. **Tùy biến qua `renderPanel` slot**:
+   - `ChatbotPanel` hỗ trợ prop `renderPanel({ close })` cho phép mount bất kỳ custom component/widget nào từ bên ngoài mà không cần sửa core layout.
+
+3. **Giao tiếp liên tiến trình (Custom Events & postMessage)**:
+   - Mở/đóng trợ lý:
+     ```javascript
+     window.dispatchEvent(new CustomEvent('sport:chatbot:open'));
+     window.dispatchEvent(new CustomEvent('sport:chatbot:close'));
+     ```
+   - Cập nhật số thông báo chưa đọc từ nguồn tin cậy (origin-checked):
+     ```javascript
+     window.postMessage({ type: 'CHATBOT_UNREAD_COUNT', count: 3 }, window.location.origin);
+     ```
+
+---
+
+## 🛡️ Phân Quyền Vai Trò (RBAC) & Điều Phối Tuyến Đường
+
+Hệ thống tuân thủ nghiêm ngặt 3 vai trò backend chuẩn (`CUSTOMER`, `STAFF`, `ADMIN`):
+- **CUSTOMER**: Đặt hàng, quản lý đơn, sổ địa chỉ cá nhân, đánh giá sản phẩm. Không có quyền vào bất kỳ trang quản trị nào (truy cập `/admin` sẽ bị chuyển về `/` kèm thông báo lỗi).
+- **STAFF (Nhân viên)**: Truy cập `/admin/products`, `/admin/orders`, `/admin/reviews`, `/admin/settings`. Mặc định điều hướng về `/admin/orders`. Bị chặn khỏi `/admin` (Dashboard), `/admin/coupons`, `/admin/staff`.
+- **ADMIN (Quản trị viên)**: Toàn quyền truy cập mọi tính năng CMS bao gồm Dashboard tổng quan và trang Quản Lý Nhân Viên (`/admin/staff`).
+
+---
+
+## 🚚 Bộ Đệm Báo Giá Vận Chuyển (Shipping Cache)
+
+- Sử dụng cấu trúc `createTtlCache` với cơ chế LRU Eviction (tối đa 50 mục).
+- TTL 10 phút đối với kết quả tính toán API từ GHN / GHTK, TTL 30 giây cho kết quả fallback và TTL 1 giờ cho danh sách đơn vị vận chuyển.
+- Key bộ đệm được tạo theo định dạng chuẩn: `${providerCode}|${addressId ?? ''}|${normalizeCity(city)}|${getSubtotalBucket(subTotal)}`.
+- Tự động xóa sạch bộ đệm (invalidation) khi người dùng thêm, sửa, xóa hoặc đổi địa chỉ giao hàng mặc định, cũng như khi đăng xuất tài khoản.
 
 ---
 
 ## 🔒 Tài Khoản Thử Nghiệm
 
-- **Admin CMS**: Đăng nhập với tài khoản có quyền `ROLE_ADMIN` để truy cập `/admin`.
-- **Khách hàng**: Đăng nhập với tài khoản `ROLE_CUSTOMER` để trải nghiệm giỏ hàng, đặt hàng và quản lý tài khoản cá nhân.
+- **Admin CMS**: `admin@sannha.vn` / `admin123` (Toàn quyền).
+- **Staff (Nhân viên)**: `staff@sannha.vn` / `staff123` (Quản lý đơn và sản phẩm).
+- **Khách hàng (Customer)**: `toan.tran@gmail.com` / `123456` (Mua sắm storefront).
