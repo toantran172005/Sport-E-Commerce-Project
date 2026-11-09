@@ -5,6 +5,14 @@
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN');
 
+const deliveryDateFormatter = new Intl.DateTimeFormat('vi-VN', {
+  weekday: 'long',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'Asia/Ho_Chi_Minh',
+});
+
 /**
  * Định dạng tiền tệ Việt Nam (VND)
  */
@@ -43,6 +51,16 @@ export function formatDate(isoString) {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+/**
+ * Định dạng ngày giao hàng dự kiến chuẩn tiếng Việt (Thứ..., dd/MM/yyyy)
+ */
+export function formatEstimatedDelivery(dateLike) {
+  if (!dateLike) return '';
+  const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return String(dateLike);
+  return deliveryDateFormatter.format(d);
 }
 
 /**

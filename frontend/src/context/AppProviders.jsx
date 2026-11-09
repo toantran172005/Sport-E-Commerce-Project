@@ -1,6 +1,7 @@
 import { ThemeProvider } from './ThemeContext.jsx';
 import { UIProvider } from './UIContext.jsx';
 import { AuthProvider } from './AuthContext.jsx';
+import { StaffProvider } from './StaffContext.jsx';
 import { CatalogProvider } from './CatalogContext.jsx';
 import { CustomerProvider } from './CustomerContext.jsx';
 import { WishlistProvider } from './WishlistContext.jsx';
@@ -13,6 +14,7 @@ const providers = [
   ThemeProvider,
   UIProvider,
   AuthProvider,
+  StaffProvider,
   CatalogProvider,
   CustomerProvider,
   WishlistProvider,

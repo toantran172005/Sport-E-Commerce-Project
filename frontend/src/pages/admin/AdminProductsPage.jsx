@@ -24,6 +24,8 @@ export default function AdminProductsPage() {
     deleteProductById,
     deleteCategory,
     deleteBrand,
+    showConfirmModal,
+    showToast,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState('products');
@@ -72,21 +74,42 @@ export default function AdminProductsPage() {
   }).length;
 
   const handleDeleteCategory = (cat) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa danh mục "${cat.name}"?`)) {
-      deleteCategory(cat.id);
-    }
+    showConfirmModal({
+      title: 'Xóa danh mục sản phẩm',
+      message: `Bạn có chắc chắn muốn xóa danh mục "${cat.name}"? Thao tác này không thể hoàn tác.`,
+      confirmText: 'Xóa vĩnh viễn',
+      confirmVariant: 'danger',
+      onConfirm: () => {
+        deleteCategory(cat.id);
+        showToast(`Đã xóa danh mục "${cat.name}" thành công`);
+      },
+    });
   };
 
   const handleDeleteBrand = (b) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa thương hiệu "${b.name}"?`)) {
-      deleteBrand(b.id);
-    }
+    showConfirmModal({
+      title: 'Xóa thương hiệu',
+      message: `Bạn có chắc chắn muốn xóa thương hiệu "${b.name}"? Thao tác này không thể hoàn tác.`,
+      confirmText: 'Xóa vĩnh viễn',
+      confirmVariant: 'danger',
+      onConfirm: () => {
+        deleteBrand(b.id);
+        showToast(`Đã xóa thương hiệu "${b.name}" thành công`);
+      },
+    });
   };
 
   const handleDeleteProduct = (product) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${product.name}"?`)) {
-      deleteProductById(product.id);
-    }
+    showConfirmModal({
+      title: 'Xóa sản phẩm',
+      message: `Bạn có chắc chắn muốn xóa sản phẩm "${product.name}"? Thao tác này không thể hoàn tác.`,
+      confirmText: 'Xóa vĩnh viễn',
+      confirmVariant: 'danger',
+      onConfirm: () => {
+        deleteProductById(product.id);
+        showToast(`Đã xóa sản phẩm "${product.name}" thành công`);
+      },
+    });
   };
 
   const getStatusBadge = (product) => {

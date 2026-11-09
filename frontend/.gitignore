@@ -25,11 +25,7 @@ dist-ssr
 
 # Secrets
 .agent
+.prompts
 .env
 .env.*
-_progress/.env
-_progress/tools/.cache/
 
-_progress/backups/
-_progress/tools/.cache/
-_progress/reports/screenshots/

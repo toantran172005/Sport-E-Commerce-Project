@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Ticket,
   Plus,
@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   XCircle,
   TrendingUp,
+  Clock,
   Edit2,
   Trash2,
 } from 'lucide-react';
@@ -14,29 +15,74 @@ import AdminLayout from '../../layouts/AdminLayout';
 import { formatCurrency } from '../../utils/formatters';
 
 export default function AdminCouponsPage() {
-  const { coupons, toggleCouponActive, deleteCoupon, openModal } = useStore();
+  const {
+    coupons = [],
+    toggleCouponActive,
+    deleteCoupon,
+    openModal,
+    showConfirmModal,
+    showToast,
+  } = useStore();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
 
   const handleDeleteCoupon = (c) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa mã khuyến mãi "${c.code}"?`)) {
-      deleteCoupon(c.id || c.code);
-    }
+    showConfirmModal({
+      title: 'Xóa mã khuyến mãi',
+      message: `Bạn có chắc chắn muốn xóa mã khuyến mãi "${c.code}"? Thao tác này không thể hoàn tác.`,
+      confirmText: 'Xóa vĩnh viễn',
+      confirmVariant: 'danger',
+      onConfirm: () => {
+        deleteCoupon(c.id || c.code);
+        showToast(`Đã xóa mã khuyến mãi "${c.code}" thành công`);
+      },
+    });
   };
 
-  const filtered = coupons.filter((c) => {
-    if (filterType !== 'ALL' && c.discountType !== filterType) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const codeMatch = c.code.toLowerCase().includes(q);
-      const descMatch = (c.description || c.desc || '').toLowerCase().includes(q);
-      return codeMatch || descMatch;
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return coupons.filter((c) => {
+      if (filterType !== 'ALL' && c.discountType !== filterType) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const codeMatch = c.code.toLowerCase().includes(q);
+        const descMatch = (c.description || c.desc || '').toLowerCase().includes(q);
+        return codeMatch || descMatch;
+      }
+      return true;
+    });
+  }, [coupons, filterType, search]);
 
-  const totalUsed = coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
-  const activeCount = coupons.filter((c) => c.isActive !== false).length;
+  const totalUsed = useMemo(() => {
+    return coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
+  }, [coupons]);
+
+  // Strip thống kê: Đang diễn ra, Sắp diễn ra, Đã hết hạn
+  const { activeCampaignsCount, upcomingCampaignsCount, expiredCampaignsCount } = useMemo(() => {
+    const now = new Date();
+    let active = 0;
+    let upcoming = 0;
+    let expired = 0;
+
+    coupons.forEach((c) => {
+      const isStatusActive = c.isActive !== false;
+      const start = c.startDate ? new Date(c.startDate) : null;
+      const end = c.endDate ? new Date(c.endDate) : null;
+
+      if (!isStatusActive || (end && !isNaN(end.getTime()) && now > end)) {
+        expired++;
+      } else if (start && !isNaN(start.getTime()) && now < start) {
+        upcoming++;
+      } else {
+        active++;
+      }
+    });
+
+    return {
+      activeCampaignsCount: active,
+      upcomingCampaignsCount: upcoming,
+      expiredCampaignsCount: expired,
+    };
+  }, [coupons]);
 
   return (
     <AdminLayout
@@ -67,62 +113,79 @@ export default function AdminCouponsPage() {
           </button>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-surface rounded-lg border border-line p-4 flex items-center justify-between shadow-xs">
+        {/* Summary Strip (Active / Upcoming / Expired / Total Usages) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="bg-surface rounded-xl border border-line p-4 flex items-center justify-between shadow-2xs">
             <div>
               <p className="text-[11px] font-extrabold uppercase text-ink-muted">
-                CHIẾN DỊCH ĐANG CHẠY
+                ĐANG DIỄN RA
               </p>
-              <p className="text-[22px] font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                {activeCount} / {coupons.length} mã
+              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+                {activeCampaignsCount} <span className="text-xs font-normal text-ink-muted">mã</span>
               </p>
-              <p className="text-[11.5px] text-ink-subtle mt-0.5">
-                Tự động áp dụng tại Checkout
+              <p className="text-[11px] text-ink-subtle mt-0.5">
+                Đủ điều kiện áp dụng
               </p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-surface rounded-lg border border-line p-4 flex items-center justify-between shadow-xs">
+          <div className="bg-surface rounded-xl border border-line p-4 flex items-center justify-between shadow-2xs">
             <div>
               <p className="text-[11px] font-extrabold uppercase text-ink-muted">
-                TỔNG LƯỢT ĐÃ DÙNG (USAGES)
+                SẮP DIỄN RA
               </p>
-              <p className="text-[22px] font-extrabold text-accent mt-1">
-                {totalUsed.toLocaleString('vi-VN')} lượt
+              <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
+                {upcomingCampaignsCount} <span className="text-xs font-normal text-ink-muted">mã</span>
               </p>
-              <p className="text-[11.5px] text-ink-subtle mt-0.5">
-                Kích cầu chuyển đổi đơn hàng
+              <p className="text-[11px] text-ink-subtle mt-0.5">
+                Chưa đến ngày hiệu lực
               </p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-accent-soft text-accent flex items-center justify-center">
-              <TrendingUp className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
+              <Clock className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-surface rounded-lg border border-line p-4 flex items-center justify-between shadow-xs">
+          <div className="bg-surface rounded-xl border border-line p-4 flex items-center justify-between shadow-2xs">
             <div>
               <p className="text-[11px] font-extrabold uppercase text-ink-muted">
-                LOẠI KHUYẾN MÃI ĐA DẠNG
+                HẾT HẠN / TẠM DỪNG
               </p>
-              <p className="text-[22px] font-extrabold text-ink mt-1">
-                3 hình thức
+              <p className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
+                {expiredCampaignsCount} <span className="text-xs font-normal text-ink-muted">mã</span>
               </p>
-              <p className="text-[11.5px] text-ink-subtle mt-0.5">
-                Cố định, Phần trăm %, FreeShip
+              <p className="text-[11px] text-ink-subtle mt-0.5">
+                Quá hạn hoặc đã ngắt
               </p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-surface-2 text-ink-muted flex items-center justify-center border border-line">
-              <Ticket className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center">
+              <XCircle className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-surface rounded-xl border border-line p-4 flex items-center justify-between shadow-2xs">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase text-ink-muted">
+                TỔNG LƯỢT ĐÃ DÙNG
+              </p>
+              <p className="text-2xl font-black text-accent mt-1">
+                {totalUsed.toLocaleString('vi-VN')} <span className="text-xs font-normal text-ink-muted">lượt</span>
+              </p>
+              <p className="text-[11px] text-ink-subtle mt-0.5">
+                Kích cầu chuyển đổi
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-accent/10 text-accent flex items-center justify-center">
+              <TrendingUp className="w-5 h-5" />
             </div>
           </div>
         </div>
 
         {/* Coupons List Table */}
-        <div className="bg-surface rounded-lg border border-line p-6 space-y-4 shadow-xs">
+        <div className="bg-surface rounded-xl border border-line p-6 space-y-4 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {[

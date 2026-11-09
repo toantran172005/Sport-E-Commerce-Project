@@ -9,19 +9,27 @@ export const authService = {
   async login({ email, password }) {
     if (USE_MOCK) {
       await fakeDelay();
-      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedEmail = (email || '').trim().toLowerCase();
       let user = initialUsers.find((u) => u.email.toLowerCase() === normalizedEmail);
+
       if (!user) {
         if (normalizedEmail.includes('admin')) {
           user = initialUsers.find((u) => u.role === 'ADMIN');
         } else if (normalizedEmail.includes('staff')) {
-          user = initialUsers.find((u) => u.role === 'STAFF');
+          user = initialUsers.find((u) => u.role === 'STAFF' && u.status === 'ACTIVE') ||
+                 initialUsers.find((u) => u.role === 'STAFF');
         } else if (normalizedEmail.includes('toan')) {
           user = initialUsers.find((u) => u.email.toLowerCase().includes('toan'));
         } else {
           user = initialUsers.find((u) => u.role === 'CUSTOMER') || initialUsers[0];
         }
       }
+
+      // Kiểm tra tài khoản back-office bị khóa
+      if (user && (user.role === 'ADMIN' || user.role === 'STAFF') && user.status === 'LOCKED') {
+        throw new Error('Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
+      }
+
       currentUser = user;
       localStorage.setItem('sport_user', JSON.stringify(user));
       localStorage.setItem('token', 'mock-jwt-token-sannha-sport-2026');
@@ -71,6 +79,7 @@ export const authService = {
         const saved = localStorage.getItem('sport_user');
         if (saved) return JSON.parse(saved);
       } catch {
+        /* ignore JSON parse errors */
       }
       return currentUser;
     }

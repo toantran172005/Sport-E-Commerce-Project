@@ -52,7 +52,9 @@ export const users = [
     "gender": "MALE",
     "dateOfBirth": "1993-07-05",
     "role": "STAFF",
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "createdAt": "2025-01-01T08:00:00.000Z",
+    "lastLoginAt": "2026-11-08T09:30:00.000Z"
   },
   {
     "id": 6,
@@ -63,7 +65,36 @@ export const users = [
     "gender": "FEMALE",
     "dateOfBirth": "1985-12-20",
     "role": "ADMIN",
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "createdAt": "2024-12-01T00:00:00.000Z",
+    "lastLoginAt": "2026-11-09T08:00:00.000Z"
+  },
+  {
+    "id": 7,
+    "email": "staff2@sannha.vn",
+    "phoneNumber": "0905123456",
+    "fullName": "Nguyễn Văn An",
+    "avatarUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop",
+    "gender": "MALE",
+    "dateOfBirth": "1995-06-15",
+    "role": "STAFF",
+    "status": "ACTIVE",
+    "createdAt": "2025-03-10T10:00:00.000Z",
+    "lastLoginAt": "2026-11-07T14:15:00.000Z"
+  },
+  {
+    "id": 8,
+    "email": "staff3@sannha.vn",
+    "phoneNumber": "0938765432",
+    "fullName": "Đặng Thị Tuyết",
+    "avatarUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop",
+    "gender": "FEMALE",
+    "dateOfBirth": "1996-09-25",
+    "role": "STAFF",
+    "status": "LOCKED",
+    "createdAt": "2025-04-01T09:00:00.000Z",
+    "lastLoginAt": null
   }
 ];
+
 export default users;
