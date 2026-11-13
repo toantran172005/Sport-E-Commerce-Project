@@ -30,13 +30,13 @@ export default function VnpayQrModal() {
 
   const handleConfirmPaid = () => {
     closeModal();
-    showToast('Xác nhận thanh toán VNPay QR thành công!');
+    showToast('Xác nhận thanh toán VNPay QR thành công!', 'success');
     navigate(`/payment-result?orderId=${orderId}&orderCode=${orderCode}&method=BANK_TRANSFER`);
   };
 
   const handleCopy = (text, label) => {
     navigator.clipboard?.writeText(text);
-    showToast(`Đã sao chép ${label}!`);
+    showToast(`Đã sao chép ${label}!`, 'success');
   };
 
   return (
@@ -72,7 +72,7 @@ export default function VnpayQrModal() {
           <div className="p-3 rounded-md bg-page dark:bg-surface-2/60 border border-line flex items-center justify-between text-left text-[12.5px]">
             <div>
               <p className="text-ink-muted">Đơn hàng: <strong className="text-ink font-mono">{orderCode}</strong></p>
-              <p className="text-ink-muted">Đơn vị nhận: <strong>SÂN NHÀ SPORT</strong></p>
+              <p className="text-ink-muted">Đơn vị nhận: <strong>DELTA SPORT</strong></p>
             </div>
             <div className="text-right">
               <p className="text-[11px] text-ink-subtle">Số tiền cần thanh toán</p>

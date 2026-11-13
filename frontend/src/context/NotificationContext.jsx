@@ -1,8 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
-import { notifications as mockNotifications } from '../mocks/notifications.js';
 import { notificationService } from '../services/notificationService.js';
-import { USE_MOCK } from '../config/env.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 
@@ -18,10 +16,9 @@ export function NotificationProvider({ children }) {
   // Đang bị khóa đổi mật khẩu → backend từ chối mọi API khác, nên chưa tải thông báo
   const locked = Boolean(user?.mustChangePassword);
 
-  const [notifications, setNotifications] = useState(USE_MOCK ? mockNotifications : []);
+  const [notifications, setNotifications] = useState([]);
 
   const refreshNotifications = useCallback(async () => {
-    if (USE_MOCK) return;
     try {
       const list = await notificationService.getNotifications();
       setNotifications(list);
@@ -30,9 +27,8 @@ export function NotificationProvider({ children }) {
     }
   }, []);
 
-  // API thật: tải khi đăng nhập, xóa khi đăng xuất, và làm mới định kỳ
+  // Tải khi đăng nhập, xóa khi đăng xuất, và làm mới định kỳ
   useEffect(() => {
-    if (USE_MOCK) return undefined;
     if (!userId || locked) {
       setNotifications([]);
       return undefined;
@@ -44,16 +40,14 @@ export function NotificationProvider({ children }) {
 
   const markAllNotificationsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    if (!USE_MOCK) {
-      try {
-        await notificationService.markAllAsRead();
-      } catch (err) {
-        showToast(err.message || 'Không thể đánh dấu đã đọc');
-        refreshNotifications();
-        return;
-      }
+    try {
+      await notificationService.markAllAsRead();
+    } catch (err) {
+      showToast(err.message || 'Không thể đánh dấu đã đọc', 'error');
+      refreshNotifications();
+      return;
     }
-    showToast('Đã đánh dấu đọc tất cả thông báo');
+    showToast('Đã đánh dấu đọc tất cả thông báo', 'success');
   }, [showToast, refreshNotifications]);
 
   const markNotificationAsRead = useCallback(
@@ -61,12 +55,10 @@ export function NotificationProvider({ children }) {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       );
-      if (!USE_MOCK) {
-        try {
-          await notificationService.markAsRead(notificationId);
-        } catch {
-          refreshNotifications();
-        }
+      try {
+        await notificationService.markAsRead(notificationId);
+      } catch {
+        refreshNotifications();
       }
     },
     [refreshNotifications]

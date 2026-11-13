@@ -3,11 +3,15 @@ package com.sportecommerce.controller;
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.request.CreatePaymentRequest;
 import com.sportecommerce.dto.response.PaymentResponse;
+import com.sportecommerce.security.OrderAccessChecker;
+import com.sportecommerce.security.UserPrincipal;
+import com.sportecommerce.service.OrderService;
 import com.sportecommerce.service.PaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -19,12 +23,16 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final OrderService orderService;
+    private final OrderAccessChecker orderAccessChecker;
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<PaymentResponse>> createPayment(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody CreatePaymentRequest request,
             HttpServletRequest httpRequest) {
 
+        orderAccessChecker.assertCanAccess(orderService.getOrderById(request.getOrderId()), userPrincipal);
         PaymentResponse response = paymentService.createPayment(request, httpRequest);
         return ResponseEntity.ok(ApiResponse.success("Xử lý yêu cầu thanh toán thành công", response));
     }
@@ -56,17 +64,21 @@ public class PaymentController {
 
     @GetMapping("/order/{orderId}")
     public ResponseEntity<ApiResponse<PaymentResponse>> getPaymentByOrderId(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable Long orderId) {
 
+        orderAccessChecker.assertCanAccess(orderService.getOrderById(orderId), userPrincipal);
         PaymentResponse response = paymentService.getPaymentByOrderId(orderId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PaymentResponse>> getPaymentById(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable Long id) {
 
         PaymentResponse response = paymentService.getPaymentById(id);
+        orderAccessChecker.assertCanAccess(orderService.getOrderById(response.getOrderId()), userPrincipal);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

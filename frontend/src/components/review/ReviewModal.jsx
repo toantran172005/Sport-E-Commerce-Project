@@ -37,11 +37,11 @@ export default function ReviewModal() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showToast('Vui lòng chọn file hình ảnh (JPG, PNG, WebP)!');
+      showToast('Vui lòng chọn file hình ảnh (JPG, PNG, WebP)!', 'error');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Kích thước ảnh tối đa là 5MB!');
+      showToast('Kích thước ảnh tối đa là 5MB!', 'error');
       return;
     }
 
@@ -62,7 +62,7 @@ export default function ReviewModal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!comment.trim()) {
-      showToast('Vui lòng nhập nhận xét của bạn');
+      showToast('Vui lòng nhập nhận xét của bạn', 'error');
       return;
     }
 
@@ -82,10 +82,10 @@ export default function ReviewModal() {
         images,
       });
 
-      showToast('Cảm ơn bạn đã gửi đánh giá! Đánh giá sẽ được hiển thị sau khi duyệt.');
+      showToast('Cảm ơn bạn đã gửi đánh giá! Đánh giá sẽ được hiển thị sau khi duyệt.', 'success');
       closeModal();
     } catch (err) {
-      showToast(err.message || 'Lỗi khi gửi đánh giá');
+      showToast(err.message || 'Lỗi khi gửi đánh giá', 'error');
     } finally {
       setIsSubmitting(false);
     }

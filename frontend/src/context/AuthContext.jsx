@@ -1,20 +1,17 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
-import { users as mockUsers } from '../mocks/users.js';
 import { authService } from '../services/authService.js';
-import { USE_MOCK } from '../config/env.js';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Mock: mặc định đăng nhập sẵn user mẫu. API thật: mặc định là khách (null) cho tới khi đăng nhập.
-  const [user, setUser] = usePersistentState('sport_user', () => (USE_MOCK ? mockUsers[0] : null));
+  // Phiên đăng nhập thật: mặc định là khách (null) cho tới khi đăng nhập qua backend.
+  const [user, setUser] = usePersistentState('sport_user', null);
 
-  // API thật: khi mở app, đồng bộ phiên đăng nhập với backend (GET /users/me).
+  // Khi mở app: đồng bộ phiên với backend (GET /users/me).
   // Không có token → coi như khách. Token hết hạn → axiosClient tự refresh hoặc đá về /login.
   useEffect(() => {
-    if (USE_MOCK) return undefined;
     if (!localStorage.getItem('token')) {
       setUser(null);
       return undefined;
@@ -26,14 +23,32 @@ export function AuthProvider({ children }) {
         if (!cancelled) setUser(fresh);
       })
       .catch(() => {
-        // 401 đã được axiosClient xử lý (xóa phiên + chuyển /login)
+        // 401 đã được axiosClient xử lý (xóa phiên + chuyển /login); lỗi mạng thì giữ user đang lưu
       });
     return () => {
       cancelled = true;
     };
   }, [setUser]);
 
+  // Đăng xuất/đăng nhập ở tab khác → tab này cập nhật theo, tránh dùng nhầm phiên cũ.
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'token' && !e.newValue) setUser(null);
+      if (e.key === 'sport_user') {
+        try {
+          const next = e.newValue ? JSON.parse(e.newValue) : null;
+          setUser((prev) => ((prev?.id ?? null) === (next?.id ?? null) ? prev : next));
+        } catch {
+          // bỏ qua dữ liệu hỏng
+        }
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [setUser]);
+
   const isAdmin = Boolean(user && user.role === 'ADMIN');
+  const isStaff = Boolean(user && user.role === 'STAFF');
   const isCustomer = Boolean(user && user.role === 'CUSTOMER');
   const isGuest = !user;
 
@@ -42,11 +57,12 @@ export function AuthProvider({ children }) {
       user,
       setUser,
       isAdmin,
+      isStaff,
       isCustomer,
       isGuest,
       isAuthenticated: Boolean(user),
     }),
-    [user, setUser, isAdmin, isCustomer, isGuest]
+    [user, setUser, isAdmin, isStaff, isCustomer, isGuest]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

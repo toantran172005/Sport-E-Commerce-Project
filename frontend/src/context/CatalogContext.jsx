@@ -28,7 +28,7 @@ export function CatalogProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setCategoriesList((prev) => [...prev, newCat]);
-    showToast(`Đã thêm danh mục "${newCat.name}" thành công`);
+    showToast(`Đã thêm danh mục "${newCat.name}" thành công`, 'success');
     return newCat;
   }, [showToast]);
 
@@ -36,12 +36,12 @@ export function CatalogProvider({ children }) {
     setCategoriesList((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...catData, updatedAt: new Date().toISOString() } : c))
     );
-    showToast('Đã cập nhật thông tin danh mục');
+    showToast('Đã cập nhật thông tin danh mục', 'success');
   }, [showToast]);
 
   const deleteCategory = useCallback((id) => {
     setCategoriesList((prev) => prev.filter((c) => c.id !== id));
-    showToast('Đã xóa danh mục thành công');
+    showToast('Đã xóa danh mục thành công', 'success');
   }, [showToast]);
 
   const addBrand = useCallback((brandData) => {
@@ -52,7 +52,7 @@ export function CatalogProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setBrandsList((prev) => [...prev, newBrand]);
-    showToast(`Đã thêm thương hiệu "${newBrand.name}" thành công`);
+    showToast(`Đã thêm thương hiệu "${newBrand.name}" thành công`, 'success');
     return newBrand;
   }, [showToast]);
 
@@ -60,12 +60,12 @@ export function CatalogProvider({ children }) {
     setBrandsList((prev) =>
       prev.map((b) => (b.id === id ? { ...b, ...brandData, updatedAt: new Date().toISOString() } : b))
     );
-    showToast('Đã cập nhật thông tin thương hiệu');
+    showToast('Đã cập nhật thông tin thương hiệu', 'success');
   }, [showToast]);
 
   const deleteBrand = useCallback((id) => {
     setBrandsList((prev) => prev.filter((b) => b.id !== id));
-    showToast('Đã xóa thương hiệu thành công');
+    showToast('Đã xóa thương hiệu thành công', 'success');
   }, [showToast]);
 
   const addProduct = useCallback((productData) => {
@@ -80,7 +80,7 @@ export function CatalogProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setProducts((prev) => [newProd, ...prev]);
-    showToast(`Đã tạo sản phẩm "${newProd.name}" (Trạng thái: Bản nháp)`);
+    showToast(`Đã tạo sản phẩm "${newProd.name}" (Trạng thái: Bản nháp)`, 'success');
     return newProd;
   }, [showToast]);
 
@@ -88,7 +88,7 @@ export function CatalogProvider({ children }) {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...productData, updatedAt: new Date().toISOString() } : p))
     );
-    showToast('Đã cập nhật thông tin sản phẩm');
+    showToast('Đã cập nhật thông tin sản phẩm', 'success');
   }, [showToast]);
 
   const updateProductQuick = useCallback((productId, newPrice, newStock) => {
@@ -107,7 +107,7 @@ export function CatalogProvider({ children }) {
         };
       })
     );
-    showToast('Đã cập nhật thông tin sản phẩm');
+    showToast('Đã cập nhật thông tin sản phẩm', 'success');
   }, [showToast]);
 
   const setProductStatus = useCallback((productId, nextStatus) => {
@@ -130,7 +130,7 @@ export function CatalogProvider({ children }) {
         : nextStatus === 'OUT_OF_STOCK'
         ? 'Hết hàng'
         : 'Ngừng kinh doanh';
-    showToast(`Đã chuyển trạng thái sang "${label}"`);
+    showToast(`Đã chuyển trạng thái sang "${label}"`, 'success');
   }, [showToast]);
 
   const toggleProductStatus = useCallback((productId) => {
@@ -146,12 +146,12 @@ export function CatalogProvider({ children }) {
         };
       })
     );
-    showToast('Đã thay đổi trạng thái sản phẩm');
+    showToast('Đã thay đổi trạng thái sản phẩm', 'success');
   }, [showToast]);
 
   const deleteProductById = useCallback((productId) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
-    showToast('Đã xóa sản phẩm thành công');
+    showToast('Đã xóa sản phẩm thành công', 'success');
   }, [showToast]);
 
   const addCoupon = useCallback((couponData) => {
@@ -165,7 +165,7 @@ export function CatalogProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setCoupons((prev) => [newCoupon, ...prev.filter((c) => c.code !== cleanCode)]);
-    showToast(`Đã tạo mã giảm giá "${cleanCode}" thành công`);
+    showToast(`Đã tạo mã giảm giá "${cleanCode}" thành công`, 'success');
     return newCoupon;
   }, [showToast]);
 
@@ -177,19 +177,19 @@ export function CatalogProvider({ children }) {
           : c
       )
     );
-    showToast('Đã cập nhật mã giảm giá');
+    showToast('Đã cập nhật mã giảm giá', 'success');
   }, [showToast]);
 
   const deleteCoupon = useCallback((idOrCode) => {
     setCoupons((prev) => prev.filter((c) => c.id !== idOrCode && c.code !== idOrCode));
-    showToast('Đã xóa mã giảm giá thành công');
+    showToast('Đã xóa mã giảm giá thành công', 'success');
   }, [showToast]);
 
   const toggleCouponActive = useCallback((codeOrId) => {
     setCoupons((prev) =>
       prev.map((c) => (c.code === codeOrId || c.id === codeOrId ? { ...c, isActive: !c.isActive } : c))
     );
-    showToast('Đã cập nhật trạng thái mã giảm giá');
+    showToast('Đã cập nhật trạng thái mã giảm giá', 'success');
   }, [showToast]);
 
   const updateReviewStatus = useCallback((reviewId, newStatus) => {
@@ -200,7 +200,7 @@ export function CatalogProvider({ children }) {
         : newStatus === 'REJECTED'
           ? 'Đã ẩn đánh giá khỏi cửa hàng'
           : 'Đã chuyển đánh giá về trạng thái Chờ duyệt (PENDING)';
-    showToast(msg);
+    showToast(msg, 'success');
   }, [showToast]);
 
   const replyToReview = useCallback((reviewId, replyText) => {
@@ -221,7 +221,7 @@ export function CatalogProvider({ children }) {
           : r
       )
     );
-    showToast('Đã gửi phản hồi và phê duyệt đánh giá thành công!');
+    showToast('Đã gửi phản hồi và phê duyệt đánh giá thành công!', 'success');
   }, [showToast]);
 
   const removeReviewReply = useCallback((reviewId) => {
@@ -237,7 +237,7 @@ export function CatalogProvider({ children }) {
           : r
       )
     );
-    showToast('Đã thu hồi phản hồi và chuyển về trạng thái Chờ duyệt (PENDING)');
+    showToast('Đã thu hồi phản hồi và chuyển về trạng thái Chờ duyệt (PENDING)', 'success');
   }, [showToast]);
 
   const value = useMemo(

@@ -11,6 +11,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -39,7 +40,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token) && jwtTokenProvider.isValid(token)) {
             Long userId = jwtTokenProvider.getUserId(token);
-            UserDetails userDetails = userDetailsService.loadUserById(userId);
+            UserDetails userDetails;
+            try {
+                userDetails = userDetailsService.loadUserById(userId);
+            } catch (UsernameNotFoundException e) {
+                // User đã bị xóa → coi như chưa đăng nhập (401), không để lỗi lọt ra thành 500.
+                filterChain.doFilter(request, response);
+                return;
+            }
+            // Token còn hạn nhưng tài khoản đã bị khóa/xóa/chưa kích hoạt → từ chối ngay, không chờ token hết hạn.
+            if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

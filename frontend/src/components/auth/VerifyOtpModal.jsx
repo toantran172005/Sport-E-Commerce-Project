@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { ShieldCheck, X, ArrowRight } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
-import { USE_MOCK } from '../../config/env.js';
 
 export default function VerifyOtpModal() {
   const { activeModal, modalPayload, closeModal, showToast, user, setUser } = useStore();
@@ -64,7 +63,7 @@ export default function VerifyOtpModal() {
     try {
       const res = await authService.verifyOtp({ email, otp: fullOtp, purpose: 'REGISTER' });
       if (res.user) setUser(res.user);
-      showToast('Xác thực mã OTP thành công!');
+      showToast('Xác thực mã OTP thành công!', 'success');
       closeModal();
     } catch (err) {
       setError(err.message || 'Mã OTP không chính xác');
@@ -97,11 +96,6 @@ export default function VerifyOtpModal() {
               Mã xác thực đã được gửi tới email <br />
               <strong className="text-ink dark:text-slate-200">{email}</strong>
             </p>
-            {USE_MOCK && (
-              <p className="text-[11.5px] text-accent font-medium mt-1">
-                (Mã OTP mẫu: <strong>123456</strong>)
-              </p>
-            )}
           </div>
 
           {error && (
@@ -147,7 +141,7 @@ export default function VerifyOtpModal() {
                   try {
                     await authService.resendOtp({ email, purpose: 'REGISTER' });
                     setCountdown(60);
-                    showToast('Đã gửi lại mã OTP về email của bạn');
+                    showToast('Đã gửi lại mã OTP về email của bạn', 'success');
                   } catch (err) {
                     setError(err.message || 'Không thể gửi lại mã OTP');
                   }

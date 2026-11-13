@@ -116,7 +116,7 @@ export default function OrderListPage() {
           item.quantity || 1
         );
       });
-      showToast('Đã thêm các sản phẩm vào lại giỏ hàng');
+      showToast('Đã thêm các sản phẩm vào lại giỏ hàng', 'success');
       navigate('/cart');
     }
   };

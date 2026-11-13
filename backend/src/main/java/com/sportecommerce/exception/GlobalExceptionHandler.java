@@ -10,6 +10,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -86,6 +89,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("Xác thực thất bại hoặc phiên đăng nhập đã hết hạn"));
+    }
+
+    /**
+     * Bắt lỗi 413: Tệp tải lên vượt giới hạn spring.servlet.multipart.max-file-size
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Object>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return ResponseEntity
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.error("Tệp tải lên quá lớn (tối đa 2 MB)"));
+    }
+
+    /**
+     * Bắt lỗi 400: Yêu cầu tải tệp thiếu phần "file" hoặc không đúng dạng multipart
+     */
+    @ExceptionHandler({MissingServletRequestPartException.class, MultipartException.class})
+    public ResponseEntity<ApiResponse<Object>> handleMultipart(Exception ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Yêu cầu tải tệp không hợp lệ, vui lòng chọn ảnh và thử lại"));
     }
 
     /**

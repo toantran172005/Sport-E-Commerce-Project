@@ -1,27 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Zap,
   Mail,
   Lock,
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
-  UserCheck,
   User,
-  Shield,
   Sparkles,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
-import { USE_MOCK } from '../../config/env.js';
+import AuthBanner from '../../components/auth/AuthBanner.jsx';
+import BrandLogo from '../../components/common/BrandLogo.jsx';
 
-
-const DEMO = {
-  admin: { email: 'admin@sannha.vn', password: 'admin123' },
-  customer: { email: 'toan.tran@gmail.com', password: '123456' },
-};
 
 export default function LoginPage() {
   const { setUser, showToast } = useStore();
@@ -29,8 +21,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
 
-  const [email, setEmail] = useState(USE_MOCK ? DEMO.customer.email : '');
-  const [password, setPassword] = useState(USE_MOCK ? DEMO.customer.password : '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +33,7 @@ export default function LoginPage() {
     try {
       const res = await authService.login({ email: loginEmail, password: loginPassword });
       setUser(res.user);
-      showToast(`Đăng nhập thành công! Xin chào ${res.user.fullName || res.user.name}`);
+      showToast(`Đăng nhập thành công! Xin chào ${res.user.fullName || res.user.name}`, 'success');
       
       if (res.user.mustChangePassword) {
         // Tài khoản do Admin tạo, còn mật khẩu mặc định → bắt buộc đổi trước khi dùng
@@ -57,7 +49,7 @@ export default function LoginPage() {
     } catch (err) {
       // Backend trả 403 khi tài khoản đăng ký xong nhưng chưa nhập OTP (trạng thái PENDING)
       if (err.status === 403 && /xác thực/i.test(err.message || '')) {
-        showToast('Tài khoản chưa xác thực email. Vui lòng nhập mã OTP đã gửi tới email của bạn.');
+        showToast('Tài khoản chưa xác thực email. Vui lòng nhập mã OTP đã gửi tới email của bạn.', 'warning');
         navigate(`/verify-otp?email=${encodeURIComponent(loginEmail.trim())}&purpose=REGISTER`);
         return;
       }
@@ -72,24 +64,12 @@ export default function LoginPage() {
     executeLogin(email, password);
   };
 
-  const handleLoginAsCustomer = () => {
-    setEmail(DEMO.customer.email);
-    setPassword(DEMO.customer.password);
-    executeLogin(DEMO.customer.email, DEMO.customer.password);
-  };
-
-  const handleLoginAsAdmin = () => {
-    setEmail(DEMO.admin.email);
-    setPassword(DEMO.admin.password);
-    executeLogin(DEMO.admin.email, DEMO.admin.password);
-  };
-
   const handleContinueAsGuest = () => {
     localStorage.removeItem('sport_user');
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     setUser(null);
-    showToast('Đang duyệt web với tư cách Khách vãng lai (Guest)');
+    showToast('Đang duyệt web với tư cách Khách vãng lai (Guest)', 'info');
     navigate('/');
   };
 
@@ -98,11 +78,8 @@ export default function LoginPage() {
       {/* Top Header */}
       <header className="bg-surface border-b border-line h-16">
         <div className="max-w-[1360px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold tracking-tight">SÂN NHÀ SPORT</span>
+          <Link to="/" className="flex items-center" aria-label="Delta Sport - Trang chủ">
+            <BrandLogo className="h-9 w-auto" />
           </Link>
 
           <Link
@@ -118,54 +95,8 @@ export default function LoginPage() {
       {/* Main Split Layout */}
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
         <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[1020px] grid grid-cols-1 lg:grid-cols-12 overflow-hidden min-h-[640px]">
-          {/* Left Brand Column (5 cols) */}
-          <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-b from-[#2f6bff] to-[#1540b8] p-8 text-white flex-col justify-between">
-            <div className="space-y-6">
-              <div className="w-10 h-10 rounded-md bg-surface/15 flex items-center justify-center">
-                <Zap className="w-5 h-5 fill-white" />
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-extrabold uppercase leading-tight tracking-tight">
-                  Hệ Thống Phân Quyền <br />
-                  <span className="text-amber-300">Đồ Án TMĐT Thể Thao</span>
-                </h2>
-                <p className="text-[13px] text-blue-100 mt-2 leading-relaxed">
-                  Lựa chọn vai trò để trải nghiệm luồng thao tác hoàn chỉnh từ khách hàng đến người bán.
-                </p>
-              </div>
-
-              <div className="space-y-4 pt-2">
-                <div className="flex items-start gap-3 bg-white/10 p-3 rounded-lg border border-white/10">
-                  <User className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-[13px] font-bold text-emerald-300">1. Guest (Khách vãng lai)</h4>
-                    <p className="text-[11.5px] text-blue-100">Chỉ xem hàng, tìm kiếm và lưu giỏ hàng tạm; khi bấm Thanh toán/Mua ngay hệ thống yêu cầu đăng nhập.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 bg-white/10 p-3 rounded-lg border border-white/10">
-                  <UserCheck className="w-4 h-4 text-blue-200 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-[13px] font-bold text-blue-200">2. Customer (Khách hàng)</h4>
-                    <p className="text-[11.5px] text-blue-100">Đặt hàng, quản lý đơn mua, tự quản lý sổ địa chỉ riêng, đánh giá — không có giao diện quản lý bán hàng.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 bg-white/10 p-3 rounded-lg border border-white/10">
-                  <ShieldCheck className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-[13px] font-bold text-amber-300">3. Admin (Người bán / Shop Owner)</h4>
-                    <p className="text-[11.5px] text-blue-100">Đầy đủ quyền mua sắm như khách hàng, cộng thêm quyền vào Kênh Người Bán (Sản phẩm, Đơn hàng, Voucher, Đánh giá, Cài đặt shop).</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-[11px] text-blue-200">
-              © 2026 Sân Nhà Sport · Hệ thống chuẩn 3 phân quyền
-            </div>
-          </div>
+          {/* Left Brand Banner (5 cols) */}
+          <AuthBanner variant="login" className="hidden lg:flex lg:col-span-5" />
 
           {/* Right Form Column (7 cols) */}
           <div className="lg:col-span-7 p-6 md:p-10 flex flex-col justify-center">
@@ -175,7 +106,7 @@ export default function LoginPage() {
                   Đăng Nhập Tài Khoản
                 </h1>
                 <p className="text-[13px] text-ink-muted mt-1">
-                  Chọn vai trò đăng nhập nhanh hoặc nhập thông tin tài khoản bên dưới
+                  Nhập email và mật khẩu để tiếp tục mua sắm
                 </p>
               </div>
 
@@ -189,65 +120,10 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <p className="text-[11.5px] font-bold text-ink-subtle uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-accent" />
-                  <span>{USE_MOCK ? 'Chọn nhanh vai trò thử nghiệm:' : 'Hoặc duyệt web không cần đăng nhập:'}</span>
+                  <span>Hoặc duyệt web không cần đăng nhập:</span>
                 </p>
 
                 <div className="grid grid-cols-1 gap-2">
-                  {USE_MOCK && (
-                  <>
-                  {/* Option 1: Admin */}
-                  <button
-                    type="button"
-                    onClick={handleLoginAsAdmin}
-                    disabled={loading}
-                    className="p-3 rounded-lg border border-purple-500/30 hover:border-purple-500 bg-purple-500/5 hover:bg-purple-500/10 text-left transition flex items-center justify-between cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-md bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                        <Shield className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12.5px] font-bold text-ink group-hover:text-purple-600 dark:group-hover:text-purple-400 truncate">
-                          Đăng nhập vai trò Admin (Người bán / Shop Owner)
-                        </p>
-                        <p className="text-[11px] text-ink-muted truncate">
-                          {DEMO.admin.email} • Có đủ chức năng mua sắm + Kênh Người Bán
-                        </p>
-                      </div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-purple-500 text-white shrink-0 ml-2">
-                      Admin
-                    </span>
-                  </button>
-
-                  {/* Option 2: Customer */}
-                  <button
-                    type="button"
-                    onClick={handleLoginAsCustomer}
-                    disabled={loading}
-                    className="p-3 rounded-lg border border-accent/30 hover:border-accent bg-accent/5 hover:bg-accent/10 text-left transition flex items-center justify-between cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-md bg-accent-soft text-accent flex items-center justify-center shrink-0">
-                        <UserCheck className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12.5px] font-bold text-ink group-hover:text-accent truncate">
-                          Đăng nhập vai trò Customer (Khách hàng)
-                        </p>
-                        <p className="text-[11px] text-ink-muted truncate">
-                          {DEMO.customer.email} • Đặt hàng, sổ địa chỉ, không có admin
-                        </p>
-                      </div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-accent text-white shrink-0 ml-2">
-                      Customer
-                    </span>
-                  </button>
-
-                  </>
-                  )}
-
                   {/* Option 3: Guest */}
                   <button
                     type="button"

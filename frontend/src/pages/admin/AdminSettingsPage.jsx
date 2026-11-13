@@ -13,16 +13,16 @@ import AdminLayout from '../../layouts/AdminLayout';
 export default function AdminSettingsPage() {
   const { isDarkMode, setIsDarkMode, toggleDarkMode, showToast } = useStore();
 
-  const [storeName, setStoreName] = useState('Sân Nhà Sport — Đồ thể thao cho người chơi thật');
+  const [storeName, setStoreName] = useState('Delta Sport — Đồ thể thao cho người chơi thật');
   const [hotline, setHotline] = useState('1900 6868');
-  const [supportEmail, setSupportEmail] = useState('cskh@sannha.vn');
+  const [supportEmail, setSupportEmail] = useState('cskh@deltasport.vn');
   const [freeShipThreshold, setFreeShipThreshold] = useState('500.000');
   const [vnpayTmnCode, setVnpayTmnCode] = useState('SANNHA01');
   const [otpTtl, setOtpTtl] = useState('120 giây (Redis TTL)');
 
   const handleSaveSettings = (e) => {
     e.preventDefault();
-    showToast('Đã lưu cấu hình hệ thống Sân Nhà CMS thành công!');
+    showToast('Đã lưu cấu hình hệ thống Delta Sport CMS thành công!', 'success');
   };
 
   return (

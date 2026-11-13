@@ -35,7 +35,7 @@ function CreateStaffModal({ onClose, onCreated }) {
       setResult(res);
       onCreated();
     } catch (err) {
-      showToast(err.message || 'Không thể tạo tài khoản nhân viên');
+      showToast(err.message || 'Không thể tạo tài khoản nhân viên', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -45,9 +45,9 @@ function CreateStaffModal({ onClose, onCreated }) {
     const text = `Email: ${result.user.email}\nMật khẩu tạm: ${result.temporaryPassword}`;
     try {
       await navigator.clipboard.writeText(text);
-      showToast('Đã sao chép thông tin đăng nhập');
+      showToast('Đã sao chép thông tin đăng nhập', 'success');
     } catch {
-      showToast('Không thể sao chép, vui lòng chép thủ công');
+      showToast('Không thể sao chép, vui lòng chép thủ công', 'error');
     }
   };
 
@@ -118,7 +118,7 @@ function CreateStaffModal({ onClose, onCreated }) {
               <label className="block text-[12.5px] font-bold text-ink mb-1.5">
                 Email <span className="text-danger">*</span>
               </label>
-              <input required type="email" value={form.email} onChange={setField('email')} className={inputCls} placeholder="nhanvien@sannha.vn" />
+              <input required type="email" value={form.email} onChange={setField('email')} className={inputCls} placeholder="nhanvien@deltasport.vn" />
             </div>
             <div>
               <label className="block text-[12.5px] font-bold text-ink mb-1.5">Số điện thoại</label>
@@ -176,7 +176,7 @@ export default function AdminStaffPage() {
       const res = await userService.getStaff({ keyword: debouncedKeyword, page, size: PAGE_SIZE });
       setData(res);
     } catch (err) {
-      showToast(err.message || 'Không thể tải danh sách nhân viên');
+      showToast(err.message || 'Không thể tải danh sách nhân viên', 'error');
     } finally {
       setLoading(false);
     }

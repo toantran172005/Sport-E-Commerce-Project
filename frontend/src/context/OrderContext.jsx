@@ -2,6 +2,7 @@
 import { createContext, useContext, useMemo, useCallback } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { orders as mockOrders } from '../mocks/orders.js';
+import { useScopedKey } from '../hooks/useScopedKey.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { orderService } from '../services/orderService.js';
@@ -12,7 +13,7 @@ export function OrderProvider({ children }) {
   const { user } = useAuth();
   const { showToast } = useUI();
 
-  const [orders, setOrders] = usePersistentState('sport_orders', () => mockOrders);
+  const [orders, setOrders] = usePersistentState(useScopedKey('sport_orders'), () => mockOrders);
 
   const addOrder = useCallback((newOrder) => {
     setOrders((prev) => [newOrder, ...prev.filter((o) => String(o.id) !== String(newOrder.id))]);
@@ -54,7 +55,7 @@ export function OrderProvider({ children }) {
           };
         })
       );
-      showToast(`Đã hủy đơn hàng #${String(orderId).replace('ORD-', '')}`);
+      showToast(`Đã hủy đơn hàng #${String(orderId).replace('ORD-', '')}`, 'success');
     },
     [setOrders, showToast, user]
   );
@@ -71,7 +72,7 @@ export function OrderProvider({ children }) {
       } catch (err) {
         const errorMsg = err.response?.data?.message || err.message;
         console.error('Lỗi gọi API cập nhật trạng thái đơn:', errorMsg);
-        showToast(errorMsg || 'Không thể cập nhật trạng thái đơn hàng');
+        showToast(errorMsg || 'Không thể cập nhật trạng thái đơn hàng', 'error');
         throw err;
       }
 
@@ -115,7 +116,7 @@ export function OrderProvider({ children }) {
           };
         })
       );
-      showToast('Cập nhật trạng thái đơn hàng thành công');
+      showToast('Cập nhật trạng thái đơn hàng thành công', 'success');
     },
     [setOrders, showToast]
   );

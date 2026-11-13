@@ -59,8 +59,8 @@ function buildError(error) {
 
   let message = body?.message;
   if (!message) {
-    if (error.code === "ECONNABORTED") message = "Máy chủ phản hồi quá lâu, vui lòng thử lại";
-    else if (!error.response) message = "Không kết nối được máy chủ, vui lòng kiểm tra backend đã chạy chưa";
+    if (error.code === "ECONNABORTED") message = "Máy chủ phản hồi quá lâu, vui lòng thử lại sau!";
+    else if (!error.response) message = "Không kết nối được máy chủ, vui lòng thử lại sau!";
     else message = error.message;
   }
 

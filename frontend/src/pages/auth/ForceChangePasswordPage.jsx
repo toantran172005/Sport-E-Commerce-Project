@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Zap, KeyRound, ShieldCheck, RefreshCw, Eye, EyeOff, LogOut } from 'lucide-react';
+import { KeyRound, ShieldCheck, RefreshCw, Eye, EyeOff, LogOut } from 'lucide-react';
+import BrandLogo from '../../components/common/BrandLogo.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useUI } from '../../context/UIContext.jsx';
 import { userService } from '../../services/userService.js';
@@ -58,19 +59,19 @@ export default function ForceChangePasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (newPassword.length < 8 || newPassword.length > 100) {
-      showToast('Mật khẩu mới phải từ 8 đến 100 ký tự');
+      showToast('Mật khẩu mới phải từ 8 đến 100 ký tự', 'error');
       return;
     }
     if (!PASSWORD_REGEX.test(newPassword)) {
-      showToast('Mật khẩu mới phải chứa cả chữ cái và số');
+      showToast('Mật khẩu mới phải chứa cả chữ cái và số', 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
-      showToast('Mật khẩu xác nhận không khớp');
+      showToast('Mật khẩu xác nhận không khớp', 'error');
       return;
     }
     if (currentPassword === newPassword) {
-      showToast('Mật khẩu mới không được trùng với mật khẩu mặc định');
+      showToast('Mật khẩu mới không được trùng với mật khẩu mặc định', 'error');
       return;
     }
 
@@ -78,10 +79,10 @@ export default function ForceChangePasswordPage() {
     try {
       await userService.changePassword({ oldPassword: currentPassword, newPassword });
       setUser({ ...user, mustChangePassword: false });
-      showToast('Đổi mật khẩu thành công! Chào mừng bạn đến với hệ thống.');
+      showToast('Đổi mật khẩu thành công! Chào mừng bạn đến với hệ thống.', 'success');
       navigate(user.role === 'ADMIN' || user.role === 'STAFF' ? '/admin' : '/', { replace: true });
     } catch (err) {
-      showToast(err.message || 'Không thể đổi mật khẩu, vui lòng thử lại');
+      showToast(err.message || 'Không thể đổi mật khẩu, vui lòng thử lại', 'error');
     } finally {
       setLoading(false);
     }
@@ -96,10 +97,7 @@ export default function ForceChangePasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-page p-4">
       <div className="w-full max-w-md bg-surface rounded-lg border border-line p-7 shadow-2xs space-y-5">
-        <div className="flex items-center gap-2 text-accent">
-          <Zap className="w-5 h-5" />
-          <span className="text-[15px] font-extrabold">Sân Nhà Sport</span>
-        </div>
+        <BrandLogo className="h-9 w-auto" />
 
         <div className="border-b border-line pb-4">
           <h1 className="text-[19px] font-bold text-ink flex items-center gap-2">

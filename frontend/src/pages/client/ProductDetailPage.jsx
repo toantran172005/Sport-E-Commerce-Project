@@ -18,10 +18,12 @@ import { productService } from '../../services/productService.js';
 import { reviewService } from '../../services/reviewService.js';
 import { useStore } from '../../context/StoreContext.jsx';
 import { formatCurrency } from '../../utils/formatters.js';
+import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
-  const { user, showToast, addToCart, isInWishlist, toggleWishlist, openModal } = useStore();
+  const { showToast, addToCart, isInWishlist, toggleWishlist, openModal } = useStore();
+  const requireLogin = useRequireLogin();
   const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
@@ -66,7 +68,7 @@ export default function ProductDetailPage() {
       .catch((err) => {
         if (!isMounted) return;
         setLoading(false);
-        showToast(err.response?.data?.message || 'Không thể tải chi tiết sản phẩm');
+        showToast(err.response?.data?.message || 'Không thể tải chi tiết sản phẩm', 'error');
       });
 
     setReviewsLoading(true);
@@ -141,6 +143,7 @@ export default function ProductDetailPage() {
 
   const handleBuyNow = () => {
     if (!product) return;
+    if (!requireLogin('Vui lòng đăng nhập để tiến hành đặt hàng')) return;
     addToCart(
       {
         ...product,
@@ -151,11 +154,6 @@ export default function ProductDetailPage() {
       },
       quantity
     );
-    if (!user) {
-      showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-      navigate('/login?redirect=/checkout');
-      return;
-    }
     navigate('/checkout');
   };
 
@@ -342,7 +340,9 @@ export default function ProductDetailPage() {
             {/* Wishlist Button */}
             <button
               type="button"
-              onClick={() => toggleWishlist(product.id)}
+              onClick={() => {
+                if (requireLogin('Vui lòng đăng nhập để lưu sản phẩm yêu thích')) toggleWishlist(product.id);
+              }}
               className={`w-11 h-11 rounded-md border flex items-center justify-center transition shrink-0 ${
                 isWishlisted
                   ? 'border-danger/30 bg-danger-soft text-danger'

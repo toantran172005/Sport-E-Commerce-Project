@@ -7,6 +7,8 @@ import com.sportecommerce.dto.response.PageResponse;
 import com.sportecommerce.dto.response.ProductResponse;
 import com.sportecommerce.dto.response.ProductSummaryResponse;
 import com.sportecommerce.enums.ProductStatus;
+import com.sportecommerce.exception.AppException;
+import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -53,12 +56,18 @@ public class ProductController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ProductSummaryResponse>>> getAll(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        // Khách chỉ được xem sản phẩm đang bán; lọc theo trạng thái khác (ẩn/nháp...) dành cho ADMIN/STAFF.
+        if (status != null && status != ProductStatus.ACTIVE
+                && (userPrincipal == null || !userPrincipal.isStaff())) {
+            throw new AppException("Bạn không có quyền xem sản phẩm ở trạng thái này", HttpStatus.FORBIDDEN);
+        }
         PageResponse<ProductSummaryResponse> response =
                 productService.getAll(status, categoryId, brandId, tagId, keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách sản phẩm thành công", response));

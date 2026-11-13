@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react';
-import { Route, Routes, Navigate, useParams, useLocation } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { Route, Routes, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
+import { useRequireLogin } from '../hooks/useRequireLogin.js';
 
 const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
 const AccountLayout = lazy(() => import('../layouts/AccountLayout'));
@@ -68,26 +69,47 @@ function AdminRoute({ children, adminOnly = false }) {
     return <Navigate to="/login?redirect=/admin" replace />;
   }
   if (user.role !== 'ADMIN' && user.role !== 'STAFF') {
-    showToast('Tài khoản khách hàng không có quyền truy cập trang quản trị!');
+    showToast('Tài khoản khách hàng không có quyền truy cập trang quản trị!', 'error');
     return <Navigate to="/" replace />;
   }
   if (adminOnly && user.role !== 'ADMIN') {
-    showToast('Chỉ quản trị viên (ADMIN) mới có quyền truy cập trang này!');
+    showToast('Chỉ quản trị viên (ADMIN) mới có quyền truy cập trang này!', 'error');
     return <Navigate to="/admin" replace />;
   }
   return children;
 }
 
+/**
+ * Khách vãng lai vào trang cần đăng nhập: hỏi có muốn đăng nhập không.
+ * Đồng ý → sang /login (đăng nhập xong quay lại đúng trang này). Không đồng ý → quay lại trang trước đó
+ * (hoặc về trang chủ nếu mở thẳng bằng đường dẫn), không ép chuyển sang trang đăng nhập.
+ */
+function LoginGate({ message }) {
+  const requireLogin = useRequireLogin();
+  const navigate = useNavigate();
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    requireLogin(message, {
+      onCancel: () => {
+        if (window.history.state?.idx > 0) navigate(-1);
+        else navigate('/', { replace: true });
+      },
+    });
+    // chỉ mở lại khi đổi trang đích
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, search]);
+
+  return null;
+}
+
 function CustomerRoute({ children, redirect = '/login?redirect=/account/profile' }) {
   const { user } = useAuth();
-  const { showToast } = useUI();
   if (!user) {
-    if (redirect.includes('checkout')) {
-      showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-    } else if (redirect.includes('wishlist')) {
-      showToast('Vui lòng đăng nhập để xem danh sách yêu thích');
-    }
-    return <Navigate to={redirect} replace />;
+    let message = 'Vui lòng đăng nhập để xem trang này';
+    if (redirect.includes('checkout')) message = 'Vui lòng đăng nhập để tiến hành đặt hàng';
+    else if (redirect.includes('wishlist')) message = 'Vui lòng đăng nhập để xem danh sách yêu thích';
+    return <LoginGate message={message} />;
   }
   return children;
 }

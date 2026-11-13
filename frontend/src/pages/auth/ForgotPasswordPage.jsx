@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Zap, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Mail, ArrowRight, ArrowLeft } from 'lucide-react';
+import BrandLogo from '../../components/common/BrandLogo.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
+import AuthBanner from '../../components/auth/AuthBanner.jsx';
 
 export default function ForgotPasswordPage() {
   const { showToast } = useStore();
@@ -20,7 +22,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       await authService.forgotPassword(email.trim());
-      showToast('Mã OTP xác thực đã được gửi về email của bạn!');
+      showToast('Mã OTP xác thực đã được gửi về email của bạn!', 'success');
       navigate(`/verify-otp?email=${encodeURIComponent(email)}&purpose=RESET_PASSWORD`);
     } catch (err) {
       setError(err.message || 'Lỗi khi gửi yêu cầu');
@@ -33,11 +35,8 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-page flex flex-col text-ink transition-colors">
       <header className="bg-surface border-b border-line h-16">
         <div className="max-w-[1360px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold tracking-tight">SÂN NHÀ SPORT</span>
+          <Link to="/" className="flex items-center" aria-label="Delta Sport - Trang chủ">
+            <BrandLogo className="h-9 w-auto" />
           </Link>
 
           <Link
@@ -51,7 +50,10 @@ export default function ForgotPasswordPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[460px] p-6 md:p-8 space-y-5">
+        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[540px] lg:max-w-[1020px] grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+          <AuthBanner variant="recovery" className="hidden lg:flex lg:col-span-5" />
+          <div className="lg:col-span-7 p-6 md:p-10 flex flex-col justify-center">
+          <div className="w-full max-w-md mx-auto space-y-5">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-ink">
               Quên Mật Khẩu?
@@ -103,6 +105,8 @@ export default function ForgotPasswordPage() {
               Nhớ mật khẩu? <span className="font-bold text-accent">Đăng nhập ngay</span>
             </Link>
           </div>
+        </div>
+        </div>
         </div>
       </main>
     </div>

@@ -45,35 +45,35 @@ export default function ChangePasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentPassword) {
-      showToast('Vui lòng nhập mật khẩu hiện tại');
+      showToast('Vui lòng nhập mật khẩu hiện tại', 'error');
       return;
     }
     if (newPassword.length < 8 || newPassword.length > 100) {
-      showToast('Mật khẩu mới phải từ 8 đến 100 ký tự');
+      showToast('Mật khẩu mới phải từ 8 đến 100 ký tự', 'error');
       return;
     }
     if (!PASSWORD_REGEX.test(newPassword)) {
-      showToast('Mật khẩu mới phải chứa cả chữ cái và số');
+      showToast('Mật khẩu mới phải chứa cả chữ cái và số', 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
-      showToast('Mật khẩu xác nhận không khớp');
+      showToast('Mật khẩu xác nhận không khớp', 'error');
       return;
     }
     if (currentPassword === newPassword) {
-      showToast('Mật khẩu mới không được trùng với mật khẩu hiện tại');
+      showToast('Mật khẩu mới không được trùng với mật khẩu hiện tại', 'error');
       return;
     }
 
     setIsLoading(true);
     try {
       await userService.changePassword({ oldPassword: currentPassword, newPassword });
-      showToast('Cập nhật mật khẩu mới thành công!');
+      showToast('Cập nhật mật khẩu mới thành công!', 'success');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      showToast(err.message || 'Không thể đổi mật khẩu, vui lòng thử lại');
+      showToast(err.message || 'Không thể đổi mật khẩu, vui lòng thử lại', 'error');
     } finally {
       setIsLoading(false);
     }

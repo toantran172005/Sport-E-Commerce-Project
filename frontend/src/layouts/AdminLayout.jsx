@@ -8,11 +8,12 @@ import {
   Star,
   Settings,
   Search,
-  Zap,
   ExternalLink,
   UserCog,
 } from 'lucide-react';
 import { useOrder, useAuth, useCatalog } from '../context';
+import BrandLogo from '../components/common/BrandLogo.jsx';
+import Avatar from '../components/common/Avatar.jsx';
 
 const ADMIN_NAV_ITEMS = [
   { to: '/admin', end: true, icon: LayoutDashboard, label: 'Tổng Quan', badge: null },
@@ -52,12 +53,7 @@ export default function AdminLayout({
         <div>
           {/* Logo */}
           <Link to="/admin" className="flex items-center gap-2.5 px-2 py-3 mb-4">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center shadow-xs">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold tracking-tight text-ink">
-              Sân Nhà
-            </span>
+            <BrandLogo className="h-8 w-auto" />
             <span className="px-2 py-0.5 rounded bg-accent/20 text-accent text-[10px] font-bold uppercase tracking-wider">
               CMS
             </span>
@@ -117,9 +113,7 @@ export default function AdminLayout({
             onClick={() => navigate('/admin/settings')}
             className="p-2.5 rounded-md bg-surface-2 hover:bg-surface-2/80 border border-line cursor-pointer flex items-center gap-2.5 transition"
           >
-            <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shrink-0">
-              {user?.fullName?.charAt(0) || 'A'}
-            </div>
+            <Avatar user={user} name={user?.fullName || 'Admin'} size={32} />
             <div className="min-w-0 flex-1">
               <p className="text-[12.5px] font-bold text-ink truncate">
                 {user?.fullName || 'Quản trị viên'}

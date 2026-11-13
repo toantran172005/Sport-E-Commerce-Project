@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../../context/StoreContext';
 import { userService } from '../../../services/userService';
+import AvatarUploader from '../../../components/account/AvatarUploader.jsx';
 
 export default function ProfilePage() {
   const { user, setUser, showToast } = useStore();
@@ -23,7 +24,7 @@ export default function ProfilePage() {
         setDateOfBirth(profile.dateOfBirth || '');
       })
       .catch((err) => {
-        if (!cancelled) showToast(err.message || 'Không tải được hồ sơ cá nhân');
+        if (!cancelled) showToast(err.message || 'Không tải được hồ sơ cá nhân', 'error');
       });
     return () => {
       cancelled = true;
@@ -33,7 +34,7 @@ export default function ProfilePage() {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!fullName.trim()) {
-      showToast('Họ và tên không được để trống');
+      showToast('Họ và tên không được để trống', 'error');
       return;
     }
 
@@ -46,9 +47,9 @@ export default function ProfilePage() {
         dateOfBirth: dateOfBirth || undefined,
       });
       setUser(updated);
-      showToast('Đã lưu thông tin hồ sơ cá nhân thành công!');
+      showToast('Đã lưu thông tin hồ sơ cá nhân thành công!', 'success');
     } catch (err) {
-      showToast(err.message || 'Không thể lưu hồ sơ, vui lòng thử lại');
+      showToast(err.message || 'Không thể lưu hồ sơ, vui lòng thử lại', 'error');
     } finally {
       setSaving(false);
     }
@@ -61,6 +62,10 @@ export default function ProfilePage() {
         <p className="text-[12.5px] text-ink-muted">
           Quản lý thông tin hồ sơ để bảo mật và tối ưu trải nghiệm mua sắm
         </p>
+      </div>
+
+      <div className="max-w-xl">
+        <AvatarUploader />
       </div>
 
       <form onSubmit={handleSaveProfile} className="space-y-4 max-w-xl">

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Zap, ShieldCheck, ArrowRight, RotateCcw } from 'lucide-react';
+import { ShieldCheck, ArrowRight, RotateCcw } from 'lucide-react';
+import BrandLogo from '../../components/common/BrandLogo.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
-import { USE_MOCK } from '../../config/env.js';
+import AuthBanner from '../../components/auth/AuthBanner.jsx';
 
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).+$/;
 const EMPTY_OTP = ['', '', '', '', '', ''];
@@ -92,13 +93,13 @@ export default function VerifyOtpPage() {
       if (isReset) {
         // Backend xác thực OTP và đổi mật khẩu trong CÙNG một request
         await authService.resetPassword({ email, otp: fullOtp, newPassword });
-        showToast('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.');
+        showToast('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.', 'success');
         navigate('/login');
       } else {
         // Xác thực đăng ký thành công → backend kích hoạt tài khoản và trả luôn token (tự đăng nhập)
         const res = await authService.verifyOtp({ email, otp: fullOtp, purpose });
         if (res.user) setUser(res.user);
-        showToast('Xác thực thành công! Tài khoản đã được kích hoạt.');
+        showToast('Xác thực thành công! Tài khoản đã được kích hoạt.', 'success');
         navigate('/');
       }
     } catch (err) {
@@ -117,7 +118,7 @@ export default function VerifyOtpPage() {
       setCountdown(60);
       setOtp(EMPTY_OTP);
       inputRefs.current[0]?.focus();
-      showToast('Đã gửi lại mã OTP mới về email của bạn');
+      showToast('Đã gửi lại mã OTP mới về email của bạn', 'success');
     } catch (err) {
       setError(err.message || 'Không thể gửi lại mã OTP');
     } finally {
@@ -129,11 +130,8 @@ export default function VerifyOtpPage() {
     <div className="min-h-screen bg-page flex flex-col text-ink transition-colors">
       <header className="bg-surface border-b border-line h-16">
         <div className="max-w-340 mx-auto px-4 md:px-8 h-full flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold tracking-tight">SÂN NHÀ SPORT</span>
+          <Link to="/" className="flex items-center" aria-label="Delta Sport - Trang chủ">
+            <BrandLogo className="h-9 w-auto" />
           </Link>
 
           <Link
@@ -146,7 +144,10 @@ export default function VerifyOtpPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-115 p-6 md:p-8 space-y-6 text-center">
+        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[540px] lg:max-w-[1020px] grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+          <AuthBanner variant="recovery" className="hidden lg:flex lg:col-span-5" />
+          <div className="lg:col-span-7 p-6 md:p-10 flex flex-col justify-center">
+          <div className="w-full max-w-md mx-auto space-y-6 text-center">
           <div className="w-14 h-14 rounded-full bg-accent-soft dark:bg-accent/20 text-accent mx-auto flex items-center justify-center">
             <ShieldCheck className="w-7 h-7" />
           </div>
@@ -159,15 +160,9 @@ export default function VerifyOtpPage() {
               Mã xác thực 6 chữ số đã được gửi tới email <br />
               <strong className="text-ink dark:text-slate-200">{email}</strong>
             </p>
-            {USE_MOCK ? (
-              <p className="text-[11.5px] text-accent font-medium mt-1">
-                (Mã OTP mẫu thử nghiệm: <strong>123456</strong>)
-              </p>
-            ) : (
-              <p className="text-[11.5px] text-ink-subtle mt-1">
-                Không thấy email? Hãy kiểm tra cả hộp thư Spam.
-              </p>
-            )}
+            <p className="text-[11.5px] text-ink-subtle mt-1">
+              Không thấy email? Hãy kiểm tra cả hộp thư Spam.
+            </p>
           </div>
 
           {error && (
@@ -255,6 +250,8 @@ export default function VerifyOtpPage() {
               </button>
             )}
           </div>
+        </div>
+        </div>
         </div>
       </main>
     </div>

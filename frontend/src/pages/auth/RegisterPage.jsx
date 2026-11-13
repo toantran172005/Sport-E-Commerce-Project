@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Zap,
   Mail,
   Lock,
   User,
@@ -10,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
+import AuthBanner from '../../components/auth/AuthBanner.jsx';
+import BrandLogo from '../../components/common/BrandLogo.jsx';
 
 export default function RegisterPage() {
   const { showToast } = useStore();
@@ -41,7 +42,7 @@ export default function RegisterPage() {
     try {
       // Backend tạo tài khoản ở trạng thái PENDING và gửi OTP qua email (chưa cấp token)
       await authService.register({ fullName, email, phoneNumber, password });
-      showToast('Đã gửi mã OTP tới email của bạn. Nhập mã để kích hoạt tài khoản.');
+      showToast('Đã gửi mã OTP tới email của bạn. Nhập mã để kích hoạt tài khoản.', 'success');
       navigate(`/verify-otp?email=${encodeURIComponent(email)}&purpose=REGISTER`);
     } catch (err) {
       setError(err.message || 'Lỗi khi đăng ký tài khoản');
@@ -54,24 +55,17 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-page flex flex-col text-ink transition-colors">
       <header className="bg-surface border-b border-line h-16">
         <div className="max-w-[1360px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold tracking-tight">SÂN NHÀ SPORT</span>
-          </Link>
-
-          <Link
-            to="/login"
-            className="text-[12.5px] font-bold text-accent hover:underline"
-          >
-            Đã có tài khoản? Đăng nhập →
+          <Link to="/" className="flex items-center" aria-label="Delta Sport - Trang chủ">
+            <BrandLogo className="h-9 w-auto" />
           </Link>
         </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[540px] p-6 md:p-8 space-y-5">
+        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[540px] lg:max-w-[1020px] grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+          <AuthBanner variant="register" className="hidden lg:flex lg:col-span-5" />
+          <div className="lg:col-span-7 p-6 md:p-10 flex flex-col justify-center">
+          <div className="w-full max-w-md mx-auto space-y-5">
           <div>
             <h1 className="text-2xl font-bold text-ink">
               Đăng Ký Tài Khoản Mới
@@ -189,9 +183,18 @@ export default function RegisterPage() {
             </div>
           </form>
 
-          <p className="text-[12px] text-center text-ink-subtle pt-2">
-            Bằng việc đăng ký, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của Sân Nhà.
+          <p className="text-[12.5px] text-center text-ink-muted">
+            Đã có tài khoản?{' '}
+            <Link to="/login" className="font-bold text-accent hover:underline">
+              Đăng nhập
+            </Link>
           </p>
+
+          <p className="text-[12px] text-center text-ink-subtle">
+            Bằng việc đăng ký, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của Delta Sport.
+          </p>
+        </div>
+        </div>
         </div>
       </main>
     </div>

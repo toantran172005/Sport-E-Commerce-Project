@@ -13,7 +13,7 @@ export function CustomerProvider({ children }) {
     setCustomers((prev) =>
       prev.map((c) => (c.id === customerId ? { ...c, status: c.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE' } : c))
     );
-    showToast('Đã cập nhật trạng thái tài khoản');
+    showToast('Đã cập nhật trạng thái tài khoản', 'success');
   }, [showToast]);
 
   const value = useMemo(

@@ -200,7 +200,7 @@ public class ShippingIntegrationService {
 
         Map<String, Object> orderData = new LinkedHashMap<>();
         orderData.put("id", order.getOrderCode());
-        orderData.put("pick_name", "Sport E-Commerce");
+        orderData.put("pick_name", "Delta Sport");
         orderData.put("pick_address", "12 Nguyễn Văn Bảo");
         orderData.put("pick_province", "Hồ Chí Minh");
         orderData.put("pick_district", "Quận Gò Vấp");

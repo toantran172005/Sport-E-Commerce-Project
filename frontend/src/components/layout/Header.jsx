@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Zap,
   Menu,
   Search,
   Heart,
@@ -15,6 +14,8 @@ import { formatCurrency } from '../../utils/formatters.js';
 import CategoriesDropdown from './CategoriesDropdown.jsx';
 import NotificationsDropdown from './NotificationsDropdown.jsx';
 import UserDropdown from './UserDropdown.jsx';
+import BrandLogo from '../common/BrandLogo.jsx';
+import Avatar from '../common/Avatar.jsx';
 
 export default function Header() {
   const {
@@ -76,18 +77,13 @@ export default function Header() {
         <div className="max-w-[1360px] mx-auto px-4 md:px-6 h-[64px] flex items-center justify-between gap-4">
           {/* Brand Logo */}
           <div className="flex items-center gap-3 shrink-0">
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-lg bg-accent text-white flex items-center justify-center shadow-xs group-hover:bg-accent-hover transition">
-                <Zap className="w-5 h-5 fill-white" />
-              </div>
-              <div>
-                <span className="text-[19px] font-extrabold text-ink tracking-tight leading-none block">
-                  Sân Nhà
-                </span>
-                <p className="text-[11px] text-ink-subtle mt-0.5 font-medium hidden sm:block">
-                  Đồ thể thao cho người chơi thật
-                </p>
-              </div>
+            <Link to="/" className="flex items-center gap-3" aria-label="Delta Sport - Trang chủ">
+              <BrandLogo className="h-10 w-auto" />
+              <p className="hidden xl:block border-l border-line pl-3 text-[11px] leading-tight text-ink-subtle font-medium">
+                Đồ thể thao cho
+                <br />
+                người chơi thật
+              </p>
             </Link>
           </div>
 
@@ -248,9 +244,7 @@ export default function Header() {
                   }}
                   className="h-9 px-2 rounded-md bg-accent-soft hover:bg-surface-2 border border-line flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  <div className="w-6 h-6 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center">
-                    {(user.fullName || user.name || 'U').charAt(0).toUpperCase()}
-                  </div>
+                  <Avatar user={user} size={24} />
                   <span className="text-[12px] font-bold text-ink hidden sm:inline max-w-[100px] truncate">
                     {user.fullName?.split(' ').pop() || user.name || 'Tài khoản'}
                   </span>

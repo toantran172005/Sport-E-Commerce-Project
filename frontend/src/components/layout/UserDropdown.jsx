@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useStore } from "../../context/StoreContext.jsx";
 import { authService } from "../../services/authService.js";
+import Avatar from "../common/Avatar.jsx";
 
 export default function UserDropdown() {
   const {
@@ -33,12 +34,12 @@ export default function UserDropdown() {
     // Thu hồi refresh token ở backend và xóa phiên phía client (không chờ để UI phản hồi ngay)
     authService.logout();
     setUser(null);
-    showToast("Đã đăng xuất thành công");
+    showToast("Đã đăng xuất thành công", 'success');
     navigate("/login");
   };
 
   const displayName = user?.fullName || user?.name || "Khách hàng";
-  const displayEmail = user?.email || "khach@sannha.vn";
+  const displayEmail = user?.email || "khach@deltasport.vn";
   const isAdmin = user?.role === "ADMIN" || user?.role === "STAFF";
 
   return (
@@ -51,9 +52,7 @@ export default function UserDropdown() {
       <div className="absolute right-0 top-[calc(100%+8px)] w-70 bg-surface rounded-lg shadow-xl border border-line z-50 overflow-hidden animate-in fade-in duration-150 text-ink">
         {/* User profile header */}
         <div className="p-4 border-b border-line flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-accent text-white font-bold text-base flex items-center justify-center shrink-0">
-            {displayName.charAt(0)}
-          </div>
+          <Avatar user={user} name={displayName} size={40} />
           <div className="min-w-0">
             <h4 className="text-[14px] font-bold text-ink truncate">
               {displayName}
