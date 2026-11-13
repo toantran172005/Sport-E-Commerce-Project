@@ -7,6 +7,8 @@ import { useUI } from './UIContext.jsx';
 
 const CartContext = createContext(null);
 
+export const DEFAULT_CART_ITEMS = () => [];
+
 export function CartProvider({ children }) {
   const { showToast } = useUI();
   const requireLogin = useRequireLogin();
