@@ -1,14 +1,36 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useCallback } from 'react';
+import { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
-import { users as mockUsers } from '../mocks/users.js';
 import { hasPermission, isBackOfficeRole, ROLES } from '../utils/permissions.js';
 import { invalidateShippingCache } from '../services/shippingService.js';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [rawUser, setRawUser] = usePersistentState('sport_user', () => mockUsers[0]);
+  // Chỉ lấy user lưu trong localStorage nếu có token JWT hợp lệ; mặc định là null (khách vãng lai)
+  const [rawUser, setRawUser] = usePersistentState('sport_user', () => {
+    if (typeof window !== 'undefined' && !localStorage.getItem('token')) {
+      localStorage.removeItem('sport_user');
+      return null;
+    }
+    return null;
+  });
+
+  // Tự động dọn dẹp các key mock cũ và đảm bảo tính hợp lệ của phiên JWT
+  useEffect(() => {
+    try {
+      localStorage.removeItem('sport_staff');
+      localStorage.removeItem('sport_user_addresses');
+
+      const token = localStorage.getItem('token');
+      if (!token && rawUser) {
+        setRawUser(null);
+        localStorage.removeItem('sport_user');
+      }
+    } catch {
+      // bỏ qua lỗi storage
+    }
+  }, [rawUser, setRawUser]);
 
   // Sanitize persisted user: xử lý role cũ/không hợp lệ và gán status mặc định là ACTIVE
   const user = useMemo(() => {

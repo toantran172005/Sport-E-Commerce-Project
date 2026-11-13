@@ -1,113 +1,55 @@
 import axiosClient from '../api/axiosClient.js';
-import { users as initialUsers } from '../mocks/users.js';
-import { USE_MOCK } from '../config/env.js';
-
-const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Chỉ còn dùng cho 2 chức năng quản trị chưa có API backend (danh sách khách hàng, khóa/mở khóa).
-// Mọi thứ liên quan hồ sơ, mật khẩu, sổ địa chỉ, nhân viên đều gọi API thật.
-const mockUsers = [...initialUsers];
 
 export const userService = {
-  // ---- Quản trị (backend CHƯA có API: vẫn theo cờ VITE_USE_MOCK) ----
-  async getCustomers() {
-    if (USE_MOCK) {
-      await fakeDelay();
-      return mockUsers.filter((u) => u.role === 'CUSTOMER');
-    }
-    return axiosClient.get('/users/customers');
+  // ---- Quản trị người dùng & Nhân viên (gọi API thật qua JWT) ----
+  async getCustomers({ keyword = '', page = 0, size = 10 } = {}) {
+    return axiosClient.get('/admin/users', { params: { role: 'CUSTOMER', keyword, page, size } });
   },
 
   async toggleUserStatus(id) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      const index = mockUsers.findIndex((u) => u.id === id);
-      if (index === -1) throw new Error('Không tìm thấy người dùng');
-      mockUsers[index].status = mockUsers[index].status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
-      return mockUsers[index];
-    }
-    return axiosClient.put(`/users/${id}/toggle-status`);
+    return axiosClient.put(`/admin/users/${id}/toggle-status`);
   },
 
-  // ===== STAFF CRUD (Dành cho Quản trị viên quản lý nhân viên) =====
-  async getStaffMembers() {
-    if (USE_MOCK) {
-      await fakeDelay();
-      return mockUsers.filter((u) => u.role === 'STAFF');
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/staff');
+  async getStaffMembers({ keyword = '', page = 0, size = 10 } = {}) {
+    return axiosClient.get('/admin/users', { params: { role: 'STAFF', keyword, page, size } });
   },
 
-  async createStaff(data) {
-    if (USE_MOCK) {
-      await fakeDelay();
-      const newStaff = {
-        id: Date.now(),
-        email: data.email,
-        phoneNumber: data.phoneNumber,
-        fullName: data.fullName,
-        avatarUrl: data.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop',
-        gender: data.gender || 'MALE',
-        dateOfBirth: data.dateOfBirth || '1995-01-01',
-        role: 'STAFF',
-        status: data.status || 'ACTIVE',
-        createdAt: new Date().toISOString(),
-        lastLoginAt: null,
-      };
-      mockUsers.push(newStaff);
-      return newStaff;
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.post('/staff', data);
+  async createStaff({ fullName, email, phoneNumber }) {
+    return axiosClient.post('/admin/users/staff', {
+      fullName,
+      email,
+      phoneNumber: phoneNumber ? phoneNumber.replace(/\s+/g, '') : '',
+    });
   },
 
   async updateStaff(id, data) {
-    if (USE_MOCK) {
-      await fakeDelay();
-      const index = mockUsers.findIndex((u) => u.id === Number(id));
-      if (index === -1) throw new Error('Không tìm thấy nhân viên');
-      mockUsers[index] = {
-        ...mockUsers[index],
-        ...data,
-        role: 'STAFF', // Luôn cố định role là STAFF
-      };
-      return mockUsers[index];
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.put(`/staff/${id}`, data);
+    return axiosClient.put(`/admin/users/staff/${id}`, data);
   },
 
   async setStaffStatus(id, status) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      const index = mockUsers.findIndex((u) => u.id === Number(id));
-      if (index === -1) throw new Error('Không tìm thấy nhân viên');
-      mockUsers[index].status = status;
-      return mockUsers[index];
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.patch(`/staff/${id}/status`, { status });
+    return axiosClient.patch(`/admin/users/staff/${id}/status`, { status });
   },
 
   async deleteStaff(id) {
-    if (USE_MOCK) {
-      await fakeDelay();
-      const existed = mockUsers.find((u) => u.id === Number(id));
-      mockUsers = mockUsers.filter((u) => u.id !== Number(id));
-      return existed || { id, success: true };
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.delete(`/staff/${id}`);
+    return axiosClient.delete(`/admin/users/staff/${id}`);
+  },
+
+  // Alias tương thích
+  async createAdminStaff(data) {
+    return this.createStaff(data);
+  },
+
+  async getStaff(params) {
+    return this.getStaffMembers(params);
   },
 
   // ===== ADDRESS MANAGEMENT =====
+  /** GET /api/users/me/addresses */
+  async getMyAddresses() {
+    return axiosClient.get('/users/me/addresses');
+  },
+
   async getUserAddresses(userId) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      return mockAddresses.filter((a) => !userId || a.userId === Number(userId));
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
     return axiosClient.get(`/users/${userId}/addresses`);
   },
 
@@ -146,21 +88,6 @@ export const userService = {
   async deleteAddress(id) {
     await axiosClient.delete(`/users/me/addresses/${id}`);
     return { success: true };
-  },
-
-  // ---- Nhân viên (ADMIN) ----
-  /** ADMIN: POST /api/admin/users/staff → { user, temporaryPassword } */
-  async createStaff({ fullName, email, phoneNumber }) {
-    return axiosClient.post('/admin/users/staff', {
-      fullName,
-      email,
-      phoneNumber: phoneNumber ? phoneNumber.replace(/\s+/g, '') : '',
-    });
-  },
-
-  /** ADMIN: GET /api/admin/users?role=STAFF → PageResponse { content, page, size, totalElements, totalPages } */
-  async getStaff({ keyword = '', page = 0, size = 10 } = {}) {
-    return axiosClient.get('/admin/users', { params: { role: 'STAFF', keyword, page, size } });
   },
 
   // ---- Hồ sơ cá nhân ----

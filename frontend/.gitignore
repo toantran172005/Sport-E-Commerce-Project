@@ -26,6 +26,10 @@ dist-ssr
 # Secrets
 .agent
 .prompts
+prompts
+graphify-out
 .env
 .env.*
+.antigravity
+
 

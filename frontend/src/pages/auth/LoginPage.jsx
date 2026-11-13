@@ -9,10 +9,14 @@ import {
   User,
   Sparkles,
   Users,
+  ShieldCheck,
+  UserCheck,
+  Shield,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
 import { ROLES, getDefaultAdminPath, isAdminPathAllowed } from '../../utils/permissions.js';
+import BrandLogo from '../../components/common/BrandLogo.jsx';
 
 export default function LoginPage() {
   const { setUser, showToast } = useStore();

@@ -11,6 +11,7 @@ import {
   Search,
   ExternalLink,
   Menu,
+  Zap,
 } from 'lucide-react';
 import { useOrder, useAuth, useCatalog } from '../context';
 import { ADMIN_PERMISSIONS, ROLE_LABELS_VI } from '../utils/permissions';
