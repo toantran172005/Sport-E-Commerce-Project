@@ -23,13 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 
-# Secrets
-.agent
-.prompts
-prompts
-graphify-out
+config/
+
 .env
 .env.*
-.antigravity
+*.local
 
+.agent/
+prompts/
+graphify-out/
+.antigravity/
 
