@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Bot, Sparkles } from 'lucide-react';
+import { X, Send, Sparkles } from 'lucide-react';
+import BrandLogo from '../common/BrandLogo.jsx';
 import { useChatbot } from '../../context/ChatbotContext';
 
 const QUICK_QUESTIONS = [
@@ -85,7 +86,7 @@ export default function ChatbotPanel({ renderPanel, launcherPosition }) {
       if (lower.includes('đơn') || lower.includes('tra cứu')) {
         replyText = 'Bạn có thể vào mục "Tài khoản > Đơn hàng" hoặc gọi hotline 1900-1234 để kiểm tra hành trình đơn nhé!';
       } else if (lower.includes('phí') || lower.includes('vận chuyển') || lower.includes('ship')) {
-        replyText = 'Sport Store miễn phí vận chuyển cho đơn từ 500k toàn quốc (áp dụng qua GHN và GHTK).';
+        replyText = 'Delta Sport miễn phí vận chuyển cho đơn từ 500k toàn quốc (áp dụng qua GHN và GHTK).';
       } else if (lower.includes('đổi') || lower.includes('trả')) {
         replyText = 'Chính sách hỗ trợ đổi trả miễn phí trong vòng 7 ngày kể từ khi nhận hàng cho sản phẩm còn nguyên tem mác.';
       }
@@ -140,12 +141,12 @@ export default function ChatbotPanel({ renderPanel, launcherPosition }) {
       {/* Header */}
       <header className="px-4 py-3 bg-accent text-accent-contrast flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
+            <BrandLogo variant="mark" className="w-5 h-5 object-contain" alt="Delta Sport" />
           </div>
           <div>
             <h3 className="text-sm font-bold leading-tight flex items-center gap-1.5 text-white">
-              Trợ lý Sport Store
+              Trợ lý Delta Sport
               <Sparkles className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
             </h3>
             <p className="text-[11px] text-white/80 flex items-center gap-1">

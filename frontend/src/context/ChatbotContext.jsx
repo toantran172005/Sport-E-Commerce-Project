@@ -6,7 +6,7 @@ export const DEFAULT_CHATBOT_MESSAGES = () => [
   {
     id: 1,
     sender: 'bot',
-    text: 'Xin chào! Tôi là trợ lý ảo của Sport Store. Tôi có thể giúp gì cho bạn hôm nay?',
+    text: 'Xin chào! Tôi là trợ lý ảo của Delta Sport. Tôi có thể giúp gì cho bạn hôm nay?',
     time: 'Vừa xong',
   },
 ];
