@@ -146,7 +146,7 @@ export default function AdminReviewsPage() {
               onChange={(e) => setRatingFilter(e.target.value)}
               className="h-8 px-2.5 rounded-md bg-page border border-line text-[12px] font-bold text-ink focus:outline-none focus:border-accent"
             >
-              <option value="ALL">Tất cả (1★ - 5★)</option>
+              <option value="ALL">Tất cả</option>
               <option value="5">5 Sao (Tuyệt vời)</option>
               <option value="4">4 Sao (Hài lòng)</option>
               <option value="3">3 Sao (Bình thường)</option>

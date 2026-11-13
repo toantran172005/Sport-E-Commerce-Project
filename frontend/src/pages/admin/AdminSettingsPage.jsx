@@ -11,7 +11,7 @@ import { useStore } from '../../context/StoreContext';
 import AdminLayout from '../../layouts/AdminLayout';
 
 export default function AdminSettingsPage() {
-  const { isDarkMode, setIsDarkMode, toggleDarkMode, showToast } = useStore();
+  const { isDarkMode, toggleDarkMode, showToast } = useStore();
 
   const [storeName, setStoreName] = useState('Delta Sport — Đồ thể thao cho người chơi thật');
   const [hotline, setHotline] = useState('1900 6868');
@@ -51,99 +51,42 @@ export default function AdminSettingsPage() {
         </div>
 
         <div className="space-y-6">
-          {/* 1. Dark Mode / Appearance Card */}
+          {/* 1. Dark Mode / Appearance Card (Single Button / Toggle without preview boxes) */}
           <div className="bg-surface rounded-lg border border-line p-6 shadow-xs">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-line">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-[16px] font-bold text-ink flex items-center gap-2">
-                  <Sun className="w-5 h-5 text-warning" />
-                  <span>Giao Diện &amp; Chế Độ Hiển Thị (Dark Mode)</span>
+                  {isDarkMode ? (
+                    <Moon className="w-5 h-5 text-accent" />
+                  ) : (
+                    <Sun className="w-5 h-5 text-amber-500" />
+                  )}
+                  <span>Giao Diện &amp; Chế Độ Hiển Thị</span>
                 </h2>
                 <p className="text-[12px] text-ink-muted mt-0.5">
-                  Áp dụng đồng bộ cho toàn bộ trang Quản trị và Cửa hàng
+                  Chuyển đổi linh hoạt giữa giao diện Sáng (Light) và Tối (Dark) đồng bộ toàn hệ thống
                 </p>
               </div>
 
-              {/* Toggle Switch */}
-              <div className="flex items-center gap-3">
-                <span className="text-[13px] font-bold text-ink">
-                  {isDarkMode ? 'Đang bật Dark Mode' : 'Đang bật Light Mode'}
-                </span>
-                <button
-                  type="button"
-                  onClick={toggleDarkMode}
-                  className={`w-12 h-7 rounded-full p-1 transition flex items-center cursor-pointer ${
-                    isDarkMode ? 'bg-accent justify-end' : 'bg-line justify-start'
-                  }`}
-                >
-                  <span className="w-5 h-5 rounded-full bg-surface shadow-xs flex items-center justify-center text-xs">
-                    {isDarkMode ? <Moon className="w-3 h-3 text-accent" /> : <Sun className="w-3 h-3 text-warning" />}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Visual Theme Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div
-                onClick={() => setIsDarkMode(false)}
-                className={`p-4 rounded-lg border-2 cursor-pointer transition flex items-center justify-between ${
-                  !isDarkMode
-                    ? 'border-accent bg-accent-soft'
-                    : 'border-line bg-surface-2/40'
-                }`}
+              {/* Theme Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="px-4 py-2.5 rounded-lg border border-line bg-surface-2 hover:bg-surface-2/80 text-ink text-[13px] font-bold flex items-center gap-2.5 transition shadow-xs cursor-pointer"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-surface border border-line flex items-center justify-center text-warning">
-                    <Sun className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-[14px] font-bold text-ink">
-                      Chế độ Sáng (Default Light)
-                    </h3>
-                    <p className="text-[12px] text-ink-muted mt-0.5">
-                      Nền sáng <code className="font-bold">#f8fafc</code>, thẻ trắng tinh khiết
-                    </p>
-                  </div>
-                </div>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                    !isDarkMode ? 'bg-accent text-white' : 'bg-surface-2 text-ink-muted'
+                <div
+                  className={`w-6 h-6 rounded-md flex items-center justify-center ${
+                    isDarkMode ? 'bg-accent/20 text-accent' : 'bg-amber-500/20 text-amber-500'
                   }`}
                 >
-                  {!isDarkMode ? 'Đang dùng' : 'Chọn'}
-                </span>
-              </div>
-
-              <div
-                onClick={() => setIsDarkMode(true)}
-                className={`p-4 rounded-lg border-2 cursor-pointer transition flex items-center justify-between ${
-                  isDarkMode
-                    ? 'border-accent bg-accent-soft'
-                    : 'border-line bg-surface-2/40'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-surface-2 text-accent flex items-center justify-center">
-                    <Moon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-[14px] font-bold text-ink">
-                      Chế độ Tối (Dark Slate)
-                    </h3>
-                    <p className="text-[12px] text-ink-muted mt-0.5">
-                      Nền tối <code className="font-bold">#0f172a</code>, dịu mắt ban đêm
-                    </p>
-                  </div>
+                  {isDarkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                 </div>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                    isDarkMode ? 'bg-accent text-white' : 'bg-surface-2 text-ink-muted'
-                  }`}
-                >
-                  {isDarkMode ? 'Đang dùng' : 'Chọn'}
+                <span>
+                  {isDarkMode
+                    ? 'Đang bật Giao diện Tối (Bấm để chuyển Sáng)'
+                    : 'Đang bật Giao diện Sáng (Bấm để chuyển Tối)'}
                 </span>
-              </div>
+              </button>
             </div>
           </div>
 

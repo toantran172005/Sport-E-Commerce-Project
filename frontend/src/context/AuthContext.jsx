@@ -1,56 +1,50 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo } from 'react';
+import { createContext, useContext, useMemo, useCallback } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
-import { authService } from '../services/authService.js';
+import { users as mockUsers } from '../mocks/users.js';
+import { hasPermission, isBackOfficeRole, ROLES } from '../utils/permissions.js';
+import { invalidateShippingCache } from '../services/shippingService.js';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Phiên đăng nhập thật: mặc định là khách (null) cho tới khi đăng nhập qua backend.
-  const [user, setUser] = usePersistentState('sport_user', null);
+  const [rawUser, setRawUser] = usePersistentState('sport_user', () => mockUsers[0]);
 
-  // Khi mở app: đồng bộ phiên với backend (GET /users/me).
-  // Không có token → coi như khách. Token hết hạn → axiosClient tự refresh hoặc đá về /login.
-  useEffect(() => {
-    if (!localStorage.getItem('token')) {
-      setUser(null);
-      return undefined;
-    }
-    let cancelled = false;
-    authService
-      .getCurrentUser()
-      .then((fresh) => {
-        if (!cancelled) setUser(fresh);
-      })
-      .catch(() => {
-        // 401 đã được axiosClient xử lý (xóa phiên + chuyển /login); lỗi mạng thì giữ user đang lưu
-      });
-    return () => {
-      cancelled = true;
+  // Sanitize persisted user: xử lý role cũ/không hợp lệ và gán status mặc định là ACTIVE
+  const user = useMemo(() => {
+    if (!rawUser) return null;
+    const validRoles = [ROLES.ADMIN, ROLES.STAFF, ROLES.CUSTOMER];
+    const safeRole = validRoles.includes(rawUser.role) ? rawUser.role : 'UNKNOWN';
+    return {
+      ...rawUser,
+      role: safeRole,
+      status: rawUser.status || 'ACTIVE',
     };
-  }, [setUser]);
+  }, [rawUser]);
 
-  // Đăng xuất/đăng nhập ở tab khác → tab này cập nhật theo, tránh dùng nhầm phiên cũ.
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === 'token' && !e.newValue) setUser(null);
-      if (e.key === 'sport_user') {
-        try {
-          const next = e.newValue ? JSON.parse(e.newValue) : null;
-          setUser((prev) => ((prev?.id ?? null) === (next?.id ?? null) ? prev : next));
-        } catch {
-          // bỏ qua dữ liệu hỏng
-        }
+  const setUser = useCallback(
+    (nextUser) => {
+      setRawUser(nextUser);
+      if (!nextUser) {
+        invalidateShippingCache();
       }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [setUser]);
+    },
+    [setRawUser]
+  );
 
-  const isAdmin = Boolean(user && user.role === 'ADMIN');
-  const isStaff = Boolean(user && user.role === 'STAFF');
-  const isCustomer = Boolean(user && user.role === 'CUSTOMER');
+  const isAdmin = Boolean(user && user.role === ROLES.ADMIN);
+  const isStaff = Boolean(user && user.role === ROLES.STAFF);
+  const isBackOffice = Boolean(user && isBackOfficeRole(user.role));
+  const isCustomer = Boolean(user && user.role === ROLES.CUSTOMER);
   const isGuest = !user;
+
+  const can = useCallback(
+    (permission) => {
+      if (!user) return false;
+      return hasPermission(user.role, permission);
+    },
+    [user]
+  );
 
   const value = useMemo(
     () => ({
@@ -58,11 +52,13 @@ export function AuthProvider({ children }) {
       setUser,
       isAdmin,
       isStaff,
+      isBackOffice,
       isCustomer,
       isGuest,
+      can,
       isAuthenticated: Boolean(user),
     }),
-    [user, setUser, isAdmin, isStaff, isCustomer, isGuest]
+    [user, setUser, isAdmin, isStaff, isBackOffice, isCustomer, isGuest, can]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

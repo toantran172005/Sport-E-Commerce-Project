@@ -45,6 +45,27 @@ export function UIProvider({ children }) {
     setModalPayload(null);
   }, []);
 
+  const showConfirmModal = useCallback(
+    ({
+      title = "Xác nhận thao tác",
+      message,
+      confirmText = "Xác nhận",
+      cancelText = "Hủy bỏ",
+      confirmVariant = "danger",
+      onConfirm,
+    }) => {
+      openModal("confirm_modal", {
+        title,
+        message,
+        confirmText,
+        cancelText,
+        confirmVariant,
+        onConfirm,
+      });
+    },
+    [openModal]
+  );
+
   const showErrorModal = useCallback(
     (err, customOptions = {}) => {
       let title = customOptions.title || "Đã Xảy Ra Lỗi";
@@ -89,6 +110,7 @@ export function UIProvider({ children }) {
       modalPayload,
       openModal,
       closeModal,
+      showConfirmModal,
       showErrorModal,
       toastMessage,
       toasts,
@@ -107,13 +129,16 @@ export function UIProvider({ children }) {
       modalPayload,
       openModal,
       closeModal,
+      showConfirmModal,
       showErrorModal,
       toastMessage,
       toasts,
       showToast,
       removeToast,
       isCategoriesOpen,
+      setIsCategoriesOpen,
       isNotificationsOpen,
+      setIsNotificationsOpen,
       isUserMenuOpen,
       closeAllDropdowns,
     ],

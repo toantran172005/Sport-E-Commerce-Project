@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Route, Routes, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
+import { Route, Routes, Navigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
-import { useRequireLogin } from '../hooks/useRequireLogin.js';
+import { ADMIN_PERMISSIONS, ROLES, getDefaultAdminPath } from '../utils/permissions';
 
 const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
 const AccountLayout = lazy(() => import('../layouts/AccountLayout'));
@@ -31,6 +31,7 @@ const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage'))
 const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage'));
 const AdminCouponsPage = lazy(() => import('../pages/admin/AdminCouponsPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
+const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 
@@ -52,30 +53,42 @@ function LegacyOrderDetailRedirect() {
   return <Navigate to={`/account/orders/${id}`} replace />;
 }
 
-// Tài khoản do Admin tạo (mật khẩu mặc định) bị khóa ở màn hình đổi mật khẩu cho tới khi đổi xong.
-function PasswordChangeGate({ children }) {
-  const { user } = useAuth();
-  const { pathname } = useLocation();
-  if (user?.mustChangePassword && pathname !== '/force-change-password') {
-    return <Navigate to="/force-change-password" replace />;
-  }
-  return children;
+function ForbiddenRedirect({ to, message }) {
+  const { showToast } = useUI();
+  useEffect(() => {
+    if (message) {
+      showToast(message, 'error');
+    }
+  }, [message, showToast]);
+  return <Navigate to={to} replace />;
 }
 
-function AdminRoute({ children, adminOnly = false }) {
-  const { user } = useAuth();
-  const { showToast } = useUI();
+function RoleRoute({ permission, children }) {
+  const { user, can } = useAuth();
+  const location = useLocation();
+
   if (!user) {
-    return <Navigate to="/login?redirect=/admin" replace />;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
-  if (user.role !== 'ADMIN' && user.role !== 'STAFF') {
-    showToast('Tài khoản khách hàng không có quyền truy cập trang quản trị!', 'error');
-    return <Navigate to="/" replace />;
+
+  if (user.role !== ROLES.ADMIN && user.role !== ROLES.STAFF) {
+    return (
+      <ForbiddenRedirect
+        to="/"
+        message="Tài khoản khách hàng không có quyền truy cập trang quản trị!"
+      />
+    );
   }
-  if (adminOnly && user.role !== 'ADMIN') {
-    showToast('Chỉ quản trị viên (ADMIN) mới có quyền truy cập trang này!', 'error');
-    return <Navigate to="/admin" replace />;
+
+  if (permission && !can(permission)) {
+    return (
+      <ForbiddenRedirect
+        to={getDefaultAdminPath(user.role)}
+        message="Bạn không có quyền truy cập chức năng này"
+      />
+    );
   }
+
   return children;
 }
 
@@ -105,11 +118,20 @@ function LoginGate({ message }) {
 
 function CustomerRoute({ children, redirect = '/login?redirect=/account/profile' }) {
   const { user } = useAuth();
+  const { showToast } = useUI();
+
+  useEffect(() => {
+    if (!user) {
+      if (redirect.includes('checkout')) {
+        showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
+      } else if (redirect.includes('wishlist')) {
+        showToast('Vui lòng đăng nhập để xem danh sách yêu thích');
+      }
+    }
+  }, [user, redirect, showToast]);
+
   if (!user) {
-    let message = 'Vui lòng đăng nhập để xem trang này';
-    if (redirect.includes('checkout')) message = 'Vui lòng đăng nhập để tiến hành đặt hàng';
-    else if (redirect.includes('wishlist')) message = 'Vui lòng đăng nhập để xem danh sách yêu thích';
-    return <LoginGate message={message} />;
+    return <Navigate to={redirect} replace />;
   }
   return children;
 }
@@ -176,45 +198,53 @@ export default function AppRoutes() {
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/force-change-password" element={<ForceChangePasswordPage />} />
 
-        {/* Admin CMS Routes (Strictly Protected for Admin/Staff only) */}
+        {/* Admin CMS Routes (Strictly Protected with Granular Role Permissions) */}
         <Route
           path="/admin"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.DASHBOARD}>
               <AdminDashboardPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/products"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.PRODUCTS}>
               <AdminProductsPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/orders"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.ORDERS}>
               <AdminOrdersPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/coupons"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.COUPONS}>
               <AdminCouponsPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/reviews"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.REVIEWS}>
               <AdminReviewsPage />
-            </AdminRoute>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/staff"
+          element={
+            <RoleRoute permission={ADMIN_PERMISSIONS.STAFF}>
+              <AdminStaffPage />
+            </RoleRoute>
           }
         />
         <Route
@@ -228,9 +258,9 @@ export default function AppRoutes() {
         <Route
           path="/admin/settings"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.SETTINGS}>
               <AdminSettingsPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
       </Routes>

@@ -5,6 +5,22 @@ export default function AddressesPage() {
   const { addresses: userAddresses, setDefaultAddress, deleteAddress } = useAddress();
   const { openModal } = useUI();
 
+  const userAddresses = useMemo(() => {
+    const currentUserId = user?.id || 4;
+    const effectiveList = addresses && addresses.length > 0 ? addresses : fallbackAddresses;
+    const list = effectiveList.filter(
+      (a) => !a.userId || a.userId === currentUserId || a.userId === 4 || a.userId === 1
+    );
+    const resultList = list.length > 0 ? list : effectiveList;
+
+    const defaultIndex = resultList.findIndex((a) => a.isDefault);
+    const resolvedDefaultIndex = defaultIndex >= 0 ? defaultIndex : 0;
+
+    return resultList.map((a, idx) => ({
+      ...a,
+      isDefault: idx === resolvedDefaultIndex,
+    }));
+  }, [addresses, user?.id]);
 
   return (
     <div className="bg-surface rounded-lg border border-line p-6 space-y-5 shadow-2xs">
