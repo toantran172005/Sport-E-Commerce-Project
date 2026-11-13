@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Route, Routes, Navigate, useParams, useLocation } from 'react-router-dom';
+import { Route, Routes, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
+import { useRequireLogin } from '../hooks/useRequireLogin.js';
 import { ADMIN_PERMISSIONS, ROLES, getDefaultAdminPath } from '../utils/permissions';
 
 const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
@@ -50,6 +51,16 @@ function RouteLoadingFallback() {
 function LegacyOrderDetailRedirect() {
   const { id } = useParams();
   return <Navigate to={`/account/orders/${id}`} replace />;
+}
+
+// Tài khoản do Admin tạo (mật khẩu mặc định) bị khóa ở màn hình đổi mật khẩu cho tới khi đổi xong.
+function PasswordChangeGate({ children }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  if (user?.mustChangePassword && pathname !== '/force-change-password') {
+    return <Navigate to="/force-change-password" replace />;
+  }
+  return children;
 }
 
 function ForbiddenRedirect({ to, message }) {
@@ -103,20 +114,11 @@ function RoleRoute({ permission, children }) {
 
 function CustomerRoute({ children, redirect = '/login?redirect=/account/profile' }) {
   const { user } = useAuth();
-  const { showToast } = useUI();
-
-  useEffect(() => {
-    if (!user) {
-      if (redirect.includes('checkout')) {
-        showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-      } else if (redirect.includes('wishlist')) {
-        showToast('Vui lòng đăng nhập để xem danh sách yêu thích');
-      }
-    }
-  }, [user, redirect, showToast]);
-
   if (!user) {
-    return <Navigate to={redirect} replace />;
+    let message = 'Vui lòng đăng nhập để xem trang này';
+    if (redirect.includes('checkout')) message = 'Vui lòng đăng nhập để tiến hành đặt hàng';
+    else if (redirect.includes('wishlist')) message = 'Vui lòng đăng nhập để xem danh sách yêu thích';
+    return <LoginGate message={message} />;
   }
   return children;
 }

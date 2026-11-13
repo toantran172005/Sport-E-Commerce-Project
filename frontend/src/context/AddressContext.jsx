@@ -2,8 +2,8 @@
 import { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { userService } from '../services/userService.js';
 import { useAuth } from './AuthContext.jsx';
-import { useUI } from './UIContext.jsx';
 import { invalidateShippingCache } from '../services/shippingService.js';
+import { useUI } from './UIContext.jsx';
 
 const AddressContext = createContext(null);
 

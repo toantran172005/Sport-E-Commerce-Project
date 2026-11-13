@@ -13,6 +13,7 @@ export function CartProvider({ children }) {
   const { showToast } = useUI();
   const requireLogin = useRequireLogin();
 
+  // Giỏ hàng lưu theo từng tài khoản (khóa gắn user id); khách vãng lai không có giỏ.
   const [cart, setCart] = usePersistentState(useScopedKey('sport_cart'), []);
   const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState(
     useScopedKey('sport_selected_cart'),
@@ -43,7 +44,7 @@ export function CartProvider({ children }) {
     if (!selectedCartItemKeys || selectedCartItemKeys.length === 0) return;
     setCart((prev) => prev.filter((item) => !selectedCartItemKeys.includes(getCartItemKey(item))));
     setSelectedCartItemKeys([]);
-    showToast('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng');
+    showToast('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng', 'success');
   }, [getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys, showToast]);
 
   const addToCart = useCallback(

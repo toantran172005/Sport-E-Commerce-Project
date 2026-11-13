@@ -44,7 +44,8 @@ export const userService = {
   },
 
   // ===== ADDRESS MANAGEMENT =====
-  /** GET /api/users/me/addresses */
+  // ---- Sổ địa chỉ của chính người dùng đang đăng nhập (user lấy từ JWT, không truyền userId) ----
+  /** GET /api/users/me/addresses → mặc định lên đầu */
   async getMyAddresses() {
     return axiosClient.get('/users/me/addresses');
   },
