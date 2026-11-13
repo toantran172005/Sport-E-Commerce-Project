@@ -11,8 +11,12 @@ export function CartProvider({ children }) {
   const { showToast } = useUI();
   const requireLogin = useRequireLogin();
 
-  const [cart, setCart] = usePersistentState('sport_cart', DEFAULT_CART_ITEMS);
-  const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState('sport_selected_cart', []);
+  // Giỏ hàng lưu theo từng tài khoản (khóa gắn user id); khách vãng lai không có giỏ.
+  const [cart, setCart] = usePersistentState(useScopedKey('sport_cart'), []);
+  const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState(
+    useScopedKey('sport_selected_cart'),
+    []
+  );
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   const getCartItemKey = useCallback((item) => `${item.productId}_${item.variantId || 'def'}`, []);
@@ -38,15 +42,8 @@ export function CartProvider({ children }) {
     if (!selectedCartItemKeys || selectedCartItemKeys.length === 0) return;
     setCart((prev) => prev.filter((item) => !selectedCartItemKeys.includes(getCartItemKey(item))));
     setSelectedCartItemKeys([]);
-    showToast('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng');
+    showToast('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng', 'success');
   }, [getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys, showToast]);
-
-  const resetTestCart = useCallback(() => {
-    const defaultItems = DEFAULT_CART_ITEMS();
-    setCart(defaultItems);
-    setSelectedCartItemKeys([]);
-    showToast('Đã khôi phục giỏ hàng về 2 sản phẩm Test DB');
-  }, [setCart, setSelectedCartItemKeys, showToast]);
 
   const addToCart = useCallback(
     (product, quantity = 1, customVariant = null) => {

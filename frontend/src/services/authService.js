@@ -16,36 +16,9 @@ function clearSession() {
 export const authService = {
   /** POST /api/auth/login → lưu access + refresh token, trả { user, token } */
   async login({ email, password }) {
-    if (USE_MOCK) {
-      await fakeDelay();
-      const normalizedEmail = (email || '').trim().toLowerCase();
-      let user = initialUsers.find((u) => u.email.toLowerCase() === normalizedEmail);
-
-      if (!user) {
-        if (normalizedEmail.includes('admin')) {
-          user = initialUsers.find((u) => u.role === 'ADMIN');
-        } else if (normalizedEmail.includes('staff')) {
-          user = initialUsers.find((u) => u.role === 'STAFF' && u.status === 'ACTIVE') ||
-                 initialUsers.find((u) => u.role === 'STAFF');
-        } else if (normalizedEmail.includes('toan')) {
-          user = initialUsers.find((u) => u.email.toLowerCase().includes('toan'));
-        } else {
-          user = initialUsers.find((u) => u.role === 'CUSTOMER') || initialUsers[0];
-        }
-      }
-
-      // Kiểm tra tài khoản back-office bị khóa
-      if (user && (user.role === 'ADMIN' || user.role === 'STAFF') && user.status === 'LOCKED') {
-        throw new Error('Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
-      }
-
-      currentUser = user;
-      localStorage.setItem('sport_user', JSON.stringify(user));
-      localStorage.setItem('token', 'mock-jwt-token-sannha-sport-2026');
-      return { user, token: 'mock-jwt-token-sannha-sport-2026' };
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.post('/auth/login', { email, password });
+    const data = await axiosClient.post('/auth/login', { email: email.trim(), password });
+    saveSession(data);
+    return { user: data.user, token: data.accessToken };
   },
 
   /**
@@ -98,17 +71,9 @@ export const authService = {
 
   /** GET /api/users/me → thông tin user theo access token hiện tại */
   async getCurrentUser() {
-    if (USE_MOCK) {
-      try {
-        const saved = localStorage.getItem('sport_user');
-        if (saved) return JSON.parse(saved);
-      } catch {
-        /* ignore JSON parse errors */
-      }
-      return currentUser;
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/auth/me');
+    const user = await axiosClient.get('/users/me');
+    localStorage.setItem('sport_user', JSON.stringify(user));
+    return user;
   },
 
   /** POST /api/auth/logout → thu hồi refresh token; luôn xóa phiên phía client dù API lỗi */

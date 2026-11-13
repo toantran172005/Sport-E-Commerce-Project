@@ -2,8 +2,8 @@
 import { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { userService } from '../services/userService.js';
 import { useAuth } from './AuthContext.jsx';
-import { useUI } from './UIContext.jsx';
 import { invalidateShippingCache } from '../services/shippingService.js';
+import { useUI } from './UIContext.jsx';
 
 const AddressContext = createContext(null);
 
@@ -61,59 +61,51 @@ export function AddressProvider({ children }) {
 
   /** Thêm địa chỉ (POST). Ném lỗi để nơi gọi hiển thị thông báo cụ thể từ backend. */
   const addAddress = useCallback(
-    (newAddr) => {
-      const id = Date.now();
-      setAddresses((prev) => {
-        const shouldBeDefault = Boolean(newAddr.isDefault) || prev.length === 0;
-        const created = {
-          ...newAddr,
-          id,
-          userId: user?.id || 4,
-          country: 'Vietnam',
-          type: 'SHIPPING',
-        };
-        const base = shouldBeDefault ? prev.map((a) => ({ ...a, isDefault: false })) : prev;
-        if (shouldBeDefault) {
-          setSelectedAddressId(id);
-        }
-        return sanitizeAddresses([...base, { ...created, isDefault: shouldBeDefault }]);
-      });
+    async (payload) => {
+      const created = await userService.addAddress(payload);
+      await loadAddresses(created?.isDefault ? created.id : undefined);
       invalidateShippingCache();
-      showToast('Đã thêm địa chỉ nhận hàng mới');
+      showToast('Đã thêm địa chỉ nhận hàng mới', 'success');
+      return created;
     },
     [loadAddresses, showToast]
   );
 
   const updateAddress = useCallback(
-    (id, updatedFields) => {
-      setAddresses((prev) => {
-        const updated = prev.map((a) => (a.id === id ? { ...a, ...updatedFields } : a));
-        return sanitizeAddresses(updated);
-      });
+    async (id, payload) => {
+      const updated = await userService.updateAddress(id, payload);
+      await loadAddresses();
       invalidateShippingCache();
-      showToast('Đã cập nhật địa chỉ');
+      showToast('Đã cập nhật địa chỉ nhận hàng', 'success');
+      return updated;
     },
-    [setAddresses, showToast]
+    [loadAddresses, showToast]
   );
 
   const deleteAddress = useCallback(
-    (id) => {
-      setAddresses((prev) => {
-        const filtered = prev.filter((a) => a.id !== id);
-        return sanitizeAddresses(filtered);
-      });
-      invalidateShippingCache();
-      showToast('Đã xóa địa chỉ');
+    async (id) => {
+      try {
+        await userService.deleteAddress(id);
+        await loadAddresses();
+        invalidateShippingCache();
+        showToast('Đã xóa địa chỉ nhận hàng', 'success');
+      } catch (err) {
+        showToast(err.message || 'Không thể xóa địa chỉ', 'error');
+      }
     },
-    [setAddresses, showToast]
+    [loadAddresses, showToast]
   );
 
   const setDefaultAddress = useCallback(
-    (id) => {
-      setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
-      setSelectedAddressId(id);
-      invalidateShippingCache();
-      showToast('Đã thiết lập làm địa chỉ mặc định');
+    async (id) => {
+      try {
+        await userService.setDefaultAddress(id);
+        await loadAddresses(id);
+        invalidateShippingCache();
+        showToast('Đã thiết lập làm địa chỉ mặc định', 'success');
+      } catch (err) {
+        showToast(err.message || 'Không thể đặt địa chỉ mặc định', 'error');
+      }
     },
     [loadAddresses, showToast]
   );
@@ -143,9 +135,10 @@ export function AddressProvider({ children }) {
     }),
     [
       addresses,
-      setAddresses,
+      loading,
       selectedAddressId,
       selectedAddress,
+      loadAddresses,
       addAddress,
       updateAddress,
       deleteAddress,

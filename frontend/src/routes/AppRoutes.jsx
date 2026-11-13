@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Route, Routes, Navigate, useParams, useLocation } from 'react-router-dom';
+import { Route, Routes, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
+import { useRequireLogin } from '../hooks/useRequireLogin.js';
 import { ADMIN_PERMISSIONS, ROLES, getDefaultAdminPath } from '../utils/permissions';
 
 const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
@@ -33,7 +34,6 @@ const AdminCouponsPage = lazy(() => import('../pages/admin/AdminCouponsPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
-const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 
 const NotFoundPage = lazy(() => import('../pages/common/NotFoundPage'));
 
@@ -51,6 +51,16 @@ function RouteLoadingFallback() {
 function LegacyOrderDetailRedirect() {
   const { id } = useParams();
   return <Navigate to={`/account/orders/${id}`} replace />;
+}
+
+// Tài khoản do Admin tạo (mật khẩu mặc định) bị khóa ở màn hình đổi mật khẩu cho tới khi đổi xong.
+function PasswordChangeGate({ children }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  if (user?.mustChangePassword && pathname !== '/force-change-password') {
+    return <Navigate to="/force-change-password" replace />;
+  }
+  return children;
 }
 
 function ForbiddenRedirect({ to, message }) {
@@ -118,20 +128,11 @@ function LoginGate({ message }) {
 
 function CustomerRoute({ children, redirect = '/login?redirect=/account/profile' }) {
   const { user } = useAuth();
-  const { showToast } = useUI();
-
-  useEffect(() => {
-    if (!user) {
-      if (redirect.includes('checkout')) {
-        showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-      } else if (redirect.includes('wishlist')) {
-        showToast('Vui lòng đăng nhập để xem danh sách yêu thích');
-      }
-    }
-  }, [user, redirect, showToast]);
-
   if (!user) {
-    return <Navigate to={redirect} replace />;
+    let message = 'Vui lòng đăng nhập để xem trang này';
+    if (redirect.includes('checkout')) message = 'Vui lòng đăng nhập để tiến hành đặt hàng';
+    else if (redirect.includes('wishlist')) message = 'Vui lòng đăng nhập để xem danh sách yêu thích';
+    return <LoginGate message={message} />;
   }
   return children;
 }
@@ -245,14 +246,6 @@ export default function AppRoutes() {
             <RoleRoute permission={ADMIN_PERMISSIONS.STAFF}>
               <AdminStaffPage />
             </RoleRoute>
-          }
-        />
-        <Route
-          path="/admin/staff"
-          element={
-            <AdminRoute adminOnly>
-              <AdminStaffPage />
-            </AdminRoute>
           }
         />
         <Route
