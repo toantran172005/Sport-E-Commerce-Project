@@ -13,6 +13,8 @@ import {
   Menu,
 } from 'lucide-react';
 import { useOrder, useAuth, useCatalog } from '../context';
+import BrandLogo from '../components/common/BrandLogo.jsx';
+import Avatar from '../components/common/Avatar.jsx';
 import { ADMIN_PERMISSIONS, ROLE_LABELS_VI } from '../utils/permissions';
 
 const ADMIN_NAV_ITEMS = [
@@ -111,12 +113,7 @@ export default function AdminLayout({
           {/* Left: Brand Logo & CMS Tag */}
           <div className="flex items-center gap-6 shrink-0">
             <Link to="/admin" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center shadow-xs">
-                <Zap className="w-4 h-4 fill-white" />
-              </div>
-              <span className="text-[17px] font-black tracking-tight text-ink">
-                Sân Nhà
-              </span>
+              <BrandLogo className="h-8 w-auto" />
               <span className="px-2 py-0.5 rounded bg-accent/20 text-accent text-[10px] font-bold uppercase tracking-wider">
                 CMS
               </span>
@@ -151,9 +148,7 @@ export default function AdminLayout({
               className="flex items-center gap-2 p-1.5 pr-3 rounded-lg bg-surface-2 hover:bg-surface-2/80 border border-line cursor-pointer transition"
               title="Cài đặt quản trị"
             >
-              <div className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shrink-0">
-                {user?.fullName?.charAt(0) || user?.name?.charAt(0) || 'A'}
-              </div>
+              <Avatar user={user} name={user?.fullName || user?.name || 'Admin'} size={28} />
               <div className="text-left hidden md:block">
                 <p className="text-[12px] font-bold text-ink leading-tight line-clamp-1">
                   {user?.fullName || user?.name || 'Quản trị viên'}

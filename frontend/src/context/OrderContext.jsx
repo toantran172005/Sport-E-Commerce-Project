@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { orders as mockOrders } from '../mocks/orders.js';
-import { useScopedKey } from '../hooks/useScopedKey.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { orderService } from '../services/orderService.js';
