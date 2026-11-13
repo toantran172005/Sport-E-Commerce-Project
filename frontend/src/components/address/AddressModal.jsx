@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapPin, X, Plus } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
-import { userService } from '../../services/userService.js';
 
 export default function AddressModal() {
   const {
@@ -12,6 +11,7 @@ export default function AddressModal() {
     selectedAddressId,
     setSelectedAddressId,
     addAddress,
+    updateAddress,
     showToast,
   } = useStore();
 
@@ -48,7 +48,7 @@ export default function AddressModal() {
   const handleAddNewAddress = async (e) => {
     e.preventDefault();
     if (!recipientName.trim() || !phoneNumber.trim() || !addressLine.trim()) {
-      showToast('Vui lòng điền đầy đủ thông tin bắt buộc');
+      showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
       return;
     }
 
@@ -61,22 +61,26 @@ export default function AddressModal() {
         ward,
         addressLine: addressLine.trim(),
         isDefault,
-        type: 'SHIPPING',
       };
-      await userService.addAddress(payload);
-      addAddress(payload);
+      const editingId = modalPayload?.address?.id;
+      if (editingId) {
+        await updateAddress(editingId, payload);
+        closeModal();
+        return;
+      }
+      await addAddress(payload);
       setIsAddingNew(false);
       setRecipientName('');
       setPhoneNumber('');
       setAddressLine('');
     } catch (err) {
-      showToast(err.message || 'Lỗi khi thêm địa chỉ');
+      showToast(err.message || 'Lỗi khi thêm địa chỉ', 'error');
     }
   };
 
   const handleSelectAddress = (id) => {
     setSelectedAddressId(id);
-    showToast('Đã chọn địa chỉ giao hàng');
+    showToast('Đã chọn địa chỉ giao hàng', 'success');
     closeModal();
   };
 

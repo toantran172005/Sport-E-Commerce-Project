@@ -20,8 +20,6 @@ public class UpdateProfileRequest {
     @Size(max = 150)
     private String fullName;
 
-    private String avatarUrl;
-
     private GenderType gender;
 
     private LocalDate dateOfBirth;

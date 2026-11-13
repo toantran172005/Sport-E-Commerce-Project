@@ -156,7 +156,7 @@ export default function CategoriesDropdown() {
                           {p.name}
                         </p>
                         <p className="text-[11px] text-ink-subtle mt-0.5">
-                          {p.brand?.name || 'Sân Nhà'}
+                          {p.brand?.name || 'Delta Sport'}
                         </p>
                         <p className="text-[12px] font-extrabold text-accent mt-1">
                           {formatCurrency(p.salePrice || p.basePrice)}

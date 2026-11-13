@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { orders as mockOrders } from '../mocks/orders.js';
+import { useScopedKey } from '../hooks/useScopedKey.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { orderService } from '../services/orderService.js';
@@ -62,7 +63,7 @@ export function OrderProvider({ children }) {
           };
         })
       );
-      showToast(`Đã hủy đơn hàng #${String(orderId).replace('ORD-', '')}`);
+      showToast(`Đã hủy đơn hàng #${String(orderId).replace('ORD-', '')}`, 'success');
     },
     [setOrders, showToast, user]
   );
@@ -79,7 +80,7 @@ export function OrderProvider({ children }) {
       } catch (err) {
         const errorMsg = err.response?.data?.message || err.message;
         console.error('Lỗi gọi API cập nhật trạng thái đơn:', errorMsg);
-        showToast(errorMsg || 'Không thể cập nhật trạng thái đơn hàng');
+        showToast(errorMsg || 'Không thể cập nhật trạng thái đơn hàng', 'error');
         throw err;
       }
 
@@ -123,7 +124,7 @@ export function OrderProvider({ children }) {
           };
         })
       );
-      showToast('Cập nhật trạng thái đơn hàng thành công');
+      showToast('Cập nhật trạng thái đơn hàng thành công', 'success');
     },
     [setOrders, showToast]
   );

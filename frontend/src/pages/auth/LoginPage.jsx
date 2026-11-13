@@ -1,16 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Zap,
   Mail,
   Lock,
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
-  UserCheck,
   User,
-  Shield,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -24,8 +20,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
 
-  const [email, setEmail] = useState('toan.tran@gmail.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -59,6 +55,12 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
+      // Backend trả 403 khi tài khoản đăng ký xong nhưng chưa nhập OTP (trạng thái PENDING)
+      if (err.status === 403 && /xác thực/i.test(err.message || '')) {
+        showToast('Tài khoản chưa xác thực email. Vui lòng nhập mã OTP đã gửi tới email của bạn.', 'warning');
+        navigate(`/verify-otp?email=${encodeURIComponent(loginEmail.trim())}&purpose=REGISTER`);
+        return;
+      }
       setError(err.message || 'Email hoặc mật khẩu không chính xác');
     } finally {
       setLoading(false);
@@ -91,8 +93,9 @@ export default function LoginPage() {
   const handleContinueAsGuest = () => {
     localStorage.removeItem('sport_user');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setUser(null);
-    showToast('Đang duyệt web với tư cách Khách vãng lai (Guest)');
+    showToast('Đang duyệt web với tư cách Khách vãng lai (Guest)', 'info');
     navigate('/');
   };
 
@@ -101,11 +104,8 @@ export default function LoginPage() {
       {/* Top Header */}
       <header className="bg-surface border-b border-line h-16">
         <div className="max-w-[1360px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold tracking-tight">SÂN NHÀ SPORT</span>
+          <Link to="/" className="flex items-center" aria-label="Delta Sport - Trang chủ">
+            <BrandLogo className="h-9 w-auto" />
           </Link>
 
           <Link

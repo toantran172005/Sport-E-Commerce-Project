@@ -1,4 +1,5 @@
-import { Zap, ShieldCheck, Truck, RefreshCw, Headphones } from 'lucide-react';
+import { ShieldCheck, Truck, RefreshCw, Headphones } from 'lucide-react';
+import BrandLogo from '../common/BrandLogo.jsx';
 import { Link } from 'react-router-dom';
 
 export default function Footer() {
@@ -52,13 +53,8 @@ export default function Footer() {
       {/* Main Footer Links */}
       <div className="max-w-[1360px] mx-auto px-4 md:px-6 py-8 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold text-ink">
-              Sân Nhà Sport
-            </span>
+          <div className="mb-3">
+            <BrandLogo className="h-9 w-auto" />
           </div>
           <p className="text-[12.5px] text-ink-muted leading-relaxed mb-3">
             Hệ sinh thái trang thiết bị, phụ kiện và trang phục thể thao chính hãng hàng đầu Việt Nam. Dành riêng cho người chơi thể thao nghiêm túc.
@@ -70,7 +66,7 @@ export default function Footer() {
 
         <div>
           <h4 className="text-[13.5px] font-bold text-ink uppercase tracking-wider mb-3">
-            Về Sân Nhà
+            Về Delta Sport
           </h4>
           <ul className="space-y-2 text-[12.5px] text-ink-muted">
             <li><Link to="/products" className="hover:text-accent">Giới thiệu thương hiệu</Link></li>
@@ -109,7 +105,7 @@ export default function Footer() {
 
       {/* Copyright */}
       <div className="border-t border-line-subtle py-3 text-center text-[12px] text-ink-subtle">
-        © 2026 Sân Nhà Sport · Hệ thống TMĐT Thể thao chuẩn Java Spring Boot & React 19 · All rights reserved.
+        © 2026 Delta Sport · Hệ thống TMĐT Thể thao chuẩn Java Spring Boot & React 19 · All rights reserved.
       </div>
     </footer>
   );

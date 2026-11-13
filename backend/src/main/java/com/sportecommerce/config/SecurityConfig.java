@@ -8,6 +8,7 @@ import com.sportecommerce.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -44,8 +45,18 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
 
+    /** Endpoint public hoàn toàn (đăng nhập/đăng ký/OTP/refresh...). logout-all được chặn riêng ở trên. */
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**"
+            "/api/auth/**",
+            "/error"
+    };
+
+    /** Catalog: ai cũng được XEM (GET); chỉ ADMIN/STAFF được ghi (POST/PUT/PATCH/DELETE). */
+    private static final String[] CATALOG_ENDPOINTS = {
+            "/api/products/**",
+            "/api/categories/**",
+            "/api/brands/**",
+            "/api/tags/**"
     };
 
     @Bean
@@ -88,8 +99,32 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Thứ tự rất quan trọng: rule cụ thể đặt TRƯỚC rule chung (Spring lấy rule khớp đầu tiên).
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // Chỉ ADMIN (AdminUserController còn có @PreAuthorize), STAFF được vào các API quản trị khác.
+                        .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
+
+                        // Cần đăng nhập (thiếu token -> 401 thay vì principal = null gây 500).
+                        .requestMatchers("/api/auth/logout-all").authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers("/api/**").permitAll()
+                        .requestMatchers("/api/users/**", "/api/notifications/**").authenticated()
+                        .requestMatchers("/api/orders/**", "/api/payments/create").authenticated()
+
+                        // Webhook VNPay gọi từ server của VNPay -> không có JWT, được xác thực bằng chữ ký bên trong service.
+                        .requestMatchers("/api/payments/webhook").permitAll()
+                        .requestMatchers("/api/payments/**").authenticated()
+
+                        // Coupon: xem + áp mã cho cả khách vãng lai; tạo/sửa/xóa chỉ ADMIN/STAFF.
+                        .requestMatchers(HttpMethod.GET, "/api/coupons/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/coupons/apply").permitAll()
+                        .requestMatchers("/api/coupons/**").hasAnyRole("ADMIN", "STAFF")
+
+                        .requestMatchers(HttpMethod.GET, "/api/shipments/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, CATALOG_ENDPOINTS).permitAll()
+                        .requestMatchers(CATALOG_ENDPOINTS).hasAnyRole("ADMIN", "STAFF")
+
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

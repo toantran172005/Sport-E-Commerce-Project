@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
+import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 import { formatCurrency } from '../../utils/formatters.js';
 
 export default function ProductCard({ product }) {
   const navigate = useNavigate();
-  const { user, showToast, addToCart, isInWishlist, toggleWishlist } = useStore();
+  const { addToCart, isInWishlist, toggleWishlist } = useStore();
+  const requireLogin = useRequireLogin();
   const [imageLoaded, setImageLoaded] = useState(false);
 
   if (!product) return null;
@@ -24,7 +26,7 @@ export default function ProductCard({ product }) {
     product.images?.[0]?.imageUrl ||
     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600';
 
-  const brandName = product.brand?.name || 'Sân Nhà';
+  const brandName = product.brand?.name || 'Delta Sport';
   const categoryName = product.category?.name || 'Đồ thể thao';
 
   const handleCardClick = () => {
@@ -38,22 +40,14 @@ export default function ProductCard({ product }) {
 
   const handleBuyNow = (e) => {
     e.stopPropagation();
+    if (!requireLogin('Vui lòng đăng nhập để tiến hành đặt hàng')) return;
     addToCart(product, 1);
-    if (!user) {
-      showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-      navigate('/login?redirect=/checkout');
-      return;
-    }
     navigate('/checkout');
   };
 
   const handleWishlistClick = (e) => {
     e.stopPropagation();
-    if (!user) {
-      showToast('Vui lòng đăng nhập để lưu sản phẩm yêu thích');
-      navigate('/login?redirect=' + encodeURIComponent(window.location.pathname));
-      return;
-    }
+    if (!requireLogin('Vui lòng đăng nhập để lưu sản phẩm yêu thích')) return;
     toggleWishlist(product.id);
   };
 

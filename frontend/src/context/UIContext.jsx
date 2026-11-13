@@ -22,6 +22,7 @@ export function UIProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // type: 'success' (tick xanh) | 'error' (dấu X đỏ) | 'warning' (cảnh báo vàng) | 'info' (thông tin)
   const showToast = useCallback((msg, type = "info") => {
     if (!msg) return;
     const id = Date.now() + Math.random();

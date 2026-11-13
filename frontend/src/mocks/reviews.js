@@ -121,11 +121,11 @@ export const reviews = [
     ],
     reply: {
       id: 1,
-      replyText: 'Cảm ơn bạn đã tin tưởng Sân Nhà Sport! Chúc bạn có những trận cầu thật sung sức. Nếu cần tư vấn thêm về vợt, đừng ngại liên hệ shop nhé.',
+      replyText: 'Cảm ơn bạn đã tin tưởng Delta Sport! Chúc bạn có những trận cầu thật sung sức. Nếu cần tư vấn thêm về vợt, đừng ngại liên hệ shop nhé.',
       createdAt: '2025-03-02T09:00:00.000Z',
       adminName: 'Ban Quản Trị Cửa Hàng'
     },
-    replyText: 'Cảm ơn bạn đã tin tưởng Sân Nhà Sport! Chúc bạn có những trận cầu thật sung sức. Nếu cần tư vấn thêm về vợt, đừng ngại liên hệ shop nhé.'
+    replyText: 'Cảm ơn bạn đã tin tưởng Delta Sport! Chúc bạn có những trận cầu thật sung sức. Nếu cần tư vấn thêm về vợt, đừng ngại liên hệ shop nhé.'
   },
   {
     id: 2,
@@ -148,11 +148,11 @@ export const reviews = [
     ],
     reply: {
       id: 2,
-      replyText: 'Sân Nhà Sport rất vui vì bạn hài lòng với đôi giày. Chúc bạn có những buổi chạy thật hiệu quả!',
+      replyText: 'Delta Sport rất vui vì bạn hài lòng với đôi giày. Chúc bạn có những buổi chạy thật hiệu quả!',
       createdAt: '2025-03-04T14:20:00.000Z',
       adminName: 'Ban Quản Trị Cửa Hàng'
     },
-    replyText: 'Sân Nhà Sport rất vui vì bạn hài lòng với đôi giày. Chúc bạn có những buổi chạy thật hiệu quả!'
+    replyText: 'Delta Sport rất vui vì bạn hài lòng với đôi giày. Chúc bạn có những buổi chạy thật hiệu quả!'
   },
   {
     id: 3,
@@ -172,11 +172,11 @@ export const reviews = [
     images: [],
     reply: {
       id: 3,
-      replyText: 'Cảm ơn bạn đã đánh giá! Sân Nhà Sport luôn cố gắng mang đến sản phẩm chất lượng nhất. Hẹn gặp lại bạn lần sau.',
+      replyText: 'Cảm ơn bạn đã đánh giá! Delta Sport luôn cố gắng mang đến sản phẩm chất lượng nhất. Hẹn gặp lại bạn lần sau.',
       createdAt: '2025-03-06T10:15:00.000Z',
       adminName: 'Ban Quản Trị Cửa Hàng'
     },
-    replyText: 'Cảm ơn bạn đã đánh giá! Sân Nhà Sport luôn cố gắng mang đến sản phẩm chất lượng nhất. Hẹn gặp lại bạn lần sau.'
+    replyText: 'Cảm ơn bạn đã đánh giá! Delta Sport luôn cố gắng mang đến sản phẩm chất lượng nhất. Hẹn gặp lại bạn lần sau.'
   },
   {
     id: 4,
@@ -198,11 +198,11 @@ export const reviews = [
     ],
     reply: {
       id: 4,
-      replyText: 'Cảm ơn bạn đã ủng hộ Sân Nhà Sport! Chúc bạn có những trận bóng rổ thật sôi động.',
+      replyText: 'Cảm ơn bạn đã ủng hộ Delta Sport! Chúc bạn có những trận bóng rổ thật sôi động.',
       createdAt: '2025-03-08T09:30:00.000Z',
       adminName: 'Ban Quản Trị Cửa Hàng'
     },
-    replyText: 'Cảm ơn bạn đã ủng hộ Sân Nhà Sport! Chúc bạn có những trận bóng rổ thật sôi động.'
+    replyText: 'Cảm ơn bạn đã ủng hộ Delta Sport! Chúc bạn có những trận bóng rổ thật sôi động.'
   },
   {
     id: 5,
@@ -224,11 +224,11 @@ export const reviews = [
     ],
     reply: {
       id: 5,
-      replyText: 'Sân Nhà Sport cảm ơn bạn! Rất vui vì sản phẩm phù hợp với bạn. Chúc bạn tập luyện vui vẻ.',
+      replyText: 'Delta Sport cảm ơn bạn! Rất vui vì sản phẩm phù hợp với bạn. Chúc bạn tập luyện vui vẻ.',
       createdAt: '2025-03-10T08:00:00.000Z',
       adminName: 'Ban Quản Trị Cửa Hàng'
     },
-    replyText: 'Sân Nhà Sport cảm ơn bạn! Rất vui vì sản phẩm phù hợp với bạn. Chúc bạn tập luyện vui vẻ.'
+    replyText: 'Delta Sport cảm ơn bạn! Rất vui vì sản phẩm phù hợp với bạn. Chúc bạn tập luyện vui vẻ.'
   },
 
   {

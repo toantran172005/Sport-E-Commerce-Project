@@ -1,6 +1,7 @@
 package com.sportecommerce.security;
 
 import com.sportecommerce.entity.User;
+import com.sportecommerce.enums.UserRole;
 import com.sportecommerce.enums.UserStatus;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -25,6 +26,11 @@ public class UserPrincipal implements UserDetails {
 
     public Long getId() {
         return user.getId();
+    }
+
+    /** ADMIN hoặc STAFF: được thao tác trên dữ liệu của người khác (đơn hàng, thanh toán...). */
+    public boolean isStaff() {
+        return user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.STAFF;
     }
 
     @Override

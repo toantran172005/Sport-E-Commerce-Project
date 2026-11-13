@@ -173,7 +173,7 @@ export default function OrderDetailPage() {
 
   const handleCopy = (text, label) => {
     navigator.clipboard?.writeText(text);
-    showToast(`Đã sao chép ${label}: ${text}`);
+    showToast(`Đã sao chép ${label}: ${text}`, 'success');
   };
 
   const handleReorder = () => {
@@ -190,7 +190,7 @@ export default function OrderDetailPage() {
           item.quantity || 1,
         );
       });
-      showToast("Đã thêm lại các sản phẩm vào giỏ hàng");
+      showToast("Đã thêm lại các sản phẩm vào giỏ hàng", 'success');
       navigate("/cart");
     }
   };

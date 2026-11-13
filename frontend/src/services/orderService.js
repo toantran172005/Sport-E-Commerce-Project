@@ -3,7 +3,8 @@ import axiosClient from "../api/axiosClient.js";
 export const orderService = {
   async placeOrder(orderData) {
     const payload = {
-      userId: Number(orderData.userId || 4),
+      // Backend lấy user từ JWT; trường này chỉ để tương thích, không còn mặc định user giả
+      userId: orderData.userId ? Number(orderData.userId) : null,
       shippingAddressId: Number(orderData.shippingAddressId),
       paymentMethod: orderData.paymentMethod || "COD",
       note: orderData.note || "",

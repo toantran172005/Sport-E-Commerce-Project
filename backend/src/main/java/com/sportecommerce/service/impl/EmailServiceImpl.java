@@ -50,17 +50,17 @@ public class EmailServiceImpl implements EmailService {
 
     private String subjectFor(OtpPurpose purpose) {
         return switch (purpose) {
-            case REGISTER -> "Xác nhận đăng ký tài khoản - Ways Sport";
-            case RESET_PASSWORD -> "Mã OTP khôi phục mật khẩu - Ways Sport";
-            case CHANGE_EMAIL -> "Xác nhận đổi email - Ways Sport";
-            case CHANGE_PHONE -> "Xác nhận đổi số điện thoại - Ways Sport";
+            case REGISTER -> "Xác nhận đăng ký tài khoản - Delta Sport";
+            case RESET_PASSWORD -> "Mã OTP khôi phục mật khẩu - Delta Sport";
+            case CHANGE_EMAIL -> "Xác nhận đổi email - Delta Sport";
+            case CHANGE_PHONE -> "Xác nhận đổi số điện thoại - Delta Sport";
         };
     }
 
     private String buildBody(String otp) {
         return """
                 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-                    <h2 style="color:#1a73e8;">Sport E-Commerce</h2>
+                    <h2 style="color:#1a73e8;">Delta Sport</h2>
                     <p>Ma xac thuc (OTP) cua ban la:</p>
                     <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #111;">%s</p>
                     <p>Mã này sẽ hết hạn sau 15 phút. Vui lòng không chia sẻ mã này với bất kì ai!.</p>

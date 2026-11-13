@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import Avatar from '../components/common/Avatar.jsx';
 
 const NAV_ITEMS = [
   { to: '/account/profile', label: 'Hồ sơ cá nhân', icon: User },
@@ -50,15 +51,13 @@ export default function AccountLayout() {
         <aside className="hidden md:block md:col-span-3 bg-surface rounded-lg border border-line p-4 space-y-4 shadow-2xs">
           {/* User Brief Info */}
           <div className="flex items-center gap-3 pb-3 border-b border-line">
-            <div className="w-12 h-12 rounded-full bg-accent text-white font-bold text-base flex items-center justify-center shrink-0">
-              {(user?.fullName || user?.name || 'T').charAt(0).toUpperCase()}
-            </div>
+            <Avatar user={user} size={48} />
             <div className="min-w-0 flex-1">
               <p className="text-[13.5px] font-extrabold text-ink truncate">
                 {user?.fullName || user?.name || 'Khách hàng'}
               </p>
               <p className="text-[11.5px] text-ink-subtle truncate">
-                {user?.email || 'user@sannha.vn'}
+                {user?.email || 'user@deltasport.vn'}
               </p>
             </div>
           </div>

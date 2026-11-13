@@ -35,7 +35,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!user) {
-      showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
+      showToast('Vui lòng đăng nhập để tiến hành đặt hàng', 'warning');
       navigate('/login?redirect=/checkout', { replace: true });
     }
   }, [user, navigate, showToast]);
@@ -90,13 +90,13 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (checkoutItems.length === 0) {
-      showToast('Không có sản phẩm nào để đặt hàng!');
+      showToast('Không có sản phẩm nào để đặt hàng!', 'error');
       navigate('/cart');
       return;
     }
 
     if (!selectedAddress) {
-      showToast('Vui lòng chọn hoặc thêm địa chỉ nhận hàng!');
+      showToast('Vui lòng chọn hoặc thêm địa chỉ nhận hàng!', 'error');
       openModal('address_modal');
       return;
     }
@@ -108,7 +108,7 @@ export default function CheckoutPage() {
       );
 
       const orderPayload = {
-        userId: Number(user?.id || 4),
+        userId: user?.id ? Number(user.id) : null,
         shippingAddressId: Number(selectedAddress.id),
         paymentMethod: paymentMethod === 'BANK_TRANSFER' ? 'BANK_TRANSFER' : 'COD',
         note: shippingNote || '',
@@ -201,7 +201,7 @@ export default function CheckoutPage() {
           orderId,
           method: 'COD',
         });
-        showToast('Đặt hàng thành công!');
+        showToast('Đặt hàng thành công!', 'success');
         navigate(
           `/payment-result?orderId=${orderId}&orderCode=${orderCode}&method=COD`
         );

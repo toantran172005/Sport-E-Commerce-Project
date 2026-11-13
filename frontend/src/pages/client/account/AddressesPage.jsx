@@ -1,11 +1,8 @@
-import { useMemo } from 'react';
 import { Plus, MapPin } from 'lucide-react';
-import { useAuth, useAddress, useUI } from '../../../context';
-import { userAddresses as fallbackAddresses } from '../../../mocks/userAddresses.js';
+import { useAddress, useUI } from '../../../context';
 
 export default function AddressesPage() {
-  const { user } = useAuth();
-  const { addresses, setDefaultAddress } = useAddress();
+  const { addresses: userAddresses, setDefaultAddress, deleteAddress } = useAddress();
   const { openModal } = useUI();
 
   const userAddresses = useMemo(() => {
@@ -100,6 +97,15 @@ export default function AddressesPage() {
                     className="px-3 py-1.5 rounded-md text-[12px] font-bold text-accent hover:underline cursor-pointer"
                   >
                     Chỉnh sửa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Bạn chắc chắn muốn xóa địa chỉ này?')) deleteAddress(addr.id);
+                    }}
+                    className="px-3 py-1.5 rounded-md text-[12px] font-bold text-danger hover:underline cursor-pointer"
+                  >
+                    Xóa
                   </button>
                 </div>
               </div>

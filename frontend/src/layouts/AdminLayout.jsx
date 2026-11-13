@@ -9,7 +9,6 @@ import {
   Users,
   Settings,
   Search,
-  Zap,
   ExternalLink,
   Menu,
 } from 'lucide-react';

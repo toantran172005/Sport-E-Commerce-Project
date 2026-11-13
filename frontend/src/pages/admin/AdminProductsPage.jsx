@@ -399,7 +399,7 @@ export default function AdminProductsPage() {
 
                         <td className="py-3 px-3">
                           <span className="px-2 py-0.5 rounded bg-accent-soft text-accent text-[11px] font-bold">
-                            {product.brand?.name || product.brand || 'Sân Nhà'}
+                            {product.brand?.name || product.brand || 'Delta Sport'}
                           </span>
                           <p className="text-[12px] text-ink-muted mt-1">
                             {product.category?.name || product.category || 'Thể thao'}

@@ -24,6 +24,7 @@ const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
 const VerifyOtpPage = lazy(() => import('../pages/auth/VerifyOtpPage'));
+const ForceChangePasswordPage = lazy(() => import('../pages/auth/ForceChangePasswordPage'));
 
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage'));
 const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage'));
@@ -32,6 +33,7 @@ const AdminCouponsPage = lazy(() => import('../pages/admin/AdminCouponsPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
+const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 
 const NotFoundPage = lazy(() => import('../pages/common/NotFoundPage'));
 
@@ -90,6 +92,30 @@ function RoleRoute({ permission, children }) {
   return children;
 }
 
+/**
+ * Khách vãng lai vào trang cần đăng nhập: hỏi có muốn đăng nhập không.
+ * Đồng ý → sang /login (đăng nhập xong quay lại đúng trang này). Không đồng ý → quay lại trang trước đó
+ * (hoặc về trang chủ nếu mở thẳng bằng đường dẫn), không ép chuyển sang trang đăng nhập.
+ */
+function LoginGate({ message }) {
+  const requireLogin = useRequireLogin();
+  const navigate = useNavigate();
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    requireLogin(message, {
+      onCancel: () => {
+        if (window.history.state?.idx > 0) navigate(-1);
+        else navigate('/', { replace: true });
+      },
+    });
+    // chỉ mở lại khi đổi trang đích
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, search]);
+
+  return null;
+}
+
 function CustomerRoute({ children, redirect = '/login?redirect=/account/profile' }) {
   const { user } = useAuth();
   const { showToast } = useUI();
@@ -113,6 +139,7 @@ function CustomerRoute({ children, redirect = '/login?redirect=/account/profile'
 export default function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
+      <PasswordChangeGate>
       <Routes>
         {/* Client Storefront Layout Wrapper */}
         <Route element={<ClientLayout />}>
@@ -169,6 +196,7 @@ export default function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route path="/force-change-password" element={<ForceChangePasswordPage />} />
 
         {/* Admin CMS Routes (Strictly Protected with Granular Role Permissions) */}
         <Route
@@ -220,6 +248,14 @@ export default function AppRoutes() {
           }
         />
         <Route
+          path="/admin/staff"
+          element={
+            <AdminRoute adminOnly>
+              <AdminStaffPage />
+            </AdminRoute>
+          }
+        />
+        <Route
           path="/admin/settings"
           element={
             <RoleRoute permission={ADMIN_PERMISSIONS.SETTINGS}>
@@ -228,6 +264,7 @@ export default function AppRoutes() {
           }
         />
       </Routes>
+      </PasswordChangeGate>
     </Suspense>
   );
 }

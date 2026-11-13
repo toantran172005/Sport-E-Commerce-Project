@@ -97,7 +97,7 @@ export default function AdminOrderModal() {
         adminNote || `Cập nhật trạng thái sang ${selectedStatus}`,
         selectedStatus === 'CANCELED' ? (adminNote || 'Hủy bởi Quản trị viên') : ''
       );
-      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} sang ${selectedStatus}!`);
+      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} sang ${selectedStatus}!`, 'success');
       closeModal();
     } catch (err) {
       console.error('Lỗi cập nhật trạng thái đơn hàng:', err);

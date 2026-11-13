@@ -72,11 +72,11 @@ export default function AdminBrandModal() {
     if (!file) return;
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      showToast('Logo phải có định dạng JPG, PNG hoặc WebP');
+      showToast('Logo phải có định dạng JPG, PNG hoặc WebP', 'error');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Logo tối đa 5 MB');
+      showToast('Logo tối đa 5 MB', 'error');
       return;
     }
 
@@ -90,11 +90,11 @@ export default function AdminBrandModal() {
     if (!file) return;
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      showToast('Logo phải có định dạng JPG, PNG hoặc WebP');
+      showToast('Logo phải có định dạng JPG, PNG hoặc WebP', 'error');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Logo tối đa 5 MB');
+      showToast('Logo tối đa 5 MB', 'error');
       return;
     }
 

@@ -80,7 +80,8 @@ export default function AdminCouponModal() {
     showToast(
       editCoupon
         ? `Đã cập nhật mã ${cleanCode} thành công!`
-        : `Đã tạo mã ${cleanCode} mới thành công!`
+        : `Đã tạo mã ${cleanCode} mới thành công!`,
+      'success',
     );
   };
 

@@ -4,7 +4,7 @@ import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
 
 export default function VerifyOtpModal() {
-  const { activeModal, modalPayload, closeModal, showToast, user } = useStore();
+  const { activeModal, modalPayload, closeModal, showToast, user, setUser } = useStore();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(60);
   const [loading, setLoading] = useState(false);
@@ -61,11 +61,12 @@ export default function VerifyOtpModal() {
     setLoading(true);
     setError('');
     try {
-      await authService.verifyOtp({ email, otp: fullOtp, purpose: 'REGISTER' });
-      showToast('Xác thực mã OTP thành công!');
+      const res = await authService.verifyOtp({ email, otp: fullOtp, purpose: 'REGISTER' });
+      if (res.user) setUser(res.user);
+      showToast('Xác thực mã OTP thành công!', 'success');
       closeModal();
     } catch (err) {
-      setError(err.message || 'Mã OTP không chính xác. Mã mẫu là 123456');
+      setError(err.message || 'Mã OTP không chính xác');
     } finally {
       setLoading(false);
     }
@@ -94,9 +95,6 @@ export default function VerifyOtpModal() {
             <p className="text-[12.5px] text-ink-muted mt-1">
               Mã xác thực đã được gửi tới email <br />
               <strong className="text-ink dark:text-slate-200">{email}</strong>
-            </p>
-            <p className="text-[11.5px] text-accent font-medium mt-1">
-              (Mã OTP mẫu: <strong>123456</strong>)
             </p>
           </div>
 
@@ -139,9 +137,14 @@ export default function VerifyOtpModal() {
             ) : (
               <button
                 type="button"
-                onClick={() => {
-                  setCountdown(60);
-                  showToast('Đã gửi lại mã OTP (123456)');
+                onClick={async () => {
+                  try {
+                    await authService.resendOtp({ email, purpose: 'REGISTER' });
+                    setCountdown(60);
+                    showToast('Đã gửi lại mã OTP về email của bạn', 'success');
+                  } catch (err) {
+                    setError(err.message || 'Không thể gửi lại mã OTP');
+                  }
                 }}
                 className="text-accent font-bold hover:underline"
               >

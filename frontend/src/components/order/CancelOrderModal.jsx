@@ -36,7 +36,7 @@ export default function CancelOrderModal() {
     try {
       await orderService.cancelOrder(orderId, finalReason);
       cancelOrderById(orderId, finalReason);
-      showToast(`Đã hủy đơn hàng ${orderCode}`);
+      showToast(`Đã hủy đơn hàng ${orderCode}`, 'success');
       closeModal();
     } catch (err) {
       showErrorModal(err, { title: 'Hủy Đơn Hàng Thất Bại' });

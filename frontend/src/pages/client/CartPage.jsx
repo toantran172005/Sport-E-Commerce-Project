@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, RefreshCw } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { ProductCard } from '../../components/product';
 import { EmptyState } from '../../components/common';
 import { CartItemRow, CartSummary } from '../../components/cart';
@@ -10,7 +10,6 @@ import { getShippingQuotes } from '../../services/shippingService.js';
 
 export default function CartPage() {
   const {
-    user,
     cart,
     products,
     addresses = [],
@@ -30,6 +29,7 @@ export default function CartPage() {
   } = useStore();
 
   const navigate = useNavigate();
+  const requireLogin = useRequireLogin();
 
   const isAllSelected =
     cart.length > 0 && cart.every((item) => selectedCartItemKeys.includes(getCartItemKey(item)));
@@ -46,7 +46,7 @@ export default function CartPage() {
     const groups = {};
     cart.forEach((item) => {
       const p = products.find((prod) => prod.id === item.productId);
-      const brandName = p?.brand?.name || p?.brand || 'Sân Nhà Sport';
+      const brandName = p?.brand?.name || p?.brand || 'Delta Sport';
       if (!groups[brandName]) {
         groups[brandName] = [];
       }
@@ -83,14 +83,10 @@ export default function CartPage() {
 
   const handleProceedToCheckout = () => {
     if (selectedCartItems.length === 0) {
-      showToast('Vui lòng chọn ít nhất 1 sản phẩm để thanh toán!');
+      showToast('Vui lòng chọn ít nhất 1 sản phẩm để thanh toán!', 'error');
       return;
     }
-    if (!user) {
-      showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-      navigate('/login?redirect=/checkout');
-      return;
-    }
+    if (!requireLogin('Vui lòng đăng nhập để tiến hành đặt hàng', { redirect: '/checkout' })) return;
     navigate('/checkout');
   };
 
@@ -142,16 +138,6 @@ export default function CartPage() {
             Chọn các sản phẩm bạn muốn đặt hàng và tiến hành thanh toán
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={resetTestCart}
-          className="px-3.5 py-1.5 rounded-md border border-accent/40 bg-accent-soft/30 hover:bg-accent-soft/60 text-accent text-[12.5px] font-bold flex items-center gap-1.5 transition cursor-pointer self-start sm:self-auto"
-          title="Tải lại 2 sản phẩm mẫu khớp 100% với Postgres DB để chạy các kịch bản Test Cases"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Nạp lại 2 sản phẩm Test DB</span>
-        </button>
       </div>
 
       {/* Unified Cart Card: Header and Items merged together */}

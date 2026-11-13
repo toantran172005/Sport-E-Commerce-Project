@@ -1,31 +1,44 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Zap, ShieldCheck, ArrowRight, RotateCcw } from 'lucide-react';
+import { ShieldCheck, ArrowRight, RotateCcw } from 'lucide-react';
+import BrandLogo from '../../components/common/BrandLogo.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { authService } from '../../services/authService.js';
+import AuthBanner from '../../components/auth/AuthBanner.jsx';
+
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+const EMPTY_OTP = ['', '', '', '', '', ''];
 
 export default function VerifyOtpPage() {
   const [searchParams] = useSearchParams();
-  const email = searchParams.get('email') || 'toantran@gmail.com';
+  const email = searchParams.get('email') || '';
   const purpose = searchParams.get('purpose') || 'REGISTER';
+  const isReset = purpose === 'RESET_PASSWORD';
 
-  const { showToast } = useStore();
+  const { setUser, showToast } = useStore();
   const navigate = useNavigate();
 
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(EMPTY_OTP);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [countdown, setCountdown] = useState(60);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
 
   const inputRefs = useRef([]);
 
   useEffect(() => {
+    if (!email) {
+      navigate(isReset ? '/forgot-password' : '/register', { replace: true });
+      return undefined;
+    }
     inputRefs.current[0]?.focus();
     const timer = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [email, isReset, navigate]);
 
   const handleChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -63,38 +76,62 @@ export default function VerifyOtpPage() {
       return;
     }
 
+    if (isReset) {
+      if (newPassword.length < 8 || !PASSWORD_REGEX.test(newPassword)) {
+        setError('Mật khẩu mới phải từ 8 ký tự và gồm cả chữ và số');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setError('Mật khẩu xác nhận không khớp');
+        return;
+      }
+    }
+
     setError('');
     setLoading(true);
     try {
-      await authService.verifyOtp({ email, otp: fullOtp, purpose });
-      showToast('Xác thực OTP thành công!');
-      if (purpose === 'RESET_PASSWORD') {
+      if (isReset) {
+        // Backend xác thực OTP và đổi mật khẩu trong CÙNG một request
+        await authService.resetPassword({ email, otp: fullOtp, newPassword });
+        showToast('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.', 'success');
         navigate('/login');
       } else {
+        // Xác thực đăng ký thành công → backend kích hoạt tài khoản và trả luôn token (tự đăng nhập)
+        const res = await authService.verifyOtp({ email, otp: fullOtp, purpose });
+        if (res.user) setUser(res.user);
+        showToast('Xác thực thành công! Tài khoản đã được kích hoạt.', 'success');
         navigate('/');
       }
     } catch (err) {
-      setError(err.message || 'Mã OTP không chính xác. Thử lại với 123456!');
+      setError(err.message || 'Mã OTP không chính xác');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResend = () => {
-    if (countdown > 0) return;
-    setCountdown(60);
-    showToast('Đã gửi lại mã OTP mới về email của bạn (Mã mẫu: 123456)');
+  const handleResend = async () => {
+    if (countdown > 0 || resending) return;
+    setResending(true);
+    setError('');
+    try {
+      await authService.resendOtp({ email, purpose });
+      setCountdown(60);
+      setOtp(EMPTY_OTP);
+      inputRefs.current[0]?.focus();
+      showToast('Đã gửi lại mã OTP mới về email của bạn', 'success');
+    } catch (err) {
+      setError(err.message || 'Không thể gửi lại mã OTP');
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-page flex flex-col text-ink transition-colors">
       <header className="bg-surface border-b border-line h-16">
         <div className="max-w-340 mx-auto px-4 md:px-8 h-full flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-[18px] font-extrabold tracking-tight">SÂN NHÀ SPORT</span>
+          <Link to="/" className="flex items-center" aria-label="Delta Sport - Trang chủ">
+            <BrandLogo className="h-9 w-auto" />
           </Link>
 
           <Link
@@ -107,21 +144,24 @@ export default function VerifyOtpPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-115 p-6 md:p-8 space-y-6 text-center">
+        <div className="bg-surface rounded-lg shadow-sm border border-line w-full max-w-[540px] lg:max-w-[1020px] grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+          <AuthBanner variant="recovery" className="hidden lg:flex lg:col-span-5" />
+          <div className="lg:col-span-7 p-6 md:p-10 flex flex-col justify-center">
+          <div className="w-full max-w-md mx-auto space-y-6 text-center">
           <div className="w-14 h-14 rounded-full bg-accent-soft dark:bg-accent/20 text-accent mx-auto flex items-center justify-center">
             <ShieldCheck className="w-7 h-7" />
           </div>
 
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-ink">
-              Xác Thực Mã OTP
+              {isReset ? 'Đặt Lại Mật Khẩu' : 'Xác Thực Mã OTP'}
             </h1>
             <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed">
               Mã xác thực 6 chữ số đã được gửi tới email <br />
               <strong className="text-ink dark:text-slate-200">{email}</strong>
             </p>
-            <p className="text-[11.5px] text-accent font-medium mt-1">
-              (Mã OTP mẫu thử nghiệm: <strong>123456</strong>)
+            <p className="text-[11.5px] text-ink-subtle mt-1">
+              Không thấy email? Hãy kiểm tra cả hộp thư Spam.
             </p>
           </div>
 
@@ -149,12 +189,47 @@ export default function VerifyOtpPage() {
               ))}
             </div>
 
+            {isReset && (
+              <div className="space-y-3 text-left">
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Mật khẩu mới
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Từ 8 ký tự, gồm chữ và số"
+                    className="w-full h-10 px-3 rounded-md bg-page dark:bg-surface-2 border border-line text-[13px] focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Xác nhận mật khẩu mới
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu mới"
+                    className="w-full h-10 px-3 rounded-md bg-page dark:bg-surface-2 border border-line text-[13px] focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading || otp.join('').length < 6}
               className="w-full h-10 rounded-md bg-accent hover:bg-accent-hover text-white text-[13.5px] font-bold shadow-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
             >
-              <span>{loading ? 'Đang xác thực...' : 'Xác Nhận & Tiếp Tục'}</span>
+              <span>
+                {loading
+                  ? 'Đang xử lý...'
+                  : isReset
+                    ? 'Đổi Mật Khẩu'
+                    : 'Xác Nhận & Tiếp Tục'}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -167,13 +242,16 @@ export default function VerifyOtpPage() {
               <button
                 type="button"
                 onClick={handleResend}
-                className="text-accent font-bold hover:underline flex items-center gap-1 mx-auto"
+                disabled={resending}
+                className="text-accent font-bold hover:underline flex items-center gap-1 mx-auto disabled:opacity-50"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Gửi lại mã OTP</span>
+                <span>{resending ? 'Đang gửi...' : 'Gửi lại mã OTP'}</span>
               </button>
             )}
           </div>
+        </div>
+        </div>
         </div>
       </main>
     </div>
