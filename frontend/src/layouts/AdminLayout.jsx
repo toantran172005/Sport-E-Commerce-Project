@@ -11,7 +11,6 @@ import {
   Search,
   ExternalLink,
   Menu,
-  Zap,
 } from 'lucide-react';
 import { useOrder, useAuth, useCatalog } from '../context';
 import BrandLogo from '../components/common/BrandLogo.jsx';
