@@ -8,6 +8,7 @@ import com.sportecommerce.dto.response.ReviewResponse;
 import com.sportecommerce.enums.ReviewStatus;
 import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.ReviewService;
+import com.sportecommerce.exception.AppException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -27,21 +28,16 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    private Long resolveUserId(UserPrincipal userPrincipal, Long fallbackUserId) {
-        if (userPrincipal != null) {
-            return userPrincipal.getId();
+    @PostMapping("/reviews")
+    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody ReviewRequest request) {
+        if (userPrincipal == null) {
+            throw new AppException("Vui lòng đăng nhập để gửi đánh giá", HttpStatus.UNAUTHORIZED);
         }
-        if (fallbackUserId != null) {
-            return fallbackUserId;
-        }
-        return 4L;
-    }
-
-    private Long resolveAdminId(UserPrincipal userPrincipal) {
-        if (userPrincipal != null) {
-            return userPrincipal.getId();
-        }
-        return 1L; // Default admin user id fallback
+        ReviewResponse response = reviewService.createReview(userPrincipal.getId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Gửi đánh giá thành công", response));
     }
 
     @GetMapping({"/reviews/product/{productId}", "/products/{productId}/reviews"})
@@ -85,17 +81,6 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đánh giá thành công", response));
     }
 
-    @PostMapping("/reviews")
-    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestParam(required = false) Long userId,
-            @Valid @RequestBody ReviewRequest request) {
-        Long resolvedId = resolveUserId(userPrincipal, userId);
-        ReviewResponse response = reviewService.createReview(resolvedId, request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Gửi đánh giá thành công", response));
-    }
-
     @PutMapping({"/reviews/{id}/status", "/admin/reviews/{id}/status"})
     public ResponseEntity<ApiResponse<ReviewResponse>> updateReviewStatus(
             @PathVariable Long id,
@@ -120,8 +105,10 @@ public class ReviewController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable Long id,
             @Valid @RequestBody ReviewReplyRequest request) {
-        Long adminId = resolveAdminId(userPrincipal);
-        ReviewResponse response = reviewService.replyToReview(adminId, id, request.getReplyText());
+        if (userPrincipal == null) {
+            throw new AppException("Vui lòng đăng nhập quyền quản trị để phản hồi", HttpStatus.UNAUTHORIZED);
+        }
+        ReviewResponse response = reviewService.replyToReview(userPrincipal.getId(), id, request.getReplyText());
         return ResponseEntity.ok(ApiResponse.success("Phản hồi đánh giá thành công", response));
     }
 

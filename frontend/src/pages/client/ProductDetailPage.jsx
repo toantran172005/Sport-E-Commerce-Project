@@ -417,12 +417,13 @@ export default function ProductDetailPage() {
           reviewsLoading={reviewsLoading}
           reviewFilterRating={reviewFilterRating}
           setReviewFilterRating={setReviewFilterRating}
-          onOpenWriteReview={() =>
+          onOpenWriteReview={() => {
+            if (!requireLogin('Vui lòng đăng nhập để viết đánh giá')) return;
             openModal('review_modal', {
               productId: product.id,
               productName: product.name,
-            })
-          }
+            });
+          }}
         />
       </section>
 

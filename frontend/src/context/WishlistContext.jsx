@@ -1,13 +1,24 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useCallback } from 'react';
+import { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
+import { useScopedKey } from '../hooks/useScopedKey.js';
 import { useUI } from './UIContext.jsx';
 
 const WishlistContext = createContext(null);
 
 export function WishlistProvider({ children }) {
   const { showToast } = useUI();
-  const [wishlistIds, setWishlistIds] = usePersistentState('sport_wishlist', [1, 3]);
+  const wishlistKey = useScopedKey('sport_wishlist');
+  const [wishlistIds, setWishlistIds] = usePersistentState(wishlistKey, []);
+
+  // Xóa sạch key cũ nếu từng lưu [1, 3] trong localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('sport_wishlist');
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const toggleWishlist = useCallback((productId) => {
     const exists = wishlistIds.includes(productId);
