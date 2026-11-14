@@ -1,40 +1,53 @@
-import { categories as initialCategories } from '../mocks/categories.js';
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-const fakeDelay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms));
+import axiosClient from '../api/axiosClient.js';
 
 export const categoryService = {
   async getCategories() {
-    if (USE_MOCK) {
-      await fakeDelay();
-      const parentCategories = initialCategories.filter((c) => !c.parentId);
-      return parentCategories.map((parent) => ({
-        ...parent,
-        children: initialCategories.filter((c) => c.parentId === parent.id),
-      }));
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/categories');
+    const flatList = await axiosClient.get('/categories');
+    const safeList = Array.isArray(flatList) ? flatList : [];
+
+    // Tìm các danh mục cấp cao nhất (không có parentId)
+    const parents = safeList.filter((c) => !c.parentId);
+
+    // Gắn danh mục con tương ứng vào từng cha
+    return parents.map((parent) => ({
+      ...parent,
+      children: safeList.filter((c) => c.parentId === parent.id),
+    }));
   },
 
   async getAllFlatCategories() {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      return [...initialCategories];
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/categories/flat');
+    const data = await axiosClient.get('/categories');
+    return Array.isArray(data) ? data : [];
   },
 
   async getCategoryById(id) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      const cat = initialCategories.find((c) => String(c.id) === String(id) || c.slug === String(id));
-      if (!cat) throw new Error('Không tìm thấy danh mục');
-      return cat;
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
     return axiosClient.get(`/categories/${id}`);
+  },
+
+  async createCategory(data) {
+    const payload = {
+      name: data.name,
+      parentId: data.parentId ? Number(data.parentId) : null,
+      description: data.description || '',
+      imageUrl: data.imageUrl || '',
+      sortOrder: Number(data.sortOrder) || 0,
+    };
+    return axiosClient.post('/categories', payload);
+  },
+
+  async updateCategory(id, data) {
+    const payload = {
+      name: data.name,
+      parentId: data.parentId ? Number(data.parentId) : null,
+      description: data.description || '',
+      imageUrl: data.imageUrl || '',
+      sortOrder: Number(data.sortOrder) || 0,
+    };
+    return axiosClient.put(`/categories/${id}`, payload);
+  },
+
+  async deleteCategory(id) {
+    return axiosClient.delete(`/categories/${id}`);
   },
 };
 

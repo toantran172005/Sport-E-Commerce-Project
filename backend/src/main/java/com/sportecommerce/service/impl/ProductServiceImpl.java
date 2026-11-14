@@ -125,6 +125,22 @@ public class ProductServiceImpl implements ProductService {
         product.setBasePrice(request.getBasePrice());
         product.setSalePrice(request.getSalePrice());
 
+        if (request.getStatus() != null) {
+            product.setStatus(request.getStatus());
+        }
+
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            product.getProductImages().clear();
+            for (ProductImageRequest iReq : request.getImages()) {
+                ProductImage image = ProductImage.builder()
+                        .imageUrl(iReq.getImageUrl())
+                        .isPrimary(Boolean.TRUE.equals(iReq.getIsPrimary()))
+                        .sortOrder(iReq.getSortOrder() != null ? iReq.getSortOrder() : 0)
+                        .build();
+                product.addImage(image);
+            }
+        }
+
         return mapperUtil.mapToProductResponse(productRepository.save(product));
     }
 
@@ -155,12 +171,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ProductSummaryResponse> getAll(
-            ProductStatus status, Long categoryId, Long brandId, Long tagId, String keyword, Pageable pageable) {
+            ProductStatus status, Long categoryId, Long brandId, Long tagId, String keyword, Double minPrice, Double maxPrice, Double rating, Pageable pageable) {
 
-        ProductStatus effectiveStatus = status != null ? status : ProductStatus.ACTIVE;
+        ProductStatus effectiveStatus = status;
 
         Page<Product> page = productRepository.findAll(
-                ProductSpecification.filterBy(effectiveStatus, categoryId, brandId, tagId, keyword), pageable);
+                ProductSpecification.filterBy(effectiveStatus, categoryId, brandId, tagId, keyword, minPrice, maxPrice, rating), pageable);
 
         List<ProductSummaryResponse> content = page.getContent().stream()
                 .map(mapperUtil::mapToProductSummaryResponse)
@@ -182,42 +198,6 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
         return mapperUtil.mapToProductResponse(product);
-    }
-
-    @Override
-    @Transactional
-    public ProductResponse updateProduct(Long id, CreateProductRequest request) {
-        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
-
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy category_id: " + request.getCategoryId()));
-
-        Brand brand = null;
-        if (request.getBrandId() != null) {
-            brand = brandRepository.findById(request.getBrandId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Không tìm thấy brand_id: " + request.getBrandId()));
-        }
-
-        if (!product.getName().equals(request.getName())) {
-            product.setSlug(generateUniqueProductSlug(SlugUtil.toSlug(request.getName())));
-        }
-
-        product.setCategory(category);
-        product.setBrand(brand);
-        product.setName(request.getName());
-        product.setDescription(request.getDescription());
-        product.setSportType(request.getSportType());
-        product.setBasePrice(request.getBasePrice());
-        product.setSalePrice(request.getSalePrice());
-        if (request.getStatus() != null) {
-            product.setStatus(request.getStatus());
-        }
-
-        Product saved = productRepository.save(product);
-        return mapperUtil.mapToProductResponse(saved);
     }
 
     @Override

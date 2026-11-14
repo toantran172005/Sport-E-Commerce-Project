@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Package,
   Layers,
@@ -8,10 +8,11 @@ import {
   Trash2,
   CheckCircle2,
   FileQuestion,
-} from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
-import AdminLayout from '../../layouts/AdminLayout';
-import { formatCurrency } from '../../utils/formatters';
+} from "lucide-react";
+import { useStore } from "../../context/StoreContext";
+import AdminLayout from "../../layouts/AdminLayout";
+import { formatCurrency } from "../../utils/formatters";
+import { productService } from "../../services/productService";
 
 export default function AdminProductsPage() {
   const {
@@ -28,37 +29,53 @@ export default function AdminProductsPage() {
     showToast,
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState('products');
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [brandFilter, setBrandFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [activeTab, setActiveTab] = useState("products");
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [brandFilter, setBrandFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   const filteredProducts = products.filter((p) => {
-    if (
-      categoryFilter !== 'ALL' &&
-      String(p.categoryId) !== categoryFilter &&
-      p.category !== categoryFilter
-    ) {
-      return false;
+    // LỌC THEO DANH MỤC
+    if (categoryFilter !== "ALL") {
+      const selectedCat = categoriesList.find(
+        (c) => String(c.id) === String(categoryFilter),
+      );
+      const pCatId = p.categoryId || p.category?.id;
+      const pCatName = p.categoryName || p.category?.name || p.category;
+      const matchId = pCatId && String(pCatId) === String(categoryFilter);
+      const matchName = selectedCat && pCatName === selectedCat.name;
+      if (!matchId && !matchName) return false;
     }
-    if (
-      brandFilter !== 'ALL' &&
-      String(p.brandId) !== brandFilter &&
-      p.brand !== brandFilter
-    ) {
-      return false;
+    // LỌC THEO THƯƠNG HIỆU
+    if (brandFilter !== "ALL") {
+      const selectedBrand = brandsList.find(
+        (b) => String(b.id) === String(brandFilter),
+      );
+      const pBrandId = p.brandId || p.brand?.id;
+      const pBrandName = p.brandName || p.brand?.name || p.brand;
+      const matchId = pBrandId && String(pBrandId) === String(brandFilter);
+      const matchName = selectedBrand && pBrandName === selectedBrand.name;
+      if (!matchId && !matchName) return false;
     }
-    const currentStatus = p.status || (p.isActive ? 'ACTIVE' : 'DRAFT');
-    if (statusFilter !== 'ALL') {
+    // LỌC THEO TRẠNG THÁI
+    const currentStatus = p.status || (p.isActive ? "ACTIVE" : "DRAFT");
+    if (statusFilter !== "ALL") {
       if (statusFilter !== currentStatus) return false;
     }
+    // LỌC THEO TỪ KHOÁ
     if (search.trim()) {
       const q = search.toLowerCase();
+      const pBrandName = (
+        p.brandName ||
+        p.brand?.name ||
+        p.brand ||
+        ""
+      ).toLowerCase();
       return (
         p.name.toLowerCase().includes(q) ||
         (p.sku && p.sku.toLowerCase().includes(q)) ||
-        (p.brand && p.brand.toLowerCase().includes(q))
+        pBrandName.includes(q)
       );
     }
     return true;
@@ -66,19 +83,20 @@ export default function AdminProductsPage() {
 
   const totalVariants = products.reduce(
     (sum, p) => sum + (p.variants?.length || 1),
-    0
+    0,
   );
   const lowStockCount = products.filter((p) => {
-    const stock = p.stock ?? p.variants?.reduce((s, v) => s + (v.stock || 0), 0) ?? 0;
+    const stock =
+      p.stock ?? p.variants?.reduce((s, v) => s + (v.stock || 0), 0) ?? 0;
     return stock <= 10;
   }).length;
 
   const handleDeleteCategory = (cat) => {
     showConfirmModal({
-      title: 'Xóa danh mục sản phẩm',
+      title: "Xóa danh mục sản phẩm",
       message: `Bạn có chắc chắn muốn xóa danh mục "${cat.name}"? Thao tác này không thể hoàn tác.`,
-      confirmText: 'Xóa vĩnh viễn',
-      confirmVariant: 'danger',
+      confirmText: "Xóa vĩnh viễn",
+      confirmVariant: "danger",
       onConfirm: () => {
         deleteCategory(cat.id);
         showToast(`Đã xóa danh mục "${cat.name}" thành công`);
@@ -88,10 +106,10 @@ export default function AdminProductsPage() {
 
   const handleDeleteBrand = (b) => {
     showConfirmModal({
-      title: 'Xóa thương hiệu',
+      title: "Xóa thương hiệu",
       message: `Bạn có chắc chắn muốn xóa thương hiệu "${b.name}"? Thao tác này không thể hoàn tác.`,
-      confirmText: 'Xóa vĩnh viễn',
-      confirmVariant: 'danger',
+      confirmText: "Xóa vĩnh viễn",
+      confirmVariant: "danger",
       onConfirm: () => {
         deleteBrand(b.id);
         showToast(`Đã xóa thương hiệu "${b.name}" thành công`);
@@ -101,10 +119,10 @@ export default function AdminProductsPage() {
 
   const handleDeleteProduct = (product) => {
     showConfirmModal({
-      title: 'Xóa sản phẩm',
+      title: "Xóa sản phẩm",
       message: `Bạn có chắc chắn muốn xóa sản phẩm "${product.name}"? Thao tác này không thể hoàn tác.`,
-      confirmText: 'Xóa vĩnh viễn',
-      confirmVariant: 'danger',
+      confirmText: "Xóa vĩnh viễn",
+      confirmVariant: "danger",
       onConfirm: () => {
         deleteProductById(product.id);
         showToast(`Đã xóa sản phẩm "${product.name}" thành công`);
@@ -113,14 +131,15 @@ export default function AdminProductsPage() {
   };
 
   const getStatusBadge = (product) => {
-    const currentStatus = product.status || (product.isActive ? 'ACTIVE' : 'DRAFT');
+    const currentStatus =
+      product.status || (product.isActive ? "ACTIVE" : "DRAFT");
 
     switch (currentStatus) {
-      case 'DRAFT':
+      case "DRAFT":
         return (
           <button
             type="button"
-            onClick={() => setProductStatus(product.id, 'ACTIVE')}
+            onClick={() => setProductStatus(product.id, "ACTIVE")}
             title="Nhấp để chuyển sang Đang bán (ACTIVE)"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 cursor-pointer transition hover:bg-amber-500/20"
           >
@@ -128,11 +147,11 @@ export default function AdminProductsPage() {
             <span>Bản nháp</span>
           </button>
         );
-      case 'ACTIVE':
+      case "ACTIVE":
         return (
           <button
             type="button"
-            onClick={() => setProductStatus(product.id, 'DRAFT')}
+            onClick={() => setProductStatus(product.id, "DRAFT")}
             title="Nhấp để chuyển về Bản nháp (DRAFT)"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 cursor-pointer transition hover:bg-emerald-500/20"
           >
@@ -140,7 +159,7 @@ export default function AdminProductsPage() {
             <span>Hoạt động</span>
           </button>
         );
-      case 'OUT_OF_STOCK':
+      case "OUT_OF_STOCK":
         return (
           <button
             type="button"
@@ -152,18 +171,30 @@ export default function AdminProductsPage() {
             <span>Hết hàng</span>
           </button>
         );
-      case 'DISCONTINUED':
+      case "DISCONTINUED":
       default:
         return (
           <button
             type="button"
-            onClick={() => setProductStatus(product.id, 'ACTIVE')}
+            onClick={() => setProductStatus(product.id, "ACTIVE")}
             title="Nhấp để kích hoạt lại sản phẩm"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-surface-2 text-ink-muted border border-line flex items-center gap-1 cursor-pointer transition hover:bg-surface"
           >
             <span>Ngừng bán</span>
           </button>
         );
+    }
+  };
+
+  const handleEditProduct = async (product) => {
+    try {
+      const fullProduct = await productService.getProductById(product.id);
+      openModal("admin_product_modal", { product: fullProduct });
+    } catch (err) {
+      showToast(
+        err.message || "Không thể lấy thông tin chi tiết sản phẩm",
+        "error",
+      );
     }
   };
 
@@ -180,18 +211,12 @@ export default function AdminProductsPage() {
               <Package className="w-6 h-6 text-accent" />
               <span>Quản Lý Sản Phẩm, Biến Thể &amp; Danh Mục</span>
             </h1>
-            <p className="text-[13px] text-ink-muted mt-0.5">
-              Quản trị bảng <code className="font-bold text-accent">products</code>,{' '}
-              <code className="font-bold text-accent">product_variants</code>,{' '}
-              <code className="font-bold text-accent">categories</code> &amp;{' '}
-              <code className="font-bold text-accent">brands</code>
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => openModal('admin_product_modal')}
+              onClick={() => openModal("admin_product_modal")}
               className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-[12.5px] font-bold shadow-xs flex items-center gap-2 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -205,7 +230,7 @@ export default function AdminProductsPage() {
           <div className="bg-surface rounded-lg border border-line p-4 flex items-center justify-between shadow-xs">
             <div>
               <p className="text-[11px] font-extrabold uppercase text-ink-muted">
-                TỔNG SẢN PHẨM (PRODUCTS)
+                TỔNG SẢN PHẨM
               </p>
               <p className="text-[20px] font-extrabold text-ink mt-1">
                 {products.length} sản phẩm
@@ -219,7 +244,7 @@ export default function AdminProductsPage() {
           <div className="bg-surface rounded-lg border border-line p-4 flex items-center justify-between shadow-xs">
             <div>
               <p className="text-[11px] font-extrabold uppercase text-ink-muted">
-                BIẾN THỂ SKU (VARIANTS)
+                BIẾN THỂ SKU
               </p>
               <p className="text-[20px] font-extrabold text-accent mt-1">
                 {totalVariants} mã SKU
@@ -263,33 +288,33 @@ export default function AdminProductsPage() {
         <div className="flex border-b border-line gap-2">
           <button
             type="button"
-            onClick={() => setActiveTab('products')}
+            onClick={() => setActiveTab("products")}
             className={`pb-3 px-4 text-[13px] font-bold border-b-2 transition cursor-pointer ${
-              activeTab === 'products'
-                ? 'border-accent text-accent'
-                : 'border-transparent text-ink-muted hover:text-ink'
+              activeTab === "products"
+                ? "border-accent text-accent"
+                : "border-transparent text-ink-muted hover:text-ink"
             }`}
           >
             Danh Sách Sản Phẩm &amp; Biến Thể ({filteredProducts.length})
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('categories')}
+            onClick={() => setActiveTab("categories")}
             className={`pb-3 px-4 text-[13px] font-bold border-b-2 transition cursor-pointer ${
-              activeTab === 'categories'
-                ? 'border-accent text-accent'
-                : 'border-transparent text-ink-muted hover:text-ink'
+              activeTab === "categories"
+                ? "border-accent text-accent"
+                : "border-transparent text-ink-muted hover:text-ink"
             }`}
           >
             Quản Lý Danh Mục ({categoriesList.length})
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('brands')}
+            onClick={() => setActiveTab("brands")}
             className={`pb-3 px-4 text-[13px] font-bold border-b-2 transition cursor-pointer ${
-              activeTab === 'brands'
-                ? 'border-accent text-accent'
-                : 'border-transparent text-ink-muted hover:text-ink'
+              activeTab === "brands"
+                ? "border-accent text-accent"
+                : "border-transparent text-ink-muted hover:text-ink"
             }`}
           >
             Quản Lý Thương Hiệu ({brandsList.length})
@@ -297,7 +322,7 @@ export default function AdminProductsPage() {
         </div>
 
         {/* TAB 1: PRODUCTS LIST */}
-        {activeTab === 'products' && (
+        {activeTab === "products" && (
           <div className="bg-surface rounded-lg border border-line overflow-hidden shadow-xs">
             {/* Filter controls */}
             <div className="p-4 border-b border-line flex flex-wrap items-center justify-between gap-3 bg-surface-2/40">
@@ -342,7 +367,8 @@ export default function AdminProductsPage() {
               </div>
 
               <span className="text-[12.5px] text-ink-muted">
-                Hiển thị <strong className="text-ink">{filteredProducts.length}</strong>{' '}
+                Hiển thị{" "}
+                <strong className="text-ink">{filteredProducts.length}</strong>{" "}
                 sản phẩm
               </span>
             </div>
@@ -365,14 +391,24 @@ export default function AdminProductsPage() {
                 <tbody className="divide-y divide-line">
                   {filteredProducts.map((product) => {
                     const primaryImg =
+                      product.primaryImageUrl ||
                       product.images?.[0]?.imageUrl ||
                       product.images?.[0]?.url ||
                       product.image;
-                    const stock = product.stock ?? product.variants?.reduce((s, v) => s + (v.stock || 0), 0) ?? 20;
+                    const stock =
+                      product.stock ??
+                      product.variants?.reduce(
+                        (s, v) => s + (v.stock || 0),
+                        0,
+                      ) ??
+                      20;
                     const isLowStock = stock <= 10;
 
                     return (
-                      <tr key={product.id} className="hover:bg-surface-2/60 transition">
+                      <tr
+                        key={product.id}
+                        className="hover:bg-surface-2/60 transition"
+                      >
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-md bg-surface-2 border border-line overflow-hidden shrink-0 flex items-center justify-center">
@@ -391,7 +427,7 @@ export default function AdminProductsPage() {
                                 {product.name}
                               </p>
                               <p className="text-[11px] text-ink-subtle mt-0.5">
-                                Slug: /{product.slug} • Môn: {product.sportType}
+                                Slug: /{product.slug}
                               </p>
                             </div>
                           </div>
@@ -399,15 +435,23 @@ export default function AdminProductsPage() {
 
                         <td className="py-3 px-3">
                           <span className="px-2 py-0.5 rounded bg-accent-soft text-accent text-[11px] font-bold">
-                            {product.brand?.name || product.brand || 'Delta Sport'}
+                            {product.brand?.name ||
+                              product.brand ||
+                              "Delta Sport"}
                           </span>
                           <p className="text-[12px] text-ink-muted mt-1">
-                            {product.category?.name || product.category || 'Thể thao'}
+                            {product.category?.name ||
+                              product.category ||
+                              "Thể thao"}
                           </p>
                         </td>
 
                         <td className="py-3 px-3">
-                          <p className="font-bold text-ink">{product.sku || product.variants?.[0]?.sku || 'SKU-STD'}</p>
+                          <p className="font-bold text-ink">
+                            {product.sku ||
+                              product.variants?.[0]?.sku ||
+                              "SKU-STD"}
+                          </p>
                           <p className="text-[11.5px] text-ink-muted">
                             {product.variants?.length || 1} biến thể
                           </p>
@@ -427,7 +471,7 @@ export default function AdminProductsPage() {
                         <td className="py-3 px-3">
                           <span
                             className={`font-bold ${
-                              isLowStock ? 'text-danger' : 'text-ink'
+                              isLowStock ? "text-danger" : "text-ink"
                             }`}
                           >
                             {stock} chiếc
@@ -444,21 +488,17 @@ export default function AdminProductsPage() {
                             Đã bán: <strong>{product.soldCount || 0}</strong>
                           </p>
                           <p className="text-[11.5px] text-amber-500 font-bold">
-                            ★ {product.avgRating?.toFixed(1) || '5.0'}
+                            ★ {product.avgRating?.toFixed(1) || "5.0"}
                           </p>
                         </td>
 
-                        <td className="py-3 px-3">
-                          {getStatusBadge(product)}
-                        </td>
+                        <td className="py-3 px-3">{getStatusBadge(product)}</td>
 
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
-                              onClick={() =>
-                                openModal('admin_product_modal', { product })
-                              }
+                              onClick={() => handleEditProduct(product)}
                               className="p-1.5 rounded-md hover:bg-surface-2 text-ink-muted hover:text-accent transition cursor-pointer"
                               title="Chỉnh sửa sản phẩm"
                             >
@@ -484,16 +524,13 @@ export default function AdminProductsPage() {
         )}
 
         {/* TAB 2: CATEGORIES (Matching Image 1 & Image 6) */}
-        {activeTab === 'categories' && (
+        {activeTab === "categories" && (
           <div className="bg-surface rounded-lg border border-line p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
-              <p className="text-[13px] text-ink-muted">
-                Quản lý cây danh mục (CategoryController —{' '}
-                <code className="font-bold text-accent">/api/categories</code>)
-              </p>
+              <p className="text-[13px] text-ink-muted">Danh sách danh mục</p>
               <button
                 type="button"
-                onClick={() => openModal('admin_category_modal')}
+                onClick={() => openModal("admin_category_modal")}
                 className="px-3.5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition"
               >
                 <Plus className="w-4 h-4" />
@@ -516,13 +553,20 @@ export default function AdminProductsPage() {
                 </thead>
                 <tbody className="divide-y divide-line">
                   {categoriesList.map((cat) => {
-                    const parentCat = categoriesList.find((c) => c.id === cat.parentId);
-                    const prodCount = products.filter(
-                      (p) => String(p.categoryId) === String(cat.id) || p.category === cat.name
-                    ).length;
+                    const parentCat = categoriesList.find(
+                      (c) => c.id === cat.parentId,
+                    );
+                    const prodCount = products.filter((p) => {
+                      const pCatId = p.categoryId || p.category?.id;
+                      const pCatName = p.categoryName || p.category?.name || p.category;
+                      return (pCatId && String(pCatId) === String(cat.id)) || pCatName === cat.name;
+                    }).length;
 
                     return (
-                      <tr key={cat.id} className="hover:bg-surface-2/60 transition">
+                      <tr
+                        key={cat.id}
+                        className="hover:bg-surface-2/60 transition"
+                      >
                         <td className="py-3 px-3 font-bold text-ink-muted">
                           #{cat.id}
                         </td>
@@ -537,18 +581,18 @@ export default function AdminProductsPage() {
                                 />
                               ) : (
                                 <span className="font-bold text-accent text-[12px]">
-                                  {(cat.name?.[0] || 'C').toUpperCase()}
+                                  {(cat.name?.[0] || "C").toUpperCase()}
                                 </span>
                               )}
                             </div>
-                            <span className="font-bold text-ink">{cat.name}</span>
+                            <span className="font-bold text-ink">
+                              {cat.name}
+                            </span>
                           </div>
                         </td>
+                        <td className="py-3 px-3 text-ink-muted">{cat.slug}</td>
                         <td className="py-3 px-3 text-ink-muted">
-                          {cat.slug}
-                        </td>
-                        <td className="py-3 px-3 text-ink-muted">
-                          {parentCat ? parentCat.name : '— Danh mục gốc'}
+                          {parentCat ? parentCat.name : "— Danh mục gốc"}
                         </td>
                         <td className="py-3 px-3 font-bold text-accent">
                           {prodCount} SP
@@ -562,7 +606,11 @@ export default function AdminProductsPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
-                              onClick={() => openModal('admin_category_modal', { category: cat })}
+                              onClick={() =>
+                                openModal("admin_category_modal", {
+                                  category: cat,
+                                })
+                              }
                               className="p-1.5 rounded-md hover:bg-surface-2 text-ink-muted hover:text-accent transition cursor-pointer"
                               title="Chỉnh sửa danh mục"
                             >
@@ -588,16 +636,15 @@ export default function AdminProductsPage() {
         )}
 
         {/* TAB 3: BRANDS (Matching Image 2 & Image 5) */}
-        {activeTab === 'brands' && (
+        {activeTab === "brands" && (
           <div className="bg-surface rounded-lg border border-line p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <p className="text-[13px] text-ink-muted">
-                Quản lý thương hiệu đối tác (BrandController —{' '}
-                <code className="font-bold text-accent">/api/brands</code>)
+                Danh sách thương hiệu
               </p>
               <button
                 type="button"
-                onClick={() => openModal('admin_brand_modal')}
+                onClick={() => openModal("admin_brand_modal")}
                 className="px-3.5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition"
               >
                 <Plus className="w-4 h-4" />
@@ -607,9 +654,11 @@ export default function AdminProductsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {brandsList.map((b) => {
-                const prodCount = products.filter(
-                  (p) => String(p.brandId) === String(b.id) || p.brand === b.name
-                ).length;
+                const prodCount = products.filter((p) => {
+                  const pBrandId = p.brandId || p.brand?.id;
+                  const pBrandName = p.brandName || p.brand?.name || p.brand;
+                  return (pBrandId && String(pBrandId) === String(b.id)) || pBrandName === b.name;
+                }).length;
 
                 return (
                   <div
@@ -626,20 +675,25 @@ export default function AdminProductsPage() {
                           />
                         ) : (
                           <span className="text-lg font-bold text-accent">
-                            {(b.name?.[0] || 'B').toUpperCase()}
+                            {(b.name?.[0] || "B").toUpperCase()}
                           </span>
                         )}
                       </div>
 
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-[15px] font-bold text-ink">{b.name}</h3>
+                          <h3 className="text-[15px] font-bold text-ink">
+                            {b.name}
+                          </h3>
                           <span className="px-2 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10.5px] font-bold">
                             Active
                           </span>
                         </div>
-                        <p className="text-[12px] text-ink-muted mt-0.5 line-clamp-1 max-w-[200px]" title={b.description || 'Chưa có mô tả'}>
-                          {b.description || 'Chưa có mô tả'} • /{b.slug}
+                        <p
+                          className="text-[12px] text-ink-muted mt-0.5 line-clamp-1 max-w-[200px]"
+                          title={b.description || "Chưa có mô tả"}
+                        >
+                          {b.description || "Chưa có mô tả"} • /{b.slug}
                         </p>
                         <p className="text-[12px] font-bold text-accent mt-0.5">
                           {prodCount} sản phẩm
@@ -650,7 +704,9 @@ export default function AdminProductsPage() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
-                        onClick={() => openModal('admin_brand_modal', { brand: b })}
+                        onClick={() =>
+                          openModal("admin_brand_modal", { brand: b })
+                        }
                         className="p-1.5 rounded-md hover:bg-surface-2 text-ink-muted hover:text-accent transition cursor-pointer border border-line"
                         title="Chỉnh sửa thương hiệu"
                       >

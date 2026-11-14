@@ -1,9 +1,13 @@
 package com.sportecommerce.dto.request;
 
+import com.sportecommerce.enums.ProductStatus;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.*;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -27,4 +31,8 @@ public class UpdateProductRequest {
     private Double basePrice;
 
     private Double salePrice;
+    private ProductStatus status;
+
+    @Valid
+    private List<ProductImageRequest> images;
 }
