@@ -24,10 +24,11 @@ export default function ProductCard({ product }) {
   const primaryImage =
     product.images?.find((img) => img.isPrimary)?.imageUrl ||
     product.images?.[0]?.imageUrl ||
+    product.primaryImageUrl || 
     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600';
-
-  const brandName = product.brand?.name || 'Delta Sport';
-  const categoryName = product.category?.name || 'Đồ thể thao';
+    
+  const brandName = product.brand?.name || product.brandName || 'Delta Sport';
+  const categoryName = product.category?.name || product.categoryName || 'Đồ thể thao';
 
   const handleCardClick = () => {
     navigate(`/products/${product.id}`);

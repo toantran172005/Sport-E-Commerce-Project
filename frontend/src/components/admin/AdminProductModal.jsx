@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Upload, Layers, Check } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
+import { productService } from '../../services/productService.js';
 
 function createId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -234,7 +235,7 @@ export default function AdminProductModal() {
     );
   };
 
-  const handleAddFiles = (fileList) => {
+  const handleAddFiles = async (fileList) => {
     if (!fileList || fileList.length === 0) return;
     const incoming = Array.from(fileList);
     const availableSlots = 8 - images.length;
@@ -243,8 +244,9 @@ export default function AdminProductModal() {
       return;
     }
 
-    const validFiles = [];
-    for (const file of incoming.slice(0, availableSlots)) {
+    const filesToUpload = incoming.slice(0, availableSlots);
+
+    for (const file of filesToUpload) {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         showToast(`${file.name}: Chỉ hỗ trợ định dạng JPG, PNG hoặc WebP`, 'error');
         continue;
@@ -253,20 +255,38 @@ export default function AdminProductModal() {
         showToast(`${file.name}: Vượt quá 5 MB, không tải lên được`, 'error');
         continue;
       }
-      validFiles.push({
-        id: createId(),
-        file,
-        imageUrl: URL.createObjectURL(file),
-        previewUrl: URL.createObjectURL(file),
-        isPrimary: images.length === 0 && validFiles.length === 0,
-        name: file.name,
-        size: file.size,
-      });
-    }
 
-    if (validFiles.length > 0) {
-      setImages((prev) => [...prev, ...validFiles]);
-      showToast(`Đã thêm ${validFiles.length} hình ảnh`, 'success');
+      const tempId = createId();
+      const previewUrl = URL.createObjectURL(file);
+
+      setImages((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          file,
+          imageUrl: previewUrl, 
+          previewUrl: previewUrl,
+          isPrimary: prev.length === 0,
+          name: file.name,
+          size: file.size,
+          uploading: true, 
+        },
+      ]);
+
+      try {
+        const cloudinaryUrl = await productService.uploadProductImage(file);
+        setImages((prev) =>
+          prev.map((img) =>
+          img.id === tempId
+              ? { ...img, imageUrl: cloudinaryUrl, previewUrl: cloudinaryUrl, uploading: false }
+              : img
+          )
+        );
+        showToast(`Đã tải lên ${file.name} thành công`, 'success');
+      } catch (err) {
+        showToast(`Lỗi khi tải lên ${file.name}: ${err.message}`, 'error');
+        setImages((prev) => prev.filter((img) => img.id !== tempId));
+      }
     }
   };
 
@@ -339,6 +359,11 @@ export default function AdminProductModal() {
     }
     if (salePrice && Number(salePrice) >= Number(basePrice)) {
       setErrorMsg('Giá khuyến mãi phải nhỏ hơn giá gốc');
+      return;
+    }
+
+    if (images.some((img) => img.uploading)) {
+      setErrorMsg('Vui lòng đợi ảnh tải lên Cloudinary hoàn tất');
       return;
     }
 

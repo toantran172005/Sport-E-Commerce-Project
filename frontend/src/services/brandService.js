@@ -1,27 +1,35 @@
-import { brands as initialBrands } from '../mocks/brands.js';
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-const fakeDelay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms));
+import axiosClient from '../api/axiosClient.js';
 
 export const brandService = {
   async getBrands() {
-    if (USE_MOCK) {
-      await fakeDelay();
-      return [...initialBrands];
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/brands');
+    const data = await axiosClient.get('/brands');
+    return Array.isArray(data) ? data : [];
   },
 
   async getBrandById(id) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      const brand = initialBrands.find((b) => String(b.id) === String(id) || b.slug === String(id));
-      if (!brand) throw new Error('Không tìm thấy thương hiệu');
-      return brand;
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
     return axiosClient.get(`/brands/${id}`);
+  },
+
+  async createBrand(data) {
+    const payload = {
+      name: data.name,
+      description: data.description || '',
+      logoUrl: data.logoUrl || data.logo || '',
+    };
+    return axiosClient.post('/brands', payload);
+  },
+
+  async updateBrand(id, data) {
+    const payload = {
+      name: data.name,
+      description: data.description || '',
+      logoUrl: data.logoUrl || data.logo || '',
+    };
+    return axiosClient.put(`/brands/${id}`, payload);
+  },
+
+  async deleteBrand(id) {
+    return axiosClient.delete(`/brands/${id}`);
   },
 };
 

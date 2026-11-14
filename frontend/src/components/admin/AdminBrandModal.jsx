@@ -140,7 +140,6 @@ export default function AdminBrandModal() {
                 {isEditing ? 'Chỉnh Sửa Thương Hiệu' : 'Thêm Thương Hiệu'}
               </h2>
               <p className="text-[12px] text-ink-muted">
-                Đường dẫn (slug) được sinh tự động từ tên.
               </p>
             </div>
           </div>
@@ -175,8 +174,7 @@ export default function AdminBrandModal() {
               className="w-full h-10 px-3.5 rounded-lg bg-page border border-line text-[13px] text-ink focus:outline-none focus:border-accent"
             />
             <p className="mt-1 text-[11.5px] text-ink-subtle">
-              Không được trùng với thương hiệu đã có. Slug dự kiến:{' '}
-              <span className="font-bold text-ink">{slug || generateSlug(name) || '---'}</span>
+              Không được trùng với thương hiệu đã có.
             </p>
           </div>
 
