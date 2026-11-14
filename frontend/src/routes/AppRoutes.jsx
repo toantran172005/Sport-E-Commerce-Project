@@ -1,6 +1,8 @@
-import { lazy, Suspense } from 'react';
-import { Route, Routes, Navigate, useParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { Route, Routes, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
+import { useRequireLogin } from '../hooks/useRequireLogin.js';
+import { ADMIN_PERMISSIONS, ROLES, getDefaultAdminPath } from '../utils/permissions';
 
 const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
 const AccountLayout = lazy(() => import('../layouts/AccountLayout'));
@@ -23,12 +25,14 @@ const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
 const VerifyOtpPage = lazy(() => import('../pages/auth/VerifyOtpPage'));
+const ForceChangePasswordPage = lazy(() => import('../pages/auth/ForceChangePasswordPage'));
 
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage'));
 const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage'));
 const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage'));
 const AdminCouponsPage = lazy(() => import('../pages/admin/AdminCouponsPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
+const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
 
 const NotFoundPage = lazy(() => import('../pages/common/NotFoundPage'));
@@ -49,29 +53,86 @@ function LegacyOrderDetailRedirect() {
   return <Navigate to={`/account/orders/${id}`} replace />;
 }
 
-function AdminRoute({ children }) {
+// Tài khoản do Admin tạo (mật khẩu mặc định) bị khóa ở màn hình đổi mật khẩu cho tới khi đổi xong.
+function PasswordChangeGate({ children }) {
   const { user } = useAuth();
-  const { showToast } = useUI();
-  if (!user) {
-    return <Navigate to="/login?redirect=/admin" replace />;
-  }
-  if (user.role !== 'ADMIN' && user.role !== 'STAFF') {
-    showToast('Tài khoản khách hàng không có quyền truy cập trang quản trị!');
-    return <Navigate to="/" replace />;
+  const { pathname } = useLocation();
+  if (user?.mustChangePassword && pathname !== '/force-change-password') {
+    return <Navigate to="/force-change-password" replace />;
   }
   return children;
 }
 
+function ForbiddenRedirect({ to, message }) {
+  const { showToast } = useUI();
+  useEffect(() => {
+    if (message) {
+      showToast(message, 'error');
+    }
+  }, [message, showToast]);
+  return <Navigate to={to} replace />;
+}
+
+function RoleRoute({ permission, children }) {
+  const { user, can } = useAuth();
+  const location = useLocation();
+
+  if (!user) {
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+
+  if (user.role !== ROLES.ADMIN && user.role !== ROLES.STAFF) {
+    return (
+      <ForbiddenRedirect
+        to="/"
+        message="Tài khoản khách hàng không có quyền truy cập trang quản trị!"
+      />
+    );
+  }
+
+  if (permission && !can(permission)) {
+    return (
+      <ForbiddenRedirect
+        to={getDefaultAdminPath(user.role)}
+        message="Bạn không có quyền truy cập chức năng này"
+      />
+    );
+  }
+
+  return children;
+}
+
+/**
+ * Khách vãng lai vào trang cần đăng nhập: hỏi có muốn đăng nhập không.
+ * Đồng ý → sang /login (đăng nhập xong quay lại đúng trang này). Không đồng ý → quay lại trang trước đó
+ * (hoặc về trang chủ nếu mở thẳng bằng đường dẫn), không ép chuyển sang trang đăng nhập.
+ */
+function LoginGate({ message }) {
+  const requireLogin = useRequireLogin();
+  const navigate = useNavigate();
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    requireLogin(message, {
+      onCancel: () => {
+        if (window.history.state?.idx > 0) navigate(-1);
+        else navigate('/', { replace: true });
+      },
+    });
+    // chỉ mở lại khi đổi trang đích
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, search]);
+
+  return null;
+}
+
 function CustomerRoute({ children, redirect = '/login?redirect=/account/profile' }) {
   const { user } = useAuth();
-  const { showToast } = useUI();
   if (!user) {
-    if (redirect.includes('checkout')) {
-      showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-    } else if (redirect.includes('wishlist')) {
-      showToast('Vui lòng đăng nhập để xem danh sách yêu thích');
-    }
-    return <Navigate to={redirect} replace />;
+    let message = 'Vui lòng đăng nhập để xem trang này';
+    if (redirect.includes('checkout')) message = 'Vui lòng đăng nhập để tiến hành đặt hàng';
+    else if (redirect.includes('wishlist')) message = 'Vui lòng đăng nhập để xem danh sách yêu thích';
+    return <LoginGate message={message} />;
   }
   return children;
 }
@@ -79,6 +140,7 @@ function CustomerRoute({ children, redirect = '/login?redirect=/account/profile'
 export default function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
+      <PasswordChangeGate>
       <Routes>
         {/* Client Storefront Layout Wrapper */}
         <Route element={<ClientLayout />}>
@@ -135,57 +197,67 @@ export default function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route path="/force-change-password" element={<ForceChangePasswordPage />} />
 
-        {/* Admin CMS Routes (Strictly Protected for Admin/Staff only) */}
+        {/* Admin CMS Routes (Strictly Protected with Granular Role Permissions) */}
         <Route
           path="/admin"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.DASHBOARD}>
               <AdminDashboardPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/products"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.PRODUCTS}>
               <AdminProductsPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/orders"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.ORDERS}>
               <AdminOrdersPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/coupons"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.COUPONS}>
               <AdminCouponsPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/reviews"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.REVIEWS}>
               <AdminReviewsPage />
-            </AdminRoute>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/staff"
+          element={
+            <RoleRoute permission={ADMIN_PERMISSIONS.STAFF}>
+              <AdminStaffPage />
+            </RoleRoute>
           }
         />
         <Route
           path="/admin/settings"
           element={
-            <AdminRoute>
+            <RoleRoute permission={ADMIN_PERMISSIONS.SETTINGS}>
               <AdminSettingsPage />
-            </AdminRoute>
+            </RoleRoute>
           }
         />
       </Routes>
+      </PasswordChangeGate>
     </Suspense>
   );
 }

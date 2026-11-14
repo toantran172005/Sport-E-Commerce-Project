@@ -6,6 +6,8 @@ import com.sportecommerce.dto.request.PlaceOrderRequest;
 import com.sportecommerce.dto.request.UpdateOrderStatusRequest;
 import com.sportecommerce.dto.response.OrderDetailResponse;
 import com.sportecommerce.dto.response.PlaceOrderResponse;
+import com.sportecommerce.entity.Order;
+import com.sportecommerce.security.OrderAccessChecker;
 import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.OrderService;
 import com.sportecommerce.util.MapperUtil;
@@ -21,13 +23,14 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
     private final OrderService orderService;
     private final MapperUtil mapperUtil;
+    private final OrderAccessChecker orderAccessChecker;
 
     @PostMapping("/place-order")
     public ResponseEntity<ApiResponse<PlaceOrderResponse>> placeOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody PlaceOrderRequest request) {
-        Long userId = (userPrincipal != null) ? userPrincipal.getId() : (request.getUserId() != null ? request.getUserId() : 4L);
-        ApiResponse<PlaceOrderResponse> response = orderService.placeOrder(userId, request);
+        // Luôn lấy user từ JWT; request.userId (nếu FE còn gửi) bị bỏ qua để không đặt hộ người khác.
+        ApiResponse<PlaceOrderResponse> response = orderService.placeOrder(userPrincipal.getId(), request);
 
         return ResponseEntity.ok(response);
     }
@@ -37,8 +40,7 @@ public class OrderController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody UpdateOrderStatusRequest request
     ) {
-        Long userId = (userPrincipal != null) ? userPrincipal.getId() : 4L;
-        ApiResponse<?> response = orderService.updateOrderStatus(userId, request);
+        ApiResponse<?> response = orderService.updateOrderStatus(userPrincipal.getId(), request);
 
         return ResponseEntity.ok(response);
     }
@@ -49,7 +51,7 @@ public class OrderController {
             @PathVariable Long id,
             @Valid @RequestBody(required = false) CancelOrderRequest request
     ) {
-        Long userId = (userPrincipal != null) ? userPrincipal.getId() : 4L;
+        Long userId = userPrincipal.getId();
         String reason = (request != null && request.getReason() != null && !request.getReason().isBlank())
                 ? request.getReason()
                 : "Khách hàng yêu cầu hủy đơn";
@@ -59,7 +61,11 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getOrderById(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin đơn hàng thành công", mapperUtil.mapOrderToOrderDetailResponse(orderService.getOrderById(id))));
+    public ResponseEntity<?> getOrderById(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable Long id) {
+        Order order = orderService.getOrderById(id);
+        orderAccessChecker.assertCanAccess(order, userPrincipal);
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin đơn hàng thành công", mapperUtil.mapOrderToOrderDetailResponse(order)));
     }
 }

@@ -178,6 +178,7 @@ public class MapperUtil {
                 .dateOfBirth(user.getDateOfBirth())
                 .role(user.getRole())
                 .status(user.getStatus())
+                .mustChangePassword(user.getMustChangePassword())
                 .emailVerifiedAt(user.getEmailVerifiedAt())
                 .phoneVerifiedAt(user.getPhoneVerifiedAt())
                 .lastLoginAt(user.getLastLoginAt())

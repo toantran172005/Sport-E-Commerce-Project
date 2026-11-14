@@ -32,8 +32,9 @@ export default function AdminOrdersPage() {
 
   const filteredOrders = orders.filter((o) => {
     if (statusTab !== 'ALL') {
-      if (statusTab === 'CANCELLED' && (o.status === 'CANCELLED' || o.status === 'CANCELED')) {
-      } else if (o.status !== statusTab) {
+      const isCancelledMatch =
+        statusTab === 'CANCELLED' && (o.status === 'CANCELLED' || o.status === 'CANCELED');
+      if (!isCancelledMatch && o.status !== statusTab) {
         return false;
       }
     }

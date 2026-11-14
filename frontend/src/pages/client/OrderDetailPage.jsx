@@ -5,6 +5,7 @@ import { useStore } from "../../context/StoreContext.jsx";
 import { orderService } from "../../services/orderService.js";
 import { formatCurrency, formatDateTime } from "../../utils/formatters.js";
 import { OrderStatusBadge, OrderTimeline } from "../../components/order";
+import LineNumberBadge from "../../components/common/LineNumberBadge.jsx";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -172,7 +173,7 @@ export default function OrderDetailPage() {
 
   const handleCopy = (text, label) => {
     navigator.clipboard?.writeText(text);
-    showToast(`Đã sao chép ${label}: ${text}`);
+    showToast(`Đã sao chép ${label}: ${text}`, 'success');
   };
 
   const handleReorder = () => {
@@ -189,7 +190,7 @@ export default function OrderDetailPage() {
           item.quantity || 1,
         );
       });
-      showToast("Đã thêm lại các sản phẩm vào giỏ hàng");
+      showToast("Đã thêm lại các sản phẩm vào giỏ hàng", 'success');
       navigate("/cart");
     }
   };
@@ -308,35 +309,46 @@ export default function OrderDetailPage() {
           <div className="p-6 space-y-2">
             <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase text-ink-subtle tracking-wider">
               <Truck className="w-3.5 h-3.5 text-accent" />
-              <span>VẬN CHUYỂN & THANH TOÁN</span>
+              <span>THÔNG TIN VẬN CHUYỂN &amp; THANH TOÁN</span>
             </div>
-            <div className="text-[13px] text-ink flex items-center justify-between">
-              <span>Đơn vị giao:</span>
-              <strong className="text-accent">
-                {order.shippingProviderShort ||
-                  order.shippingProvider?.name ||
-                  "Giao Hàng Nhanh (GHN)"}
+            <p className="text-[13px] font-bold text-ink flex items-center gap-2">
+              <span>Đơn vị: {order.shippingProviderCode || order.shippingProvider || "GHN Express"}</span>
+              <span className="px-1.5 py-0.2 rounded bg-surface-2 text-ink-muted text-[11px] font-mono border border-line">
+                {order.shippingCode || order.trackingNumber || "GHN-VN-8829"}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleCopy(
+                    order.shippingCode || order.trackingNumber || "GHN-VN-8829",
+                    "mã vận đơn",
+                  )
+                }
+                className="text-accent hover:opacity-75 transition cursor-pointer"
+                title="Sao chép mã vận đơn"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </p>
+            <p className="text-[12.5px] text-ink-muted">
+              Phương thức:{" "}
+              <strong className="text-ink">
+                {order.paymentMethod === "COD"
+                  ? "Thanh toán khi nhận hàng (COD)"
+                  : "Thanh toán chuyển khoản / VNPay"}
               </strong>
-            </div>
-            {order.trackingCode && (
-              <div className="text-[13px] text-ink flex items-center justify-between">
-                <span>Mã vận đơn:</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(order.trackingCode, "Mã vận đơn")}
-                  className="font-mono text-accent font-bold hover:underline inline-flex items-center gap-1"
-                >
-                  <span>{order.trackingCode}</span>
-                  <Copy className="w-3 h-3 text-ink-subtle" />
-                </button>
-              </div>
-            )}
-            <div className="text-[13px] text-ink flex items-center justify-between">
-              <span>Thanh toán:</span>
-              <span className="font-bold text-ink">
-                {order.paymentMethod === "VNPAY"
-                  ? "VNPay QR Sandbox"
-                  : "COD (Thanh toán khi nhận)"}
+            </p>
+            <div className="pt-1">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                  order.paymentStatus === "PAID"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                }`}
+              >
+                {order.paymentStatus === "PAID"
+                  ? "Đã thanh toán"
+                  : "Chờ thanh toán"}
               </span>
             </div>
           </div>
@@ -365,6 +377,7 @@ export default function OrderDetailPage() {
                 className="pt-3 first:pt-0 flex items-start justify-between gap-4"
               >
                 <div className="flex items-center gap-3.5">
+                  <LineNumberBadge n={idx + 1} />
                   <div className="w-16 h-16 rounded-md bg-surface-2 border border-line overflow-hidden shrink-0 flex items-center justify-center">
                     {item.image || item.productImage || item.imageUrl ? (
                       <img

@@ -1,107 +1,131 @@
-import { users as initialUsers } from '../mocks/users.js';
-import { userAddresses as initialAddresses } from '../mocks/userAddresses.js';
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
-
-let mockUsers = [...initialUsers];
-let mockAddresses = [...initialAddresses];
+import axiosClient from '../api/axiosClient.js';
 
 export const userService = {
-  async getCustomers() {
-    if (USE_MOCK) {
-      await fakeDelay();
-      return mockUsers.filter((u) => u.role === 'CUSTOMER');
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/users/customers');
+  // ---- Quản trị người dùng & Nhân viên (gọi API thật qua JWT) ----
+  async getCustomers({ keyword = '', page = 0, size = 10 } = {}) {
+    return axiosClient.get('/admin/users', { params: { role: 'CUSTOMER', keyword, page, size } });
   },
 
   async toggleUserStatus(id) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      const index = mockUsers.findIndex((u) => u.id === id);
-      if (index === -1) throw new Error('Không tìm thấy người dùng');
-      mockUsers[index].status = mockUsers[index].status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
-      return mockUsers[index];
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.put(`/users/${id}/toggle-status`);
+    return axiosClient.put(`/admin/users/${id}/toggle-status`);
+  },
+
+  async getStaffMembers({ keyword = '', page = 0, size = 10 } = {}) {
+    return axiosClient.get('/admin/users', { params: { role: 'STAFF', keyword, page, size } });
+  },
+
+  async createStaff({ fullName, email, phoneNumber }) {
+    return axiosClient.post('/admin/users/staff', {
+      fullName,
+      email,
+      phoneNumber: phoneNumber ? phoneNumber.replace(/\s+/g, '') : '',
+    });
+  },
+
+  async updateStaff(id, data) {
+    return axiosClient.put(`/admin/users/staff/${id}`, data);
+  },
+
+  async setStaffStatus(id, status) {
+    return axiosClient.patch(`/admin/users/staff/${id}/status`, { status });
+  },
+
+  async deleteStaff(id) {
+    return axiosClient.delete(`/admin/users/staff/${id}`);
+  },
+
+  // Alias tương thích
+  async createAdminStaff(data) {
+    return this.createStaff(data);
+  },
+
+  async getStaff(params) {
+    return this.getStaffMembers(params);
+  },
+
+  // ===== ADDRESS MANAGEMENT =====
+  // ---- Sổ địa chỉ của chính người dùng đang đăng nhập (user lấy từ JWT, không truyền userId) ----
+  /** GET /api/users/me/addresses → mặc định lên đầu */
+  async getMyAddresses() {
+    return axiosClient.get('/users/me/addresses');
   },
 
   async getUserAddresses(userId) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      return mockAddresses.filter((a) => !userId || a.userId === Number(userId));
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
     return axiosClient.get(`/users/${userId}/addresses`);
   },
 
-  async addAddress(addressData) {
-    if (USE_MOCK) {
-      await fakeDelay();
-      const newId = Date.now();
-      const newAddr = {
-        ...addressData,
-        id: newId,
-        country: 'Vietnam',
-        type: 'SHIPPING',
-      };
-      if (newAddr.isDefault) {
-        mockAddresses.forEach((a) => (a.isDefault = false));
-      }
-      mockAddresses.push(newAddr);
-      return newAddr;
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.post('/addresses', addressData);
+  /** POST /api/users/me/addresses (địa chỉ đầu tiên tự động là mặc định) */
+  async addAddress({ recipientName, phoneNumber, addressLine, ward, district, city, isDefault }) {
+    return axiosClient.post('/users/me/addresses', {
+      recipientName,
+      phoneNumber: (phoneNumber || '').replace(/\s+/g, ''),
+      addressLine,
+      ward,
+      district,
+      city,
+      isDefault: Boolean(isDefault),
+    });
   },
 
-  async updateAddress(id, addressData) {
-    if (USE_MOCK) {
-      await fakeDelay();
-      const index = mockAddresses.findIndex((a) => a.id === id);
-      if (index === -1) throw new Error('Không tìm thấy địa chỉ');
-      if (addressData.isDefault) {
-        mockAddresses.forEach((a) => (a.isDefault = false));
-      }
-      mockAddresses[index] = { ...mockAddresses[index], ...addressData };
-      return mockAddresses[index];
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.put(`/addresses/${id}`, addressData);
+  /** PUT /api/users/me/addresses/{id} (isDefault=true để chuyển mặc định; không thể bỏ mặc định trực tiếp) */
+  async updateAddress(id, { recipientName, phoneNumber, addressLine, ward, district, city, isDefault }) {
+    return axiosClient.put(`/users/me/addresses/${id}`, {
+      recipientName,
+      phoneNumber: (phoneNumber || '').replace(/\s+/g, ''),
+      addressLine,
+      ward,
+      district,
+      city,
+      isDefault: isDefault ? true : null,
+    });
   },
 
+  /** PATCH /api/users/me/addresses/{id}/default */
+  async setDefaultAddress(id) {
+    return axiosClient.patch(`/users/me/addresses/${id}/default`);
+  },
+
+  /** DELETE /api/users/me/addresses/{id} (409 nếu địa chỉ đang gắn với đơn hàng) */
   async deleteAddress(id) {
-    if (USE_MOCK) {
-      await fakeDelay();
-      mockAddresses = mockAddresses.filter((a) => a.id !== id);
-      return { success: true };
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.delete(`/addresses/${id}`);
+    await axiosClient.delete(`/users/me/addresses/${id}`);
+    return { success: true };
   },
 
-  async sendOtp(email, purpose = 'CHANGE_PASSWORD') {
-    if (USE_MOCK) {
-      await fakeDelay(200);
-      return { success: true, message: `Mã OTP đã được gửi đến ${email}`, testOtp: '123456' };
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.post('/auth/send-otp', { email, purpose });
+  // ---- Hồ sơ cá nhân ----
+  /** GET /api/users/me */
+  async getProfile() {
+    return axiosClient.get('/users/me');
   },
 
-  async changePassword({ oldPassword, newPassword, otp }) {
-    if (USE_MOCK) {
-      await fakeDelay(300);
-      if (otp !== '123456') {
-        throw new Error('Mã OTP không chính xác. Mã thử nghiệm là 123456.');
-      }
-      return { success: true, message: 'Đổi mật khẩu thành công!' };
-    }
-    const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.post('/users/change-password', { oldPassword, newPassword, otp });
+  /** PUT /api/users/me - chỉ sửa họ tên, giới tính, ngày sinh (đổi email/SĐT phải qua OTP, đổi ảnh dùng uploadAvatar) */
+  async updateProfile({ fullName, gender, dateOfBirth }) {
+    const updated = await axiosClient.put('/users/me', { fullName, gender, dateOfBirth });
+    // Giữ bản lưu cục bộ khớp với server để F5 không hiện dữ liệu cũ
+    localStorage.setItem('sport_user', JSON.stringify(updated));
+    return updated;
+  },
+
+  /**
+   * POST /api/users/me/avatar (multipart, trường "file") → trả về hồ sơ đã cập nhật.
+   * Phải ghi đè Content-Type: axiosClient mặc định là JSON nên nếu không axios sẽ biến FormData thành JSON.
+   */
+  async uploadAvatar(blob) {
+    const form = new FormData();
+    form.append('file', blob, 'avatar.jpg');
+    return axiosClient.post('/users/me/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
+
+  /** DELETE /api/users/me/avatar → trả về hồ sơ đã cập nhật (avatarUrl = null) */
+  async removeAvatar() {
+    return axiosClient.delete('/users/me/avatar');
+  },
+
+  /** POST /api/users/me/change-password (backend xác minh mật khẩu cũ, không dùng OTP) */
+  async changePassword({ oldPassword, newPassword }) {
+    return axiosClient.post('/users/me/change-password', { oldPassword, newPassword });
   },
 };
 

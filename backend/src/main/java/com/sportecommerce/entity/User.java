@@ -84,6 +84,14 @@ public class User {
     @Builder.Default
     private UserStatus status = UserStatus.PENDING;
 
+    /**
+     * true = tai khoan do Admin tao voi mat khau mac dinh, bat buoc doi mat khau o lan dang nhap dau tien.
+     * Khi con true, JwtAuthenticationFilter chi cho phep xem /users/me, doi mat khau va dang xuat.
+     */
+    @Column(name = "must_change_password", nullable = false)
+    @Builder.Default
+    private Boolean mustChangePassword = false;
+
     @Column(name = "email_verified_at")
     private OffsetDateTime emailVerifiedAt;
 

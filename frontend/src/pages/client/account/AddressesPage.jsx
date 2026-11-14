@@ -1,32 +1,9 @@
-import { useMemo } from 'react';
 import { Plus, MapPin } from 'lucide-react';
-import { useAuth, useAddress, useUI } from '../../../context';
-import { userAddresses as fallbackAddresses } from '../../../mocks/userAddresses.js';
+import { useAddress, useUI } from '../../../context';
 
 export default function AddressesPage() {
-  const { user } = useAuth();
-  const { addresses, setDefaultAddress } = useAddress();
+  const { addresses: userAddresses, setDefaultAddress, deleteAddress } = useAddress();
   const { openModal } = useUI();
-
-  const userAddresses = useMemo(() => {
-    const currentUserId = user?.id || 4;
-    const effectiveList = addresses && addresses.length > 0 ? addresses : fallbackAddresses;
-    const list = effectiveList.filter((a) => !a.userId || a.userId === currentUserId || a.userId === 4 || a.userId === 1);
-    const resultList = list.length > 0 ? list : effectiveList;
-
-    let hasDefaultFound = false;
-    const mapped = resultList.map((a) => {
-      if (a.isDefault && !hasDefaultFound) {
-        hasDefaultFound = true;
-        return { ...a, isDefault: true };
-      }
-      return { ...a, isDefault: false };
-    });
-    if (!hasDefaultFound && mapped.length > 0) {
-      mapped[0].isDefault = true;
-    }
-    return mapped;
-  }, [addresses, user?.id]);
 
   return (
     <div className="bg-surface rounded-lg border border-line p-6 space-y-5 shadow-2xs">
@@ -103,6 +80,15 @@ export default function AddressesPage() {
                     className="px-3 py-1.5 rounded-md text-[12px] font-bold text-accent hover:underline cursor-pointer"
                   >
                     Chỉnh sửa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Bạn chắc chắn muốn xóa địa chỉ này?')) deleteAddress(addr.id);
+                    }}
+                    className="px-3 py-1.5 rounded-md text-[12px] font-bold text-danger hover:underline cursor-pointer"
+                  >
+                    Xóa
                   </button>
                 </div>
               </div>

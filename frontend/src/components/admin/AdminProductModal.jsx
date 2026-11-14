@@ -222,7 +222,7 @@ export default function AdminProductModal() {
 
   const handleRemoveVariant = (id) => {
     if (variants.length <= 1) {
-      showToast('Cần ít nhất 1 biến thể sản phẩm');
+      showToast('Cần ít nhất 1 biến thể sản phẩm', 'error');
       return;
     }
     setVariants((prev) => prev.filter((v) => v.id !== id));
@@ -239,18 +239,18 @@ export default function AdminProductModal() {
     const incoming = Array.from(fileList);
     const availableSlots = 8 - images.length;
     if (availableSlots <= 0) {
-      showToast('Đã đạt giới hạn tối đa 8 ảnh cho sản phẩm');
+      showToast('Đã đạt giới hạn tối đa 8 ảnh cho sản phẩm', 'error');
       return;
     }
 
     const validFiles = [];
     for (const file of incoming.slice(0, availableSlots)) {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        showToast(`${file.name}: Chỉ hỗ trợ định dạng JPG, PNG hoặc WebP`);
+        showToast(`${file.name}: Chỉ hỗ trợ định dạng JPG, PNG hoặc WebP`, 'error');
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
-        showToast(`${file.name}: Vượt quá 5 MB, không tải lên được`);
+        showToast(`${file.name}: Vượt quá 5 MB, không tải lên được`, 'error');
         continue;
       }
       validFiles.push({
@@ -266,7 +266,7 @@ export default function AdminProductModal() {
 
     if (validFiles.length > 0) {
       setImages((prev) => [...prev, ...validFiles]);
-      showToast(`Đã thêm ${validFiles.length} hình ảnh`);
+      showToast(`Đã thêm ${validFiles.length} hình ảnh`, 'success');
     }
   };
 
@@ -357,7 +357,7 @@ export default function AdminProductModal() {
       categoryId: Number(categoryId),
       category: selectedCategory?.name || 'Vợt',
       brandId: brandId ? Number(brandId) : null,
-      brand: selectedBrand?.name || 'Sân Nhà',
+      brand: selectedBrand?.name || 'Delta Sport',
       sportType: sportType || 'Cầu lông',
       basePrice: Number(basePrice),
       salePrice: salePrice ? Number(salePrice) : null,

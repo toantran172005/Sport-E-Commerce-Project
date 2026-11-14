@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Trash2, Plus, Minus, Package } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters.js';
+import LineNumberBadge from '../common/LineNumberBadge.jsx';
 
 export default function CartItemRow({
   item,
   itemKey,
+  lineNumber,
   isChecked,
   onToggleSelect,
   onUpdateQuantity,
@@ -18,6 +20,11 @@ export default function CartItemRow({
     <div className="p-4 md:px-5 md:py-4 flex flex-col md:grid md:grid-cols-12 gap-3.5 md:items-center hover:bg-page/40 transition">
       {/* Product Info & Checkbox */}
       <div className="col-span-5 flex items-start gap-3">
+        {lineNumber != null && (
+          <div className="mt-0.5 shrink-0">
+            <LineNumberBadge n={lineNumber} />
+          </div>
+        )}
         <input
           type="checkbox"
           disabled={isOutOfStock}

@@ -12,13 +12,17 @@ import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users/me")
@@ -38,6 +42,20 @@ public class UserController {
             @Valid @RequestBody UpdateProfileRequest request
     ) {
         return ApiResponse.success("Cập nhật hồ sơ thành công", userService.updateProfile(principal.getId(), request));
+    }
+
+    /** Đổi ảnh đại diện (multipart, trường "file"). userId lấy từ JWT. */
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<UserResponse> uploadAvatar(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ApiResponse.success("Cập nhật ảnh đại diện thành công", userService.updateAvatar(principal.getId(), file));
+    }
+
+    @DeleteMapping("/avatar")
+    public ApiResponse<UserResponse> removeAvatar(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success("Đã xóa ảnh đại diện", userService.removeAvatar(principal.getId()));
     }
 
     @PostMapping("/change-password")

@@ -1,17 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, RefreshCw } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { ProductCard } from '../../components/product';
 import { EmptyState } from '../../components/common';
 import { CartItemRow, CartSummary } from '../../components/cart';
 import { useStore } from '../../context/StoreContext.jsx';
-import { calculateDiscount } from '../../utils/pricing.js';
+import { useRequireLogin } from '../../hooks/useRequireLogin.js';
+import { buildLineNumberMap, getItemKey } from '../../utils/cartNumbering.js';
+import { getShippingQuotes } from '../../services/shippingService.js';
 
 export default function CartPage() {
   const {
     user,
     cart,
     products,
+    addresses = [],
     updateCartQuantity,
     removeFromCart,
     selectedCartItemKeys,
@@ -23,12 +26,11 @@ export default function CartPage() {
     selectAllCartItems,
     deselectAllCartItems,
     removeSelectedCartItems,
-    resetTestCart,
-    appliedCoupon,
     showToast,
   } = useStore();
 
   const navigate = useNavigate();
+  const requireLogin = useRequireLogin();
 
   const isAllSelected =
     cart.length > 0 && cart.every((item) => selectedCartItemKeys.includes(getCartItemKey(item)));
@@ -45,7 +47,7 @@ export default function CartPage() {
     const groups = {};
     cart.forEach((item) => {
       const p = products.find((prod) => prod.id === item.productId);
-      const brandName = p?.brand?.name || p?.brand || 'Sân Nhà Sport';
+      const brandName = p?.brand?.name || p?.brand || 'Delta Sport';
       if (!groups[brandName]) {
         groups[brandName] = [];
       }
@@ -54,19 +56,38 @@ export default function CartPage() {
     return groups;
   }, [cart, products]);
 
-  const voucherDiscount = calculateDiscount(appliedCoupon, selectedCartSubtotal, 0);
-  const finalTotal = Math.max(0, selectedCartSubtotal - voucherDiscount);
+  // Compute continuous line numbers across all brand groups
+  const lineNumberMap = useMemo(() => {
+    return buildLineNumberMap(Object.entries(groupedCart));
+  }, [groupedCart]);
+
+  // Mới vào trang giỏ hàng: mặc định không chọn bất kỳ sản phẩm nào
+  useEffect(() => {
+    deselectAllCartItems();
+  }, [deselectAllCartItems]);
+
+  // Pre-warm shipping quotes cache for default address when cart has items
+  useEffect(() => {
+    if (user && selectedCartSubtotal > 0 && addresses.length > 0) {
+      const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0];
+      if (defaultAddr?.city) {
+        getShippingQuotes({
+          addressId: defaultAddr.id,
+          city: defaultAddr.city,
+          subTotal: selectedCartSubtotal,
+        }).catch(() => {
+          // Non-blocking pre-warm error
+        });
+      }
+    }
+  }, [user, selectedCartSubtotal, addresses]);
 
   const handleProceedToCheckout = () => {
     if (selectedCartItems.length === 0) {
-      showToast('Vui lòng chọn ít nhất 1 sản phẩm để thanh toán!');
+      showToast('Vui lòng chọn ít nhất 1 sản phẩm để thanh toán!', 'error');
       return;
     }
-    if (!user) {
-      showToast('Vui lòng đăng nhập để tiến hành đặt hàng');
-      navigate('/login?redirect=/checkout');
-      return;
-    }
+    if (!requireLogin('Vui lòng đăng nhập để tiến hành đặt hàng', { redirect: '/checkout' })) return;
     navigate('/checkout');
   };
 
@@ -118,83 +139,56 @@ export default function CartPage() {
             Chọn các sản phẩm bạn muốn đặt hàng và tiến hành thanh toán
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={resetTestCart}
-          className="px-3.5 py-1.5 rounded-md border border-accent/40 bg-accent-soft/30 hover:bg-accent-soft/60 text-accent text-[12.5px] font-bold flex items-center gap-1.5 transition cursor-pointer self-start sm:self-auto"
-          title="Tải lại 2 sản phẩm mẫu khớp 100% với Postgres DB để chạy các kịch bản Test Cases"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Nạp lại 2 sản phẩm Test DB</span>
-        </button>
       </div>
 
-      {/* Shopee-style Table Header */}
-      <div className="hidden md:grid grid-cols-12 gap-3.5 px-5 py-3 bg-surface rounded-lg border border-line text-[12px] font-extrabold text-ink-muted uppercase tracking-wider shadow-2xs">
-        <div className="col-span-5 flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={isAllSelected}
-            onChange={handleToggleSelectAll}
-            className="w-4 h-4 rounded text-accent accent-accent cursor-pointer"
-          />
-          <span>Sản phẩm</span>
+      {/* Unified Cart Card: Header and Items merged together */}
+      <div className="bg-surface rounded-xl border border-line overflow-hidden shadow-2xs">
+        {/* Table Header with the SINGLE Select-All Checkbox */}
+        <div className="hidden md:grid grid-cols-12 gap-3.5 px-5 py-3.5 bg-surface-2/60 border-b border-line text-[12px] font-extrabold text-ink-muted uppercase tracking-wider">
+          <div className="col-span-5 flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="select-all-cart-header"
+              checked={isAllSelected}
+              onChange={handleToggleSelectAll}
+              className="w-4 h-4 rounded text-accent accent-accent cursor-pointer"
+              title="Chọn tất cả sản phẩm"
+            />
+            <label htmlFor="select-all-cart-header" className="cursor-pointer select-none">
+              Sản phẩm
+            </label>
+          </div>
+          <div className="col-span-2 text-center">Đơn giá</div>
+          <div className="col-span-2 text-center">Số lượng</div>
+          <div className="col-span-2 text-right">Số tiền</div>
+          <div className="col-span-1 text-center">Thao tác</div>
         </div>
-        <div className="col-span-2 text-center">Đơn giá</div>
-        <div className="col-span-2 text-center">Số lượng</div>
-        <div className="col-span-2 text-right">Số tiền</div>
-        <div className="col-span-1 text-center">Thao tác</div>
-      </div>
 
-      {/* Cart Groups by Brand */}
-      <div className="space-y-4">
-        {Object.entries(groupedCart).map(([brandName, items]) => {
-          const isBrandAllSelected = items.every((it) =>
-            selectedCartItemKeys.includes(getCartItemKey(it))
-          );
-
-          const toggleBrandSelect = () => {
-            if (isBrandAllSelected) {
-              items.forEach((it) => {
-                const k = getCartItemKey(it);
-                if (selectedCartItemKeys.includes(k)) toggleSelectCartItem(k);
-              });
-            } else {
-              items.forEach((it) => {
-                const k = getCartItemKey(it);
-                if (!selectedCartItemKeys.includes(k)) toggleSelectCartItem(k);
-              });
-            }
-          };
-
-          return (
-            <div
-              key={brandName}
-              className="bg-surface rounded-lg border border-line overflow-hidden shadow-2xs"
-            >
-              <div className="px-5 py-3 border-b border-line bg-surface-muted/30 flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={isBrandAllSelected}
-                  onChange={toggleBrandSelect}
-                  className="w-4 h-4 rounded text-accent accent-accent cursor-pointer"
-                />
-                <span className="text-[13.5px] font-black text-ink">{brandName}</span>
+        {/* Cart Groups & Items */}
+        <div className="divide-y divide-line">
+          {Object.entries(groupedCart).map(([brandName, items]) => (
+            <div key={brandName}>
+              {/* Brand Header Banner (No Checkbox) */}
+              <div className="px-5 py-2.5 bg-surface-muted/30 border-b border-line/60 flex items-center gap-2">
+                <span className="text-[13px] font-black text-ink">{brandName}</span>
                 <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-accent-soft text-accent uppercase tracking-wider">
                   Chính hãng
                 </span>
               </div>
 
+              {/* Items List under this Brand */}
               <div className="divide-y divide-line">
                 {items.map((item) => {
                   const itemKey = getCartItemKey(item);
                   const isChecked = selectedCartItemKeys.includes(itemKey);
+                  const lineNumber = lineNumberMap.get(getItemKey(item));
 
                   return (
                     <CartItemRow
                       key={itemKey}
                       item={item}
+                      itemKey={itemKey}
+                      lineNumber={lineNumber}
                       isChecked={isChecked}
                       onToggleSelect={() => toggleSelectCartItem(itemKey)}
                       onUpdateQuantity={(delta) =>
@@ -206,8 +200,8 @@ export default function CartPage() {
                 })}
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
       {/* Recommended Products */}
@@ -236,8 +230,7 @@ export default function CartPage() {
         selectedSubtotal={selectedCartSubtotal}
         selectedTotalUnits={selectedCartTotalUnits}
         selectedUnitsCount={selectedCartTotalUnits}
-        finalTotal={finalTotal}
-        voucherDiscount={voucherDiscount}
+        finalTotal={selectedCartSubtotal}
         onRemoveSelected={removeSelectedCartItems}
         onProceedToCheckout={handleProceedToCheckout}
       />

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { formatCurrency } from '../../utils/formatters';
+import LineNumberBadge from '../common/LineNumberBadge';
 
 const ALLOWED_TRANSITIONS = {
   PENDING: ['CONFIRMED', 'CANCELED'],
@@ -96,7 +97,7 @@ export default function AdminOrderModal() {
         adminNote || `Cập nhật trạng thái sang ${selectedStatus}`,
         selectedStatus === 'CANCELED' ? (adminNote || 'Hủy bởi Quản trị viên') : ''
       );
-      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} sang ${selectedStatus}!`);
+      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} sang ${selectedStatus}!`, 'success');
       closeModal();
     } catch (err) {
       console.error('Lỗi cập nhật trạng thái đơn hàng:', err);
@@ -216,7 +217,7 @@ export default function AdminOrderModal() {
             </div>
           </div>
 
-          {/* Items list */}
+          {/* Items list with LineNumberBadge */}
           <div>
             <p className="text-[12px] font-extrabold uppercase text-ink mb-2 flex items-center gap-1.5">
               <Package className="w-4 h-4 text-accent" />
@@ -230,6 +231,7 @@ export default function AdminOrderModal() {
                 return (
                   <div key={idx} className="p-3 bg-surface flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
+                      <LineNumberBadge n={idx + 1} />
                       <div className="w-11 h-11 rounded-md bg-surface-2 border border-line overflow-hidden shrink-0 flex items-center justify-center">
                         {itemImg ? (
                           <img src={itemImg} alt={itemName} className="w-full h-full object-cover" />

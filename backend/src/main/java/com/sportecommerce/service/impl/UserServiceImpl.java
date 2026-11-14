@@ -12,15 +12,19 @@ import com.sportecommerce.enums.OtpPurpose;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.UserRepository;
+import com.sportecommerce.service.FileStorageService;
 import com.sportecommerce.service.OtpService;
 import com.sportecommerce.service.UserService;
+import com.sportecommerce.util.AvatarImageProcessor;
 import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.OffsetDateTime;
 
 @Service
@@ -31,6 +35,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final MapperUtil mapperUtil;
+    private final FileStorageService fileStorageService;
 
     @Override
     public UserResponse getProfile(Long userId) {
@@ -45,9 +50,6 @@ public class UserServiceImpl implements UserService {
         if (request.getFullName() != null) {
             user.setFullName(request.getFullName());
         }
-        if (request.getAvatarUrl() != null) {
-            user.setAvatarUrl(request.getAvatarUrl());
-        }
         if (request.getGender() != null) {
             user.setGender(request.getGender());
         }
@@ -56,6 +58,48 @@ public class UserServiceImpl implements UserService {
         }
 
         return mapperUtil.mapToUserResponse(userRepository.save(user));
+    }
+
+    /**
+     * Không đánh dấu @Transactional: lời gọi mạng lên dịch vụ lưu trữ không nên giữ kết nối DB.
+     * userId luôn lấy từ JWT, mỗi user chỉ có một ảnh (public id cố định nên ảnh mới ghi đè ảnh cũ).
+     */
+    @Override
+    public UserResponse updateAvatar(Long userId, MultipartFile file) {
+        User user = getUserOrThrow(userId);
+
+        if (file == null || file.isEmpty()) {
+            throw new AppException("Vui lòng chọn ảnh đại diện", HttpStatus.BAD_REQUEST);
+        }
+
+        byte[] processed;
+        try {
+            processed = AvatarImageProcessor.toSquareJpeg(file.getBytes());
+        } catch (IllegalArgumentException e) {
+            throw new AppException(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (IOException e) {
+            throw new AppException("Không đọc được tệp ảnh tải lên", HttpStatus.BAD_REQUEST);
+        }
+
+        FileStorageService.StoredFile stored = fileStorageService.uploadImage(processed, avatarPublicId(userId));
+        user.setAvatarUrl(stored.url());
+        return mapperUtil.mapToUserResponse(userRepository.save(user));
+    }
+
+    @Override
+    public UserResponse removeAvatar(Long userId) {
+        User user = getUserOrThrow(userId);
+
+        if (user.getAvatarUrl() != null) {
+            fileStorageService.deleteImage(avatarPublicId(userId));
+            user.setAvatarUrl(null);
+            user = userRepository.save(user);
+        }
+        return mapperUtil.mapToUserResponse(user);
+    }
+
+    private static String avatarPublicId(Long userId) {
+        return "avatars/user-" + userId;
     }
 
     @Override
@@ -67,7 +111,13 @@ public class UserServiceImpl implements UserService {
             throw new AppException("Mật khẩu hiện tại không đúng", HttpStatus.BAD_REQUEST);
         }
 
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new AppException("Mật khẩu mới phải khác mật khẩu hiện tại", HttpStatus.BAD_REQUEST);
+        }
+
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        // Da doi mat khau -> go co bat buoc doi mat khau mac dinh (tai khoan do Admin tao)
+        user.setMustChangePassword(false);
         userRepository.save(user);
     }
 

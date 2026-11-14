@@ -22,6 +22,7 @@ export function UIProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // type: 'success' (tick xanh) | 'error' (dấu X đỏ) | 'warning' (cảnh báo vàng) | 'info' (thông tin)
   const showToast = useCallback((msg, type = "info") => {
     if (!msg) return;
     const id = Date.now() + Math.random();
@@ -43,6 +44,27 @@ export function UIProvider({ children }) {
     setActiveModal(null);
     setModalPayload(null);
   }, []);
+
+  const showConfirmModal = useCallback(
+    ({
+      title = "Xác nhận thao tác",
+      message,
+      confirmText = "Xác nhận",
+      cancelText = "Hủy bỏ",
+      confirmVariant = "danger",
+      onConfirm,
+    }) => {
+      openModal("confirm_modal", {
+        title,
+        message,
+        confirmText,
+        cancelText,
+        confirmVariant,
+        onConfirm,
+      });
+    },
+    [openModal]
+  );
 
   const showErrorModal = useCallback(
     (err, customOptions = {}) => {
@@ -88,6 +110,7 @@ export function UIProvider({ children }) {
       modalPayload,
       openModal,
       closeModal,
+      showConfirmModal,
       showErrorModal,
       toastMessage,
       toasts,
@@ -106,13 +129,16 @@ export function UIProvider({ children }) {
       modalPayload,
       openModal,
       closeModal,
+      showConfirmModal,
       showErrorModal,
       toastMessage,
       toasts,
       showToast,
       removeToast,
       isCategoriesOpen,
+      setIsCategoriesOpen,
       isNotificationsOpen,
+      setIsNotificationsOpen,
       isUserMenuOpen,
       closeAllDropdowns,
     ],

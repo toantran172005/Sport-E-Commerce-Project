@@ -65,7 +65,7 @@ export default function VoucherDropdown({
     setAppliedCoupon(found);
     setInputCode("");
     setIsOpen(false);
-    showToast(`Đã áp dụng mã giảm giá ${found.code} thành công!`);
+    showToast(`Đã áp dụng mã giảm giá ${found.code} thành công!`, 'success');
   };
 
   const handleSelectCoupon = (coupon) => {
@@ -73,6 +73,7 @@ export default function VoucherDropdown({
     if (orderSubtotal < minReq) {
       showToast(
         `Cần mua thêm ${formatCurrency(minReq - orderSubtotal)} để áp dụng voucher này`,
+        'error',
       );
       return;
     }
@@ -82,7 +83,7 @@ export default function VoucherDropdown({
     } else {
       setAppliedCoupon(coupon);
       setIsOpen(false);
-      showToast(`Đã áp dụng mã ${coupon.code}`);
+      showToast(`Đã áp dụng mã ${coupon.code}`, 'success');
     }
   };
 
@@ -117,7 +118,7 @@ export default function VoucherDropdown({
         <div className="flex items-center gap-2.5 min-w-0">
           <Ticket className="w-4 h-4 text-accent shrink-0" />
           <span className="text-[13px] font-bold text-ink shrink-0">
-            Sân Nhà Voucher
+            Delta Voucher
           </span>
           {appliedCoupon ? (
             <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-accent-soft text-accent truncate border border-accent/30">
@@ -162,7 +163,7 @@ export default function VoucherDropdown({
             <div className="flex items-center gap-2">
               <Ticket className="w-4 h-4 text-accent" />
               <h3 className="text-[14px] font-extrabold text-ink">
-                Chọn Sân Nhà Voucher
+                Chọn Delta Voucher
               </h3>
             </div>
             <button

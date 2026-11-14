@@ -4,11 +4,14 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -20,6 +23,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+
+    private static final String FORCE_CHANGE_PASSWORD_BODY =
+            "{\"success\":false,\"message\":\"Bạn cần đổi mật khẩu mặc định trước khi sử dụng hệ thống\"}";
 
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
@@ -34,15 +40,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token) && jwtTokenProvider.isValid(token)) {
             Long userId = jwtTokenProvider.getUserId(token);
-            UserDetails userDetails = userDetailsService.loadUserById(userId);
+            UserDetails userDetails;
+            try {
+                userDetails = userDetailsService.loadUserById(userId);
+            } catch (UsernameNotFoundException e) {
+                // User đã bị xóa → coi như chưa đăng nhập (401), không để lỗi lọt ra thành 500.
+                filterChain.doFilter(request, response);
+                return;
+            }
+            // Token còn hạn nhưng tài khoản đã bị khóa/xóa/chưa kích hoạt → từ chối ngay, không chờ token hết hạn.
+            if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            // Tai khoan do Admin tao con mat khau mac dinh: chi cho xem ho so, doi mat khau, dang xuat.
+            if (userDetails instanceof UserPrincipal principal
+                    && Boolean.TRUE.equals(principal.getUser().getMustChangePassword())
+                    && !isAllowedWhileMustChangePassword(request)) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write(FORCE_CHANGE_PASSWORD_BODY);
+                return;
+            }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isAllowedWhileMustChangePassword(HttpServletRequest request) {
+        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
+            return true;
+        }
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+        if (path.startsWith("/api/auth/")) {
+            return true;
+        }
+        if ("/api/users/me".equals(path) && HttpMethod.GET.matches(method)) {
+            return true;
+        }
+        return "/api/users/me/change-password".equals(path) && HttpMethod.POST.matches(method);
     }
 
     private String resolveToken(HttpServletRequest request) {

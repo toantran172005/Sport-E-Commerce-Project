@@ -1,8 +1,10 @@
 import { ThemeProvider } from './ThemeContext.jsx';
 import { UIProvider } from './UIContext.jsx';
 import { AuthProvider } from './AuthContext.jsx';
+import { StaffProvider } from './StaffContext.jsx';
 import { CatalogProvider } from './CatalogContext.jsx';
 import { CustomerProvider } from './CustomerContext.jsx';
+import { UserScope } from './UserScope.jsx';
 import { WishlistProvider } from './WishlistContext.jsx';
 import { NotificationProvider } from './NotificationContext.jsx';
 import { AddressProvider } from './AddressContext.jsx';
@@ -13,8 +15,11 @@ const providers = [
   ThemeProvider,
   UIProvider,
   AuthProvider,
+  StaffProvider,
   CatalogProvider,
   CustomerProvider,
+  // Từ đây trở xuống: dữ liệu thuộc về từng người dùng, mount lại khi đổi tài khoản
+  UserScope,
   WishlistProvider,
   NotificationProvider,
   AddressProvider,

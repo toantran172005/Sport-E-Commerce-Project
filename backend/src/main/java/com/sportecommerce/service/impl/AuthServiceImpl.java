@@ -139,6 +139,14 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = storedToken.getUser();
+        if (user.getDeletedAt() != null
+                || user.getStatus() == UserStatus.LOCKED
+                || user.getStatus() == UserStatus.DELETED) {
+            // Tài khoản bị khóa/xóa: thu hồi luôn token để không dùng lại được.
+            storedToken.setRevokedAt(OffsetDateTime.now());
+            refreshTokenRepository.save(storedToken);
+            throw new AppException("Tài khoản đã bị khóa hoặc không còn tồn tại", HttpStatus.UNAUTHORIZED);
+        }
 
         // Xoay vong: thu hoi token cu, phat token moi (phat hien duoc neu token bi danh cap va tai su dung).
         storedToken.setRevokedAt(OffsetDateTime.now());
@@ -185,6 +193,7 @@ public class AuthServiceImpl implements AuthService {
         otpService.verify(request.getEmail(), OtpPurpose.RESET_PASSWORD, request.getOtp());
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
         userRepository.save(user);
 
         logoutAll(user.getId());

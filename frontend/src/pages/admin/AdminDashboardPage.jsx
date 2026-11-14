@@ -20,7 +20,7 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleExportReport = () => {
-    showToast('Đã xuất báo cáo tổng quan kinh doanh thành công!');
+    showToast('Đã xuất báo cáo tổng quan kinh doanh thành công!', 'success');
   };
 
   const avgRating = useMemo(() => {

@@ -10,8 +10,9 @@ import {
 import CancelOrderModal from './components/order/CancelOrderModal';
 import ReviewModal from './components/review/ReviewModal';
 import VerifyOtpModal from './components/auth/VerifyOtpModal';
+import LoginRequiredModal from './components/auth/LoginRequiredModal';
 import VnpayQrModal from './components/payment/VnpayQrModal';
-import { ErrorModal, ErrorBoundary, Toast } from './components/common';
+import { ErrorModal, ErrorBoundary, Toast, AdminStaffModal, ConfirmModal } from './components/common';
 import { AppProviders, useUI } from './context';
 import AppRoutes from './routes/AppRoutes';
 
@@ -21,12 +22,15 @@ function GlobalOverlays() {
   return (
     <>
       <VerifyOtpModal />
+      <LoginRequiredModal />
       <AddressModal />
       <AdminCouponModal />
       <AdminOrderModal />
       <AdminProductModal />
       <AdminCategoryModal />
       <AdminBrandModal />
+      <AdminStaffModal />
+      <ConfirmModal />
       <CancelOrderModal />
       <ReviewModal />
       <VnpayQrModal />

@@ -13,7 +13,8 @@ export function usePersistentState(key, initialValue) {
       if (saved !== null && saved !== undefined) {
         return JSON.parse(saved);
       }
-    } catch {
+    } catch (err) {
+      console.warn(`[usePersistentState] Error parsing storage key "${key}":`, err);
     }
     return typeof initialValue === 'function' ? initialValue() : initialValue;
   });
@@ -25,7 +26,8 @@ export function usePersistentState(key, initialValue) {
       } else {
         localStorage.setItem(key, JSON.stringify(state));
       }
-    } catch {
+    } catch (err) {
+      console.warn(`[usePersistentState] Error writing storage key "${key}":`, err);
     }
   }, [key, state]);
 

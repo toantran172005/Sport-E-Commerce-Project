@@ -23,13 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 
-# Secrets
-.agent
+config/
+
 .env
 .env.*
-_progress/.env
-_progress/tools/.cache/
+*.local
 
-_progress/backups/
-_progress/tools/.cache/
-_progress/reports/screenshots/
+.agent/
+prompts/
+graphify-out/
+.antigravity/
+

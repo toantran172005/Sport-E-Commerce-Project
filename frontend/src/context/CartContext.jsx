@@ -3,10 +3,8 @@ import { createContext, useContext, useState, useMemo, useCallback, useEffect } 
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { products as mockProducts } from '../mocks/products.js';
 import { useUI } from './UIContext.jsx';
-import { cartService } from '../services/cartService.js';
 
 const CartContext = createContext(null);
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 export const DEFAULT_CART_ITEMS = () => {
   const p1 = mockProducts[0] || {};
@@ -15,7 +13,6 @@ export const DEFAULT_CART_ITEMS = () => {
 
   return [
     {
-      id: 1,
       productId: p1.id || 1,
       variantId: 11,
       name: "Giày Chạy Bộ Nike Air Zoom Pegasus 40",
@@ -27,7 +24,6 @@ export const DEFAULT_CART_ITEMS = () => {
       stock: 50,
     },
     {
-      id: 2,
       productId: p1.id || 1,
       variantId: 10,
       name: "Vợt Cầu Lông Yonex Astrox (DB chỉ còn 3 cái - Tăng lên để test lỗi)",
@@ -50,54 +46,18 @@ export function CartProvider({ children }) {
     '1_10',
   ]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [loadingCart, setLoadingCart] = useState(false);
 
-  // Khi ở chế độ API thực (!USE_MOCK), tải giỏ hàng từ backend
+  // Tự động đồng bộ giỏ hàng sang 2 sản phẩm test DB nếu giỏ hàng hiện tại chứa dữ liệu mock cũ
   useEffect(() => {
-    if (!USE_MOCK) {
-      setLoadingCart(true);
-      cartService
-        .getCart()
-        .then((data) => {
-          if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
-            const formatted = data.items.map((it) => ({
-              id: it.id,
-              productId: it.productId,
-              variantId: it.variantId,
-              name: it.productName,
-              variant: it.variant || 'Tiêu chuẩn',
-              price: it.price,
-              originalPrice: it.originalPrice,
-              quantity: it.quantity,
-              imageUrl: it.imageUrl,
-              stock: it.stock ?? 50,
-            }));
-            setCart(formatted);
-            setSelectedCartItemKeys(formatted.map((it) => `${it.productId}_${it.variantId}`));
-          }
-        })
-        .catch(() => {
-          // Fallback to local cart if network error
-        })
-        .finally(() => {
-          setLoadingCart(false);
-        });
-    }
-  }, [setCart, setSelectedCartItemKeys]);
-
-  // Tự động đồng bộ giỏ hàng sang 2 sản phẩm test DB nếu giỏ hàng hiện tại chứa dữ liệu mock cũ (khi dùng mock)
-  useEffect(() => {
-    if (USE_MOCK) {
-      const hasTestItems = cart && cart.some((item) => item.variantId === 11 || item.variantId === 10);
-      if (!hasTestItems || !cart || cart.length === 0) {
-        const defaultItems = DEFAULT_CART_ITEMS();
-        setCart(defaultItems);
-        setSelectedCartItemKeys(['1_11', '1_10']);
-      } else if (cart.some((it) => it.variantId === 10 && it.stock < 20)) {
-        setCart((prev) =>
-          prev.map((it) => (it.variantId === 10 ? { ...it, stock: 20 } : it))
-        );
-      }
+    const hasTestItems = cart && cart.some((item) => item.variantId === 11 || item.variantId === 10);
+    if (!hasTestItems || !cart || cart.length === 0) {
+      const defaultItems = DEFAULT_CART_ITEMS();
+      setCart(defaultItems);
+      setSelectedCartItemKeys(['1_11', '1_10']);
+    } else if (cart.some((it) => it.variantId === 10 && it.stock < 20)) {
+      setCart((prev) =>
+        prev.map((it) => (it.variantId === 10 ? { ...it, stock: 20 } : it))
+      );
     }
   }, [cart, setCart, setSelectedCartItemKeys]);
 
@@ -121,33 +81,15 @@ export function CartProvider({ children }) {
   }, [setSelectedCartItemKeys]);
 
   const removeSelectedCartItems = useCallback(() => {
-    const toRemove = cart.filter((item) => selectedCartItemKeys.includes(getCartItemKey(item)));
     setCart((prev) => prev.filter((item) => !selectedCartItemKeys.includes(getCartItemKey(item))));
     setSelectedCartItemKeys([]);
-
-    if (!USE_MOCK) {
-      toRemove.forEach((item) => {
-        if (item.variantId) {
-          cartService.removeItem(item.variantId).catch(() => {});
-        }
-      });
-    }
-  }, [cart, getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys]);
+  }, [getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys, showToast]);
 
   const resetTestCart = useCallback(() => {
     const defaultItems = DEFAULT_CART_ITEMS();
     setCart(defaultItems);
     setSelectedCartItemKeys(['1_11', '1_10']);
     showToast('Đã khôi phục giỏ hàng về 2 sản phẩm Test DB');
-
-    if (!USE_MOCK) {
-      cartService
-        .syncCart([
-          { variantId: 11, quantity: 1, productId: 1 },
-          { variantId: 10, quantity: 1, productId: 1 },
-        ])
-        .catch(() => {});
-    }
   }, [setCart, setSelectedCartItemKeys, showToast]);
 
   const addToCart = useCallback(
@@ -172,7 +114,6 @@ export function CartProvider({ children }) {
         return [
           ...prev,
           {
-            id: Date.now(),
             productId: product.id,
             variantId,
             name: product.name,
@@ -191,39 +132,12 @@ export function CartProvider({ children }) {
         return prev.includes(itemKey) ? prev : [...prev, itemKey];
       });
       showToast(`Đã thêm "${product.name}" vào giỏ hàng`);
-
-      if (!USE_MOCK) {
-        cartService
-          .addToCart({
-            variantId,
-            quantity,
-            productId: product.id,
-          })
-          .then((res) => {
-            if (res && res.items) {
-              const matched = res.items.find((it) => it.variantId === variantId);
-              if (matched) {
-                setCart((prev) =>
-                  prev.map((i) =>
-                    i.productId === product.id && i.variantId === variantId
-                      ? { ...i, id: matched.id }
-                      : i
-                  )
-                );
-              }
-            }
-          })
-          .catch(() => {});
-      }
     },
     [setCart, setSelectedCartItemKeys, showToast]
   );
 
   const updateCartQuantity = useCallback(
     (productId, delta, variantId = null) => {
-      let targetVariantId = variantId;
-      let finalQty = 1;
-
       setCart((prev) =>
         prev.map((item) => {
           const isMatch =
@@ -231,16 +145,11 @@ export function CartProvider({ children }) {
               ? item.productId === productId && item.variantId === variantId
               : item.productId === productId;
           if (!isMatch) return item;
-          targetVariantId = item.variantId;
           const newQty = item.quantity + delta;
-          finalQty = Math.max(1, newQty);
-          return { ...item, quantity: finalQty };
+          const maxStock = item.stock ?? 99;
+          return { ...item, quantity: Math.max(1, newQty) };
         })
       );
-
-      if (!USE_MOCK && targetVariantId) {
-        cartService.updateQuantity(targetVariantId, finalQty).catch(() => {});
-      }
     },
     [setCart]
   );
@@ -253,21 +162,11 @@ export function CartProvider({ children }) {
           return item.productId !== productId;
         })
       );
-
-      if (!USE_MOCK && variantId) {
-        cartService.removeItem(variantId).catch(() => {});
-      }
     },
-    [setCart]
+    [setCart, showToast]
   );
 
-  const clearCart = useCallback(() => {
-    setCart([]);
-    setSelectedCartItemKeys([]);
-    if (!USE_MOCK) {
-      cartService.clearCart().catch(() => {});
-    }
-  }, [setCart, setSelectedCartItemKeys]);
+  const clearCart = useCallback(() => setCart([]), [setCart]);
 
   const cartItemCount = cart.length;
   const cartTotalUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
@@ -289,24 +188,16 @@ export function CartProvider({ children }) {
     [selectedCartItems]
   );
 
-  // Lấy danh sách cartItemIds thật từ DB (hoặc item.id) để truyền cho orderService
-  const selectedCartItemIds = useMemo(
-    () => selectedCartItems.map((item) => item.id).filter(Boolean),
-    [selectedCartItems]
-  );
-
   const value = useMemo(
     () => ({
       cart,
       setCart,
-      loadingCart,
       cartItemCount,
       cartTotalUnits,
       cartSubtotal,
       selectedCartItemKeys,
       setSelectedCartItemKeys,
       selectedCartItems,
-      selectedCartItemIds,
       selectedCartSubtotal,
       selectedCartTotalUnits,
       getCartItemKey,
@@ -325,14 +216,12 @@ export function CartProvider({ children }) {
     [
       cart,
       setCart,
-      loadingCart,
       cartItemCount,
       cartTotalUnits,
       cartSubtotal,
       selectedCartItemKeys,
       setSelectedCartItemKeys,
       selectedCartItems,
-      selectedCartItemIds,
       selectedCartSubtotal,
       selectedCartTotalUnits,
       getCartItemKey,
