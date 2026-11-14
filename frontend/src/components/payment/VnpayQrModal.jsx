@@ -2,12 +2,21 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QrCode, X, Check, Copy, Clock, ExternalLink } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
+import { paymentService } from '../../services/paymentService.js';
 import { formatCurrency } from '../../utils/formatters.js';
 
 export default function VnpayQrModal() {
-  const { activeModal, modalPayload, closeModal, showToast } = useStore();
+  const {
+    activeModal,
+    modalPayload,
+    closeModal,
+    showToast,
+    setAppliedCoupon,
+    refreshCoupons,
+  } = useStore();
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(900);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     if (activeModal !== 'vnpay_qr_modal') return;
@@ -28,10 +37,27 @@ export default function VnpayQrModal() {
   const seconds = countdown % 60;
   const timeFormatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-  const handleConfirmPaid = () => {
+  const handleConfirmPaid = async () => {
+    setIsConfirming(true);
+    try {
+      await paymentService.confirmPayment(orderId);
+      if (typeof setAppliedCoupon === 'function') setAppliedCoupon(null);
+      if (typeof refreshCoupons === 'function') refreshCoupons();
+      closeModal();
+      showToast('Xác nhận thanh toán VNPay QR thành công!', 'success');
+      navigate(`/payment-result?orderId=${orderId}&orderCode=${orderCode}&method=BANK_TRANSFER`);
+    } catch (err) {
+      showToast(err.message || 'Không thể xác nhận thanh toán!', 'error');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleOpenVnPayGateway = () => {
+    if (!modalPayload?.paymentUrl) return;
+    if (typeof setAppliedCoupon === 'function') setAppliedCoupon(null);
     closeModal();
-    showToast('Xác nhận thanh toán VNPay QR thành công!', 'success');
-    navigate(`/payment-result?orderId=${orderId}&orderCode=${orderCode}&method=BANK_TRANSFER`);
+    window.location.href = modalPayload.paymentUrl;
   };
 
   const handleCopy = (text, label) => {
@@ -53,7 +79,7 @@ export default function VnpayQrModal() {
                 Cổng Thanh Toán VNPay QR
               </h3>
               <p className="text-[11px] text-blue-100">
-                Quét mã qua ứng dụng Mobile Banking
+                Quét mã qua ứng dụng Mobile Banking hoặc mở VNPay Sandbox
               </p>
             </div>
           </div>
@@ -71,8 +97,12 @@ export default function VnpayQrModal() {
           {/* Order info strip */}
           <div className="p-3 rounded-md bg-page dark:bg-surface-2/60 border border-line flex items-center justify-between text-left text-[12.5px]">
             <div>
-              <p className="text-ink-muted">Đơn hàng: <strong className="text-ink font-mono">{orderCode}</strong></p>
-              <p className="text-ink-muted">Đơn vị nhận: <strong>DELTA SPORT</strong></p>
+              <p className="text-ink-muted">
+                Đơn hàng: <strong className="text-ink font-mono">{orderCode}</strong>
+              </p>
+              <p className="text-ink-muted">
+                Đơn vị nhận: <strong>DELTA SPORT</strong>
+              </p>
             </div>
             <div className="text-right">
               <p className="text-[11px] text-ink-subtle">Số tiền cần thanh toán</p>
@@ -122,7 +152,7 @@ export default function VnpayQrModal() {
           <div className="p-3 rounded-md border border-line text-left text-[12px] space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-ink-muted">Ngân hàng:</span>
-              <span className="font-bold">Vietcombank (VCB)</span>
+              <span className="font-bold">Vietcombank (VCB) / VNPay Sandbox</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-ink-muted">Số tài khoản:</span>
@@ -150,25 +180,27 @@ export default function VnpayQrModal() {
 
           {/* External Payment Gateway Link */}
           {modalPayload?.paymentUrl && (
-            <a
-              href={modalPayload.paymentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full h-10 rounded-md bg-accent hover:bg-accent-hover text-white text-[13px] font-bold shadow-xs flex items-center justify-center gap-2 transition"
+            <button
+              type="button"
+              onClick={handleOpenVnPayGateway}
+              className="w-full h-10 rounded-md bg-accent hover:bg-accent-hover text-white text-[13px] font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <ExternalLink className="w-4 h-4" />
               <span>Mở Cổng Thanh Toán VNPay Sandbox</span>
-            </a>
+            </button>
           )}
 
           {/* Action Button */}
           <button
             type="button"
+            disabled={isConfirming}
             onClick={handleConfirmPaid}
-            className="w-full h-10 rounded-md bg-success hover:bg-emerald-600 text-white text-[13px] font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+            className="w-full h-10 rounded-md bg-success hover:bg-emerald-600 text-white text-[13px] font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
           >
             <Check className="w-4 h-4 stroke-[3]" />
-            <span>Tôi Đã Hoàn Tất Chuyển Khoản</span>
+            <span>
+              {isConfirming ? 'Đang xác nhận...' : 'Tôi Đã Hoàn Tất Chuyển Khoản'}
+            </span>
           </button>
         </div>
       </div>

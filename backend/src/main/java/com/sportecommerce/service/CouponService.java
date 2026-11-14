@@ -1,5 +1,6 @@
 package com.sportecommerce.service;
 
+import com.sportecommerce.dto.request.CouponRequest;
 import com.sportecommerce.dto.response.CouponResponse;
 import com.sportecommerce.dto.response.DiscountResultDTO;
 import com.sportecommerce.entity.Coupon;
@@ -18,6 +19,15 @@ public interface CouponService {
 
     List<CouponResponse> getAvailableCoupons();
 
-    CouponResponse getCouponByCode(String code);
-}
+    List<CouponResponse> getAllCoupons(boolean activeOnly);
 
+    CouponResponse getCouponByCode(String code);
+
+    CouponResponse createCoupon(CouponRequest request);
+
+    CouponResponse updateCoupon(Long id, CouponRequest request);
+
+    CouponResponse toggleCouponStatus(Long id);
+
+    void deleteCoupon(Long id);
+}

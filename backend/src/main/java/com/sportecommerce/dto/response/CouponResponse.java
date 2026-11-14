@@ -22,4 +22,6 @@ public class CouponResponse {
     private Instant startDate;
     private Instant endDate;
     private Boolean isActive;
+    private Instant createdAt;
+    private String description;
 }
