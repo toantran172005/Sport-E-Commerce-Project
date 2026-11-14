@@ -1,11 +1,12 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useUI } from './UIContext.jsx';
+import { couponService } from '../services/couponService.js';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
 import { brandService } from '../services/brandService.js';
 import {
   reviews as mockReviews,
-  coupons as mockCoupons,
 } from '../mocks/index.js';
 
 const CatalogContext = createContext(null);
@@ -17,7 +18,22 @@ export function CatalogProvider({ children }) {
   const [brandsList, setBrandsList] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [reviews, setReviews] = useState(mockReviews);
-  const [coupons, setCoupons] = useState(mockCoupons);
+  const [coupons, setCoupons] = useState([]);
+
+  const refreshCoupons = useCallback(async () => {
+    try {
+      const list = await couponService.getCoupons();
+      if (Array.isArray(list)) {
+        setCoupons(list);
+      }
+    } catch (err) {
+      console.warn('Không thể tải danh sách mã giảm giá từ server:', err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshCoupons();
+  }, [refreshCoupons]);
 
 
   const refreshCatalogData = useCallback(async () => {
@@ -200,43 +216,42 @@ export function CatalogProvider({ children }) {
   }, [showToast]);
 
 
-  const addCoupon = useCallback((couponData) => {
-    const cleanCode = (couponData.code || '').trim().toUpperCase();
-    const newCoupon = {
-      ...couponData,
-      id: Date.now(),
-      code: cleanCode,
-      usedCount: 0,
-      isActive: couponData.isActive !== false,
-      createdAt: new Date().toISOString(),
-    };
-    setCoupons((prev) => [newCoupon, ...prev.filter((c) => c.code !== cleanCode)]);
-    showToast(`Đã tạo mã giảm giá "${cleanCode}" thành công`, 'success');
-    return newCoupon;
+  const addCoupon = useCallback(async (couponData) => {
+    const created = await couponService.createCoupon(couponData);
+    setCoupons((prev) => [created, ...prev.filter((c) => c.id !== created.id && c.code !== created.code)]);
+    showToast(`Đã tạo mã giảm giá "${created.code}" thành công`, 'success');
+    return created;
   }, [showToast]);
 
-  const updateCoupon = useCallback((idOrCode, couponData) => {
+  const updateCoupon = useCallback(async (idOrCode, couponData) => {
+    const target = coupons.find((c) => c.id === idOrCode || c.code === idOrCode);
+    const id = target?.id ?? idOrCode;
+    const updated = await couponService.updateCoupon(id, couponData);
     setCoupons((prev) =>
-      prev.map((c) =>
-        c.id === idOrCode || c.code === idOrCode
-          ? { ...c, ...couponData, updatedAt: new Date().toISOString() }
-          : c
-      )
+      prev.map((c) => (c.id === id || c.code === idOrCode ? updated : c))
     );
-    showToast('Đã cập nhật mã giảm giá', 'success');
-  }, [showToast]);
+    showToast(`Đã cập nhật mã giảm giá "${updated.code}"`, 'success');
+    return updated;
+  }, [coupons, showToast]);
 
-  const deleteCoupon = useCallback((idOrCode) => {
-    setCoupons((prev) => prev.filter((c) => c.id !== idOrCode && c.code !== idOrCode));
+  const deleteCoupon = useCallback(async (idOrCode) => {
+    const target = coupons.find((c) => c.id === idOrCode || c.code === idOrCode);
+    const id = target?.id ?? idOrCode;
+    await couponService.deleteCoupon(id);
+    setCoupons((prev) => prev.filter((c) => c.id !== id && c.code !== idOrCode));
     showToast('Đã xóa mã giảm giá thành công', 'success');
-  }, [showToast]);
+  }, [coupons, showToast]);
 
-  const toggleCouponActive = useCallback((codeOrId) => {
+  const toggleCouponActive = useCallback(async (codeOrId) => {
+    const target = coupons.find((c) => c.id === codeOrId || c.code === codeOrId);
+    const id = target?.id ?? codeOrId;
+    const updated = await couponService.toggleCouponStatus(id);
     setCoupons((prev) =>
-      prev.map((c) => (c.code === codeOrId || c.id === codeOrId ? { ...c, isActive: !c.isActive } : c))
+      prev.map((c) => (c.id === id || c.code === codeOrId ? updated : c))
     );
     showToast('Đã cập nhật trạng thái mã giảm giá', 'success');
-  }, [showToast]);
+    return updated;
+  }, [coupons, showToast]);
 
   const updateReviewStatus = useCallback((reviewId, newStatus) => {
     setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, status: newStatus } : r)));
@@ -300,6 +315,7 @@ export function CatalogProvider({ children }) {
       setReviews,
       coupons,
       setCoupons,
+      refreshCoupons,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -328,6 +344,7 @@ export function CatalogProvider({ children }) {
       refreshCatalogData,
       reviews,
       coupons,
+      refreshCoupons,
       addCategory,
       updateCategory,
       deleteCategory,

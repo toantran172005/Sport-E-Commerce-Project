@@ -37,6 +37,16 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success("Xử lý yêu cầu thanh toán thành công", response));
     }
 
+    @PostMapping("/confirm/{orderId}")
+    public ResponseEntity<ApiResponse<PaymentResponse>> confirmQrPayment(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable Long orderId) {
+
+        orderAccessChecker.assertCanAccess(orderService.getOrderById(orderId), userPrincipal);
+        PaymentResponse response = paymentService.confirmQrPayment(orderId);
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận thanh toán thành công", response));
+    }
+
     @PostMapping("/webhook")
     public ResponseEntity<ApiResponse<Object>> handleWebhookPost(
             @RequestParam(required = false) Map<String, String> queryParams,

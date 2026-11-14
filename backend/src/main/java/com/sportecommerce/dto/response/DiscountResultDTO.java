@@ -13,7 +13,10 @@ public class DiscountResultDTO {
     private String code;
     private DiscountType discountType;
     private Double discountValue;
+    private Double minOrderAmount;
+    private Double maxDiscountAmount;
     private Double discountAmount;
     private Double newTotal;
     private String message;
+    private CouponResponse coupon;
 }
