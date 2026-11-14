@@ -153,7 +153,6 @@ export default function AdminCategoryModal() {
                 {isEditing ? 'Chỉnh Sửa Danh Mục' : 'Thêm Danh Mục'}
               </h2>
               <p className="text-[12px] text-ink-muted">
-                Đường dẫn (slug) được sinh tự động từ tên.
               </p>
             </div>
           </div>
@@ -188,7 +187,6 @@ export default function AdminCategoryModal() {
               className="w-full h-10 px-3.5 rounded-lg bg-page border border-line text-[13px] text-ink focus:outline-none focus:border-accent"
             />
             <p className="mt-1 text-[11.5px] text-ink-subtle">
-              Slug dự kiến: <span className="font-bold text-ink">{slug || generateSlug(name) || '---'}</span>
             </p>
           </div>
 
@@ -210,7 +208,6 @@ export default function AdminCategoryModal() {
               ))}
             </select>
             <p className="mt-1 text-[11.5px] text-ink-subtle">
-              Chọn &quot;— Danh mục gốc —&quot; nếu đây là danh mục cấp cao nhất.
             </p>
           </div>
 
