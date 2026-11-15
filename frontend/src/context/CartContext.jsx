@@ -1,8 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { useScopedKey } from '../hooks/useScopedKey.js';
-import { useRequireLogin } from '../hooks/useRequireLogin.js';
 import { useUI } from './UIContext.jsx';
 
 const CartContext = createContext(null);
@@ -11,15 +10,24 @@ export const DEFAULT_CART_ITEMS = () => [];
 
 export function CartProvider({ children }) {
   const { showToast } = useUI();
-  const requireLogin = useRequireLogin();
 
-  // Giỏ hàng lưu theo từng tài khoản (khóa gắn user id); khách vãng lai không có giỏ.
-  const [cart, setCart] = usePersistentState(useScopedKey('sport_cart'), []);
-  const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState(
-    useScopedKey('sport_selected_cart'),
-    []
-  );
+  // Khóa localStorage phân tách theo từng người dùng (sport_cart:<userId> hoặc sport_cart:guest)
+  const cartKey = useScopedKey('sport_cart');
+  const selectedCartKey = useScopedKey('sport_selected_cart');
+
+  const [cart, setCart] = usePersistentState(cartKey, []);
+  const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState(selectedCartKey, []);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+
+  // Xóa sạch key dùng chung cũ (sport_cart / sport_selected_cart) nếu còn lưu mock data trong trình duyệt
+  useEffect(() => {
+    try {
+      localStorage.removeItem('sport_cart');
+      localStorage.removeItem('sport_selected_cart');
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const getCartItemKey = useCallback((item) => `${item.productId}_${item.variantId || 'def'}`, []);
 
@@ -41,16 +49,18 @@ export function CartProvider({ children }) {
   }, [setSelectedCartItemKeys]);
 
   const removeSelectedCartItems = useCallback(() => {
-    if (!selectedCartItemKeys || selectedCartItemKeys.length === 0) return;
     setCart((prev) => prev.filter((item) => !selectedCartItemKeys.includes(getCartItemKey(item))));
     setSelectedCartItemKeys([]);
-    showToast('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng', 'success');
-  }, [getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys, showToast]);
+  }, [getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys]);
+
+  const resetTestCart = useCallback(() => {
+    setCart([]);
+    setSelectedCartItemKeys([]);
+    showToast('Đã làm trống giỏ hàng');
+  }, [setCart, setSelectedCartItemKeys, showToast]);
 
   const addToCart = useCallback(
     (product, quantity = 1, customVariant = null) => {
-      // Khách vãng lai không có giỏ hàng: hỏi có muốn đăng nhập không (không đồng ý thì ở nguyên trang)
-      if (!requireLogin('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng')) return false;
       const selectedVariant = customVariant || product.variants?.[0] || {};
       const variantId = selectedVariant.id || 1;
       const price = selectedVariant.salePrice || selectedVariant.price || product.salePrice || product.basePrice;
@@ -88,10 +98,9 @@ export function CartProvider({ children }) {
         const itemKey = `${product.id}_${variantId}`;
         return prev.includes(itemKey) ? prev : [...prev, itemKey];
       });
-      showToast(`Đã thêm "${product.name}" vào giỏ hàng`, 'success');
-      return true;
+      showToast(`Đã thêm "${product.name}" vào giỏ hàng`);
     },
-    [requireLogin, setCart, setSelectedCartItemKeys, showToast]
+    [setCart, setSelectedCartItemKeys, showToast]
   );
 
   const updateCartQuantity = useCallback(
@@ -104,8 +113,7 @@ export function CartProvider({ children }) {
               : item.productId === productId;
           if (!isMatch) return item;
           const newQty = item.quantity + delta;
-          const maxStock = item.stock ?? 99;
-          return { ...item, quantity: Math.min(maxStock, Math.max(1, newQty)) };
+          return { ...item, quantity: Math.max(1, newQty) };
         })
       );
     },
@@ -116,28 +124,15 @@ export function CartProvider({ children }) {
     (productId, variantId = null) => {
       setCart((prev) =>
         prev.filter((item) => {
-          if (variantId !== null && variantId !== undefined) {
-            return !(item.productId === productId && item.variantId === variantId);
-          }
+          if (variantId) return !(item.productId === productId && item.variantId === variantId);
           return item.productId !== productId;
         })
       );
-      setSelectedCartItemKeys((prev) =>
-        prev.filter((key) => {
-          if (variantId !== null && variantId !== undefined) {
-            return key !== `${productId}_${variantId}`;
-          }
-          return !key.startsWith(`${productId}_`);
-        })
-      );
     },
-    [setCart, setSelectedCartItemKeys]
+    [setCart]
   );
 
-  const clearCart = useCallback(() => {
-    setCart([]);
-    setSelectedCartItemKeys([]);
-  }, [setCart, setSelectedCartItemKeys]);
+  const clearCart = useCallback(() => setCart([]), [setCart]);
 
   const cartItemCount = cart.length;
   const cartTotalUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
@@ -176,6 +171,7 @@ export function CartProvider({ children }) {
       selectAllCartItems,
       deselectAllCartItems,
       removeSelectedCartItems,
+      resetTestCart,
       addToCart,
       updateCartQuantity,
       removeFromCart,
@@ -199,6 +195,7 @@ export function CartProvider({ children }) {
       selectAllCartItems,
       deselectAllCartItems,
       removeSelectedCartItems,
+      resetTestCart,
       addToCart,
       updateCartQuantity,
       removeFromCart,

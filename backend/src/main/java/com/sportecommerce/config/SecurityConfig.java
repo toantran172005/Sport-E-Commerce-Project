@@ -121,6 +121,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/coupons/apply").permitAll()
                         .requestMatchers("/api/coupons/**").hasAnyRole("ADMIN", "STAFF")
 
+                        // Review: xem công khai cho cả khách vãng lai; duyệt/phản hồi/xóa chỉ ADMIN/STAFF.
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/**", "/api/products/*/reviews").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/reviews/*/status").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/*/reply").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.DELETE, "/api/reviews/*/reply").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasAnyRole("ADMIN", "STAFF")
+
                         .requestMatchers(HttpMethod.GET, "/api/shipments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, CATALOG_ENDPOINTS).permitAll()
                         .requestMatchers(CATALOG_ENDPOINTS).hasAnyRole("ADMIN", "STAFF")

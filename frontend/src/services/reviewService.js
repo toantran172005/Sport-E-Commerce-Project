@@ -49,7 +49,8 @@ export const reviewService = {
       return list;
     }
     const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get(`/products/${productId}/reviews`, { params });
+    const res = await axiosClient.get(`/reviews/product/${productId}`, { params });
+    return res.data || res;
   },
 
   async getAllReviews(params = {}) {
@@ -89,7 +90,8 @@ export const reviewService = {
       return list;
     }
     const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.get('/reviews', { params });
+    const res = await axiosClient.get('/reviews', { params });
+    return res.data || res;
   },
 
   async createReview(data) {
@@ -110,7 +112,8 @@ export const reviewService = {
       return newReview;
     }
     const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.post('/reviews', data);
+    const res = await axiosClient.post('/reviews', data);
+    return res.data || res;
   },
 
   async updateReviewStatus(id, status) {
@@ -122,7 +125,8 @@ export const reviewService = {
       return mockReviews[index];
     }
     const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.put(`/reviews/${id}/status`, { status });
+    const res = await axiosClient.put(`/reviews/${id}/status`, { status });
+    return res.data || res;
   },
 
   async replyToReview(reviewId, replyText) {
@@ -135,11 +139,39 @@ export const reviewService = {
         replyText,
         createdAt: new Date().toISOString(),
       };
+      mockReviews[index].replyText = replyText;
       mockReviews[index].status = 'APPROVED';
       return mockReviews[index];
     }
     const { default: axiosClient } = await import('../api/axiosClient.js');
-    return axiosClient.post(`/reviews/${reviewId}/reply`, { replyText });
+    const res = await axiosClient.post(`/reviews/${reviewId}/reply`, { replyText });
+    return res.data || res;
+  },
+
+  async removeReviewReply(reviewId) {
+    if (USE_MOCK) {
+      await fakeDelay();
+      const index = mockReviews.findIndex((r) => r.id === reviewId);
+      if (index === -1) throw new Error('Không tìm thấy đánh giá');
+      mockReviews[index].reply = null;
+      mockReviews[index].replyText = null;
+      mockReviews[index].status = 'PENDING';
+      return mockReviews[index];
+    }
+    const { default: axiosClient } = await import('../api/axiosClient.js');
+    const res = await axiosClient.delete(`/reviews/${reviewId}/reply`);
+    return res.data || res;
+  },
+
+  async deleteReview(reviewId) {
+    if (USE_MOCK) {
+      await fakeDelay();
+      mockReviews = mockReviews.filter((r) => r.id !== reviewId);
+      return true;
+    }
+    const { default: axiosClient } = await import('../api/axiosClient.js');
+    const res = await axiosClient.delete(`/reviews/${reviewId}`);
+    return res.data || res;
   },
 };
 

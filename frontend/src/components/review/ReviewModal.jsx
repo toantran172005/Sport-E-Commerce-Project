@@ -76,7 +76,6 @@ export default function ReviewModal() {
 
       await reviewService.createReview({
         productId,
-        userId: user?.id || 1,
         rating,
         comment: fullComment,
         images,

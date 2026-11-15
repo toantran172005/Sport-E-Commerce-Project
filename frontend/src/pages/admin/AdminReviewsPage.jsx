@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Star,
@@ -13,17 +13,52 @@ import {
   Pencil,
   RotateCcw,
   Check,
+  Trash2,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import AdminLayout from '../../layouts/AdminLayout';
+import { reviewService } from '../../services/reviewService.js';
 
 export default function AdminReviewsPage() {
-  const { reviews, updateReviewStatus, replyToReview, removeReviewReply, openModal } = useStore();
+  const {
+    reviews: contextReviews = [],
+    updateReviewStatus: contextUpdateReviewStatus,
+    replyToReview: contextReplyToReview,
+    removeReviewReply: contextRemoveReviewReply,
+    openModal,
+    showToast,
+  } = useStore();
+
+  const [reviews, setReviews] = useState(contextReviews);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [ratingFilter, setRatingFilter] = useState('ALL');
   const [replyDrafts, setReplyDrafts] = useState({});
   const [editingReplyId, setEditingReplyId] = useState(null);
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const res = await reviewService.getAllReviews();
+      const list = Array.isArray(res) ? res : res.content || res.items || [];
+      if (list.length > 0) {
+        setReviews(list);
+      } else if (contextReviews.length > 0) {
+        setReviews(contextReviews);
+      }
+    } catch {
+      if (contextReviews.length > 0) {
+        setReviews(contextReviews);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
 
   const counts = {
     ALL: reviews.length,
@@ -45,12 +80,47 @@ export default function AdminReviewsPage() {
     return true;
   });
 
-  const handleSendReply = (id) => {
+  const handleUpdateStatus = async (id, status) => {
+    try {
+      await reviewService.updateReviewStatus(id, status);
+      setReviews((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status } : r))
+      );
+      if (contextUpdateReviewStatus) {
+        contextUpdateReviewStatus(id, status);
+      }
+      showToast?.(`Đã cập nhật trạng thái thành ${status}`);
+    } catch (err) {
+      showToast?.(err.message || 'Lỗi khi cập nhật trạng thái');
+    }
+  };
+
+  const handleSendReply = async (id) => {
     const text = replyDrafts[id];
     if (!text || !text.trim()) return;
-    replyToReview(id, text.trim());
-    setReplyDrafts((prev) => ({ ...prev, [id]: '' }));
-    setEditingReplyId(null);
+    try {
+      await reviewService.replyToReview(id, text.trim());
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                replyText: text.trim(),
+                reply: { replyText: text.trim(), createdAt: new Date().toISOString() },
+                status: 'APPROVED',
+              }
+            : r
+        )
+      );
+      if (contextReplyToReview) {
+        contextReplyToReview(id, text.trim());
+      }
+      setReplyDrafts((prev) => ({ ...prev, [id]: '' }));
+      setEditingReplyId(null);
+      showToast?.('Đã gửi phản hồi và duyệt đánh giá');
+    } catch (err) {
+      showToast?.(err.message || 'Lỗi khi gửi phản hồi');
+    }
   };
 
   const handleStartEdit = (rev) => {
@@ -64,14 +134,36 @@ export default function AdminReviewsPage() {
     setEditingReplyId(null);
   };
 
-  const handleRetractReply = (id) => {
-    if (removeReviewReply) {
-      removeReviewReply(id);
-    } else {
-      updateReviewStatus(id, 'PENDING');
+  const handleRetractReply = async (id) => {
+    try {
+      await reviewService.removeReviewReply(id);
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? { ...r, replyText: null, reply: null, status: 'PENDING' }
+            : r
+        )
+      );
+      if (contextRemoveReviewReply) {
+        contextRemoveReviewReply(id);
+      }
+      setEditingReplyId(null);
+      setReplyDrafts((prev) => ({ ...prev, [id]: '' }));
+      showToast?.('Đã thu hồi phản hồi');
+    } catch {
+      handleUpdateStatus(id, 'PENDING');
     }
-    setEditingReplyId(null);
-    setReplyDrafts((prev) => ({ ...prev, [id]: '' }));
+  };
+
+  const handleDeleteReview = async (id) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn đánh giá này?')) return;
+    try {
+      await reviewService.deleteReview(id);
+      setReviews((prev) => prev.filter((r) => r.id !== id));
+      showToast?.('Đã xóa đánh giá thành công');
+    } catch (err) {
+      showToast?.(err.message || 'Lỗi khi xóa đánh giá');
+    }
   };
 
   return (
@@ -158,7 +250,11 @@ export default function AdminReviewsPage() {
 
         {/* Reviews List */}
         <div className="space-y-4">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="bg-surface rounded-lg border border-line p-10 text-center text-ink-muted shadow-xs">
+              Đang tải danh sách đánh giá...
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="bg-surface rounded-lg border border-line p-10 text-center text-ink-muted shadow-xs">
               Không có đánh giá nào khớp với bộ lọc hiện tại.
             </div>
@@ -241,7 +337,7 @@ export default function AdminReviewsPage() {
                       {rev.status !== 'APPROVED' && (
                         <button
                           type="button"
-                          onClick={() => updateReviewStatus(rev.id, 'APPROVED')}
+                          onClick={() => handleUpdateStatus(rev.id, 'APPROVED')}
                           className="px-3 py-1 rounded-md bg-accent hover:bg-accent-hover text-white text-[11.5px] font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
                           title="Phê duyệt đánh giá ngay lập tức"
                         >
@@ -252,7 +348,7 @@ export default function AdminReviewsPage() {
                       {rev.status !== 'REJECTED' && (
                         <button
                           type="button"
-                          onClick={() => updateReviewStatus(rev.id, 'REJECTED')}
+                          onClick={() => handleUpdateStatus(rev.id, 'REJECTED')}
                           className="px-3 py-1 rounded-md bg-surface-2 hover:bg-danger-soft text-ink-muted hover:text-danger border border-line text-[11.5px] font-bold transition cursor-pointer"
                           title="Ẩn đánh giá này khỏi cửa hàng"
                         >
@@ -262,13 +358,21 @@ export default function AdminReviewsPage() {
                       {rev.status === 'REJECTED' && (
                         <button
                           type="button"
-                          onClick={() => updateReviewStatus(rev.id, 'PENDING')}
+                          onClick={() => handleUpdateStatus(rev.id, 'PENDING')}
                           className="px-3 py-1 rounded-md bg-surface-2 hover:bg-surface-3 text-ink border border-line text-[11.5px] font-bold transition cursor-pointer"
                           title="Chuyển về trạng thái chờ duyệt"
                         >
                           Khôi phục
                         </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteReview(rev.id)}
+                        className="p-1 rounded-md bg-surface-2 hover:bg-danger-soft text-ink-muted hover:text-danger border border-line transition cursor-pointer"
+                        title="Xóa đánh giá này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
