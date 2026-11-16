@@ -32,7 +32,9 @@ public class ProductSpecification {
             }
 
             if(categoryId != null){
-                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+                Predicate directCategory = cb.equal(root.get("category").get("id"), categoryId);
+                Predicate parentCategory = cb.equal(root.get("category").get("parent").get("id"), categoryId);
+                predicates.add(cb.or(directCategory, parentCategory));
             }
 
             if(brandId != null){

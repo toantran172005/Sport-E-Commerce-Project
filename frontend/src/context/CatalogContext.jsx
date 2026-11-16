@@ -5,10 +5,6 @@ import { couponService } from '../services/couponService.js';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
 import { brandService } from '../services/brandService.js';
-import {
-  reviews as mockReviews,
-} from '../mocks/index.js';
-
 const CatalogContext = createContext(null);
 
 export function CatalogProvider({ children }) {
@@ -17,7 +13,7 @@ export function CatalogProvider({ children }) {
   const [categoriesList, setCategoriesList] = useState([]);
   const [brandsList, setBrandsList] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
-  const [reviews, setReviews] = useState(mockReviews);
+  const [reviews, setReviews] = useState([]);
   const [coupons, setCoupons] = useState([]);
 
   const refreshCoupons = useCallback(async () => {
@@ -42,7 +38,7 @@ export function CatalogProvider({ children }) {
       const [cats, brs, prodsRes] = await Promise.all([
         categoryService.getAllFlatCategories().catch(() => []),
         brandService.getBrands().catch(() => []),
-        productService.getProducts({ size: 24 }).catch(() => ({ items: [] })),
+        productService.getProducts({ size: 200 }).catch(() => ({ items: [] })),
       ]);
 
       setCategoriesList(cats || []);

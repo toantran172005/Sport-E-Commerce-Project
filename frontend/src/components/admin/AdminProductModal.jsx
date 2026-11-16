@@ -76,6 +76,7 @@ export default function AdminProductModal() {
   const [tags, setTags] = useState(['Cầu lông', 'Hàng mới']);
   const [tagInput, setTagInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -91,60 +92,64 @@ export default function AdminProductModal() {
         setDescription(editProduct.description || '');
         setStatus(editProduct.status || (editProduct.isActive ? 'ACTIVE' : 'DRAFT'));
 
+        const applyVariants = (varsList) => {
+          if (varsList && varsList.length > 0) {
+            setVariants(
+              varsList.map((v) => ({
+                id: createId(),
+                sku: v.sku || `SKU-${Date.now().toString().slice(-4)}`,
+                size: v.size || '',
+                color: v.color || '',
+                stock: v.stock ?? 0,
+                price: v.price ?? editProduct.basePrice,
+                salePrice: v.salePrice ?? '',
+                weight: v.weight ?? v.weightGram ?? 80,
+                imageUrl: v.imageUrl || '',
+              }))
+            );
+          }
+        };
+
+        const applyImages = (imgsList, fallbackUrl) => {
+          if (imgsList && imgsList.length > 0) {
+            setImages(
+              imgsList.map((img, idx) => ({
+                id: createId(),
+                file: null,
+                imageUrl: typeof img === 'string' ? img : img.imageUrl,
+                previewUrl: typeof img === 'string' ? img : img.imageUrl,
+                isPrimary: img.isPrimary ?? idx === 0,
+                name: `Ảnh ${idx + 1}`,
+                size: 420000,
+              }))
+            );
+          } else if (fallbackUrl) {
+            setImages([
+              {
+                id: createId(),
+                file: null,
+                imageUrl: fallbackUrl,
+                previewUrl: fallbackUrl,
+                isPrimary: true,
+                name: 'Ảnh chính',
+                size: 420000,
+              },
+            ]);
+          } else {
+            setImages([]);
+          }
+        };
+
         if (editProduct.variants && editProduct.variants.length > 0) {
-          setVariants(
-            editProduct.variants.map((v) => ({
-              id: createId(),
-              sku: v.sku || `SKU-${Date.now().toString().slice(-4)}`,
-              size: v.size || '',
-              color: v.color || '',
-              stock: v.stock ?? 20,
-              price: v.price ?? editProduct.basePrice,
-              salePrice: v.salePrice ?? '',
-              weight: v.weight ?? v.weightGram ?? 80,
-              imageUrl: v.imageUrl || '',
-            }))
-          );
+          applyVariants(editProduct.variants);
         } else {
-          setVariants([
-            {
-              id: createId(),
-              sku: editProduct.sku || 'SKU-001',
-              size: 'Tiêu chuẩn',
-              color: 'Tiêu chuẩn',
-              stock: editProduct.stock ?? 20,
-              price: editProduct.basePrice || 1000000,
-              salePrice: editProduct.salePrice || '',
-              weight: 80,
-              imageUrl: '',
-            },
-          ]);
+          setVariants([]);
         }
 
         if (editProduct.images && editProduct.images.length > 0) {
-          setImages(
-            editProduct.images.map((img, idx) => ({
-              id: createId(),
-              file: null,
-              imageUrl: typeof img === 'string' ? img : img.imageUrl,
-              previewUrl: typeof img === 'string' ? img : img.imageUrl,
-              isPrimary: img.isPrimary ?? idx === 0,
-              name: `Ảnh ${idx + 1}`,
-              size: 420000,
-            }))
-          );
-        } else if (editProduct.imageUrl) {
-          setImages([
-            {
-              id: createId(),
-              file: null,
-              imageUrl: editProduct.imageUrl,
-              previewUrl: editProduct.imageUrl,
-              isPrimary: true,
-              name: 'Ảnh chính',
-              size: 420000,
-            },
-          ]);
+          applyImages(editProduct.images, editProduct.imageUrl || editProduct.primaryImageUrl);
+        } else if (editProduct.imageUrl || editProduct.primaryImageUrl) {
+          applyImages([], editProduct.imageUrl || editProduct.primaryImageUrl);
         } else {
           setImages([]);
         }
@@ -168,6 +173,37 @@ export default function AdminProductModal() {
           setTags(editProduct.tags.map((t) => (typeof t === 'string' ? t : t.name)));
         } else {
           setTags(['Cầu lông', 'Hàng mới']);
+        }
+
+        // Tự động đồng bộ chi tiết thật từ DB nếu sản phẩm đã lưu nhưng thiếu variants hoặc description
+        if (editProduct.id && (!editProduct.variants || editProduct.variants.length === 0 || !editProduct.description)) {
+          setLoadingDetails(true);
+          productService.getProductById(editProduct.id)
+            .then((full) => {
+              if (full) {
+                if (full.description) setDescription(full.description);
+                if (full.variants && full.variants.length > 0) applyVariants(full.variants);
+                if (full.images && full.images.length > 0) applyImages(full.images, full.primaryImageUrl);
+                if (full.attributes && full.attributes.length > 0) {
+                  setAttributes(
+                    full.attributes.map((attr) => ({
+                      id: createId(),
+                      name: attr.attributeName || attr.name || '',
+                      value: attr.attributeValue || attr.value || '',
+                    }))
+                  );
+                }
+                if (full.tags && full.tags.length > 0) {
+                  setTags(full.tags.map((t) => (typeof t === 'string' ? t : t.name)));
+                }
+              }
+            })
+            .catch((err) => {
+              console.warn('Lỗi tải chi tiết biến thể từ DB:', err);
+            })
+            .finally(() => {
+              setLoadingDetails(false);
+            });
         }
       } else {
         setName('');
@@ -612,26 +648,45 @@ export default function AdminProductModal() {
             </div>
 
             <div className="space-y-3">
-              {variants.map((v, idx) => (
-                <div
-                  key={v.id}
-                  className="p-4 rounded-xl border border-line bg-surface-2/30 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-bold text-ink">
-                      Biến thể {idx + 1}
-                    </span>
-                    {variants.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveVariant(v.id)}
-                        className="text-[12px] font-bold text-danger hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Xóa</span>
-                      </button>
-                    )}
-                  </div>
+              {loadingDetails && (
+                <div className="p-3 rounded-lg bg-accent/5 border border-accent/20 flex items-center gap-2 text-accent text-[12px] font-bold animate-pulse">
+                  <div className="w-4 h-4 rounded-full border-2 border-accent border-t-transparent animate-spin shrink-0" />
+                  <span>Đang đồng bộ biến thể và tồn kho thật từ cơ sở dữ liệu...</span>
+                </div>
+              )}
+              {variants.map((v, idx) => {
+                const isVariantLowStock = Number(v.stock) < 10;
+                return (
+                  <div
+                    key={v.id}
+                    className={`p-4 rounded-xl border space-y-3 transition ${
+                      isVariantLowStock
+                        ? 'bg-red-50/80 dark:bg-red-950/25 border-red-200 dark:border-red-900/50'
+                        : 'border-line bg-surface-2/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold text-ink">
+                          Biến thể {idx + 1}
+                        </span>
+                        {isVariantLowStock && (
+                          <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-danger-soft text-danger border border-danger/20">
+                            Tồn kho thấp ({v.stock} chiếc)
+                          </span>
+                        )}
+                      </div>
+                      {variants.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveVariant(v.id)}
+                          className="text-[12px] font-bold text-danger hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Xóa</span>
+                        </button>
+                      )}
+                    </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <div>
@@ -684,7 +739,11 @@ export default function AdminProductModal() {
                         min={0}
                         value={v.stock}
                         onChange={(e) => handleVariantChange(v.id, 'stock', e.target.value)}
-                        className="w-full h-8.5 px-2.5 rounded-md bg-page border border-line text-[12px] text-ink focus:outline-none focus:border-accent"
+                        className={`w-full h-8.5 px-2.5 rounded-md border text-[12px] font-semibold focus:outline-none ${
+                          isVariantLowStock
+                            ? 'bg-red-50/60 dark:bg-red-950/40 border-danger text-danger focus:border-danger'
+                            : 'bg-page border-line text-ink focus:border-accent'
+                        }`}
                       />
                     </div>
 
@@ -749,7 +808,8 @@ export default function AdminProductModal() {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+            })}
             </div>
           </section>
 

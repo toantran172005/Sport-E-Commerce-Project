@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Star,
@@ -37,7 +37,7 @@ export default function AdminReviewsPage() {
   const [replyDrafts, setReplyDrafts] = useState({});
   const [editingReplyId, setEditingReplyId] = useState(null);
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     setLoading(true);
     try {
       const res = await reviewService.getAllReviews();
@@ -54,11 +54,11 @@ export default function AdminReviewsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [contextReviews]);
 
   useEffect(() => {
     fetchReviews();
-  }, []);
+  }, [fetchReviews]);
 
   const counts = {
     ALL: reviews.length,

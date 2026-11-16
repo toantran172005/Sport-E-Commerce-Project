@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Package,
   Layers,
@@ -12,7 +12,7 @@ import {
 import { useStore } from "../../context/StoreContext";
 import AdminLayout from "../../layouts/AdminLayout";
 import { formatCurrency } from "../../utils/formatters";
-import { productService } from "../../services/productService";
+import { Pagination } from "../../components/common";
 
 export default function AdminProductsPage() {
   const {
@@ -34,6 +34,14 @@ export default function AdminProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [brandFilter, setBrandFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(0);
+
+  // Tự động reset về trang đầu khi thay đổi tìm kiếm hoặc bộ lọc
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, categoryFilter, brandFilter, statusFilter]);
 
   const filteredProducts = products.filter((p) => {
     // LỌC THEO DANH MỤC
@@ -81,14 +89,26 @@ export default function AdminProductsPage() {
     return true;
   });
 
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
+  const safePage = Math.min(currentPage, totalPages - 1);
+  const paginatedProducts = filteredProducts.slice(
+    safePage * ITEMS_PER_PAGE,
+    (safePage + 1) * ITEMS_PER_PAGE,
+  );
+
   const totalVariants = products.reduce(
     (sum, p) => sum + (p.variants?.length || 1),
     0,
   );
   const lowStockCount = products.filter((p) => {
-    const stock =
-      p.stock ?? p.variants?.reduce((s, v) => s + (v.stock || 0), 0) ?? 0;
-    return stock <= 10;
+    const rawStock =
+      p.stock !== undefined
+        ? p.stock
+        : p.variants?.reduce((s, v) => s + (v.stock || 0), 0);
+    if (rawStock === undefined) {
+      return p.status === "OUT_OF_STOCK";
+    }
+    return rawStock < 10;
   }).length;
 
   const handleDeleteCategory = (cat) => {
@@ -186,16 +206,9 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleEditProduct = async (product) => {
-    try {
-      const fullProduct = await productService.getProductById(product.id);
-      openModal("admin_product_modal", { product: fullProduct });
-    } catch (err) {
-      showToast(
-        err.message || "Không thể lấy thông tin chi tiết sản phẩm",
-        "error",
-      );
-    }
+  const handleEditProduct = (product) => {
+    // Mở modal ngay lập tức với dữ liệu sản phẩm có sẵn để loại bỏ độ trễ (0ms delay)
+    openModal("admin_product_modal", { product });
   };
 
   return (
@@ -389,25 +402,33 @@ export default function AdminProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {filteredProducts.map((product) => {
+                  {paginatedProducts.map((product) => {
                     const primaryImg =
                       product.primaryImageUrl ||
                       product.images?.[0]?.imageUrl ||
                       product.images?.[0]?.url ||
                       product.image;
-                    const stock =
-                      product.stock ??
-                      product.variants?.reduce(
-                        (s, v) => s + (v.stock || 0),
-                        0,
-                      ) ??
-                      20;
-                    const isLowStock = stock <= 10;
+                    const rawStock =
+                      product.stock !== undefined
+                        ? product.stock
+                        : product.variants?.reduce(
+                            (s, v) => s + (v.stock || 0),
+                            0,
+                          );
+                    const isKnownStock = rawStock !== undefined;
+                    const stock = isKnownStock ? rawStock : null;
+                    const isLowStock = isKnownStock
+                      ? stock < 10
+                      : product.status === "OUT_OF_STOCK";
 
                     return (
                       <tr
                         key={product.id}
-                        className="hover:bg-surface-2/60 transition"
+                        className={`transition ${
+                          isLowStock
+                            ? "bg-red-50/80 dark:bg-red-950/25 hover:bg-red-100/70 dark:hover:bg-red-950/35 border-l-4 border-l-danger"
+                            : "hover:bg-surface-2/60"
+                        }`}
                       >
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
@@ -469,17 +490,44 @@ export default function AdminProductsPage() {
                         </td>
 
                         <td className="py-3 px-3">
-                          <span
-                            className={`font-bold ${
-                              isLowStock ? "text-danger" : "text-ink"
-                            }`}
-                          >
-                            {stock} chiếc
-                          </span>
-                          {isLowStock && (
-                            <span className="block text-[10px] text-danger font-bold">
-                              Sắp hết!
-                            </span>
+                          {isKnownStock ? (
+                            <>
+                              <span
+                                className={`font-bold ${
+                                  isLowStock ? "text-danger" : "text-ink"
+                                }`}
+                              >
+                                {stock} chiếc
+                              </span>
+                              {isLowStock && (
+                                <span className="block text-[10px] text-danger font-bold">
+                                  {stock === 0 ? "Hết hàng!" : "Sắp hết!"}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span
+                                className={`font-bold ${
+                                  product.status === "OUT_OF_STOCK"
+                                    ? "text-danger"
+                                    : "text-ink"
+                                }`}
+                              >
+                                {product.status === "OUT_OF_STOCK"
+                                  ? "0 chiếc"
+                                  : "Còn hàng"}
+                              </span>
+                              {product.status === "OUT_OF_STOCK" ? (
+                                <span className="block text-[10px] text-danger font-bold">
+                                  Hết hàng!
+                                </span>
+                              ) : (
+                                <span className="block text-[10px] text-ink-subtle">
+                                  Nhiều biến thể
+                                </span>
+                              )}
+                            </>
                           )}
                         </td>
 
@@ -519,6 +567,31 @@ export default function AdminProductsPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Thanh phân trang & Tóm tắt số lượng */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-line text-[12.5px] text-ink-muted">
+              <div>
+                Hiển thị{" "}
+                <strong>
+                  {filteredProducts.length === 0
+                    ? 0
+                    : safePage * ITEMS_PER_PAGE + 1}
+                </strong>{" "}
+                -{" "}
+                <strong>
+                  {Math.min(
+                    (safePage + 1) * ITEMS_PER_PAGE,
+                    filteredProducts.length,
+                  )}
+                </strong>{" "}
+                trên tổng số <strong>{filteredProducts.length}</strong> sản phẩm
+              </div>
+              <Pagination
+                page={safePage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </div>
           </div>
         )}

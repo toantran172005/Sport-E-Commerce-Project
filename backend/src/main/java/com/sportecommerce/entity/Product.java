@@ -3,6 +3,7 @@ package com.sportecommerce.entity;
 import com.sportecommerce.enums.ProductStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -80,6 +81,7 @@ public class Product {
     @JoinColumn(name = "brand_id")
     private Brand brand;
 
+    @BatchSize(size = 50)
     @OneToMany(mappedBy = "product")
     @Builder.Default
     private List<ProductImage> productImages = new ArrayList<>();
@@ -88,6 +90,7 @@ public class Product {
     @Builder.Default
     private List<ProductAttributes> productAttributes = new ArrayList<>();
 
+    @BatchSize(size = 50)
     @OneToMany(mappedBy = "product")
     @Builder.Default
     private List<ProductVariant> productVariants = new ArrayList<>();
