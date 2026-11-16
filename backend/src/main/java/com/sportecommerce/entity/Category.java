@@ -2,6 +2,7 @@ package com.sportecommerce.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -53,6 +54,7 @@ public class Category {
     @JoinColumn(name = "parent_id")
     private Category parent;
 
+    @BatchSize(size = 50)
     @OneToMany(mappedBy = "parent")
     @Builder.Default
     private List<Category> children = new ArrayList<>();

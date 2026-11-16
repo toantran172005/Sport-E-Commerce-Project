@@ -1,6 +1,6 @@
 import axiosClient from '../api/axiosClient.js';
 
-function normalizeProductItem(p) {
+export function normalizeProductItem(p) {
   if (!p) return p;
 
   const primaryImage =
@@ -9,23 +9,30 @@ function normalizeProductItem(p) {
     p.images?.[0]?.imageUrl ||
     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600';
 
+  const categoryId = p.categoryId || p.category?.id || null;
+  const brandId = p.brandId || p.brand?.id || null;
+
   return {
     ...p,
+    categoryId,
+    brandId,
     primaryImageUrl: primaryImage,
     images:
       Array.isArray(p.images) && p.images.length > 0
         ? p.images.map((img) => (typeof img === 'string' ? { imageUrl: img } : img))
         : [{ imageUrl: primaryImage, isPrimary: true }],
     brand: p.brand || {
-      id: p.brandId,
+      id: brandId,
       name: p.brandName || 'Delta Sport',
     },
     category: p.category || {
-      id: p.categoryId,
+      id: categoryId,
       name: p.categoryName || 'Đồ thể thao',
     },
   };
 }
+
+export const normalizeProduct = normalizeProductItem;
 
 export const productService = {
   async getProducts(params = {}) {

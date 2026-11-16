@@ -15,6 +15,7 @@ import com.sportecommerce.dto.response.UserResponse;
 import com.sportecommerce.entity.Category;
 import com.sportecommerce.entity.Product;
 import com.sportecommerce.entity.ProductImage;
+import com.sportecommerce.entity.ProductVariant;
 import com.sportecommerce.entity.User;
 import java.util.Collections;
 import java.util.List;
@@ -102,11 +103,20 @@ public class MapperUtil {
                         ? null
                         : p.getProductImages().get(0).getImageUrl());
 
+<<<<<<< HEAD
+        int totalStock = p.getProductVariants() != null
+                ? p.getProductVariants().stream()
+                        .filter(v -> v.getStock() != null)
+                        .mapToInt(ProductVariant::getStock)
+                        .sum()
+                : 0;
+=======
         int totalStock = p.getProductVariants().stream()
                 .mapToInt(v -> v.getStock() != null ? v.getStock() : 0)
                 .sum();
         int variantCount = p.getProductVariants().size();
         String primarySku = p.getProductVariants().isEmpty() ? null : p.getProductVariants().get(0).getSku();
+>>>>>>> origin
 
         return ProductSummaryResponse.builder()
                 .id(p.getId())
@@ -115,12 +125,18 @@ public class MapperUtil {
                 .status(p.getStatus())
                 .basePrice(p.getBasePrice())
                 .salePrice(p.getSalePrice())
+                .categoryId(p.getCategory() != null ? p.getCategory().getId() : null)
                 .categoryName(p.getCategory() != null ? p.getCategory().getName() : null)
+                .brandId(p.getBrand() != null ? p.getBrand().getId() : null)
                 .brandName(p.getBrand() != null ? p.getBrand().getName() : null)
                 .primaryImageUrl(primaryImageUrl)
                 .avgRating(p.getAvgRating())
                 .reviewCount(p.getReviewCount())
                 .soldCount(p.getSoldCount() != null ? p.getSoldCount() : 0)
+<<<<<<< HEAD
+                .stock(totalStock)
+=======
+>>>>>>> origin
                 .isFeatured(p.getIsFeatured())
                 .totalStock(totalStock)
                 .variantCount(variantCount)

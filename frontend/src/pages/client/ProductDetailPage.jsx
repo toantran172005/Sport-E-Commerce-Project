@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Heart,
   ShoppingCart,
@@ -22,15 +22,26 @@ import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
-  const { showToast, addToCart, isInWishlist, toggleWishlist, openModal } = useStore();
+  const location = useLocation();
+  const { showToast, addToCart, isInWishlist, toggleWishlist, openModal, products } = useStore();
   const requireLogin = useRequireLogin();
   const navigate = useNavigate();
 
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Tối ưu hiệu năng: Dùng dữ liệu sản phẩm có sẵn trong bộ nhớ (state hoặc context) để render tức thì 0ms
+  const initialProduct = useMemo(() => {
+    if (location.state?.product && String(location.state.product.id) === String(id)) {
+      return location.state.product;
+    }
+    return products?.find((p) => String(p.id) === String(id)) || null;
+  }, [location.state, products, id]);
+
+  const [product, setProduct] = useState(initialProduct);
+  const [loading, setLoading] = useState(!initialProduct);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    initialProduct?.variants?.[0]?.id || null
+  );
   const [quantity, setQuantity] = useState(1);
 
   const [reviews, setReviews] = useState([]);
@@ -39,31 +50,69 @@ export default function ProductDetailPage() {
 
   const [relatedProducts, setRelatedProducts] = useState([]);
 
+  // Đảm bảo luôn cuộn lên đỉnh trang mỗi khi mở hoặc đổi sản phẩm (0ms)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [id]);
+
+  // Nếu id thay đổi, cập nhật ngay sản phẩm từ bộ nhớ nếu có
+  useEffect(() => {
+    if (initialProduct) {
+      setProduct(initialProduct);
+      setLoading(false);
+      if (initialProduct.variants && initialProduct.variants.length > 0) {
+        setSelectedVariantId(initialProduct.variants[0].id);
+      }
+    } else {
+      setLoading(true);
+    }
+  }, [id, initialProduct]);
+
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
 
+    // 1. Tải ngay các sản phẩm liên quan từ bộ nhớ (0ms không cần gọi thêm API mạng)
+    const targetCatId = initialProduct?.categoryId || initialProduct?.category?.id;
+    if (products && products.length > 0 && targetCatId) {
+      const rel = products
+        .filter(
+          (p) =>
+            (p.categoryId === targetCatId || p.category?.id === targetCatId) &&
+            String(p.id) !== String(id)
+        )
+        .slice(0, 4);
+      if (rel.length > 0) {
+        setRelatedProducts(rel);
+      }
+    }
+
+    // 2. Fetch chi tiết đầy đủ (variants, mô tả, ảnh chi tiết) từ cache / backend
     productService
       .getProductById(id)
       .then((data) => {
         if (!isMounted) return;
-        setProduct(data);
+        setProduct((prev) => ({ ...(prev || {}), ...data }));
         if (data.variants && data.variants.length > 0) {
-          setSelectedVariantId(data.variants[0].id);
+          setSelectedVariantId((prevId) =>
+            data.variants.some((v) => v.id === prevId) ? prevId : data.variants[0].id
+          );
         }
         setLoading(false);
 
-        productService
-          .getProducts({
-            categoryId: data.categoryId,
-            limit: 4,
-          })
-          .then((res) => {
-            if (isMounted) {
-              setRelatedProducts(res.items.filter((p) => p.id !== data.id));
-            }
-          })
-          .catch(() => {});
+        // Nếu lúc đầu chưa nạp được sản phẩm liên quan:
+        if (data.categoryId && (!products || products.length === 0)) {
+          productService
+            .getProducts({
+              categoryId: data.categoryId,
+              limit: 4,
+            })
+            .then((res) => {
+              if (isMounted) {
+                setRelatedProducts(res.items.filter((p) => p.id !== data.id));
+              }
+            })
+            .catch(() => {});
+        }
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -71,6 +120,7 @@ export default function ProductDetailPage() {
         showToast(err.response?.data?.message || 'Không thể tải chi tiết sản phẩm', 'error');
       });
 
+    // 3. Tải đánh giá song song độc lập
     setReviewsLoading(true);
     reviewService
       .getReviewsByProduct(id)
@@ -87,7 +137,7 @@ export default function ProductDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [id, showToast]);
+  }, [id, initialProduct, products, showToast]);
 
   const currentVariant = useMemo(() => {
     if (!product || !product.variants) return null;
@@ -120,8 +170,70 @@ export default function ProductDetailPage() {
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
 
+  const syncSourceRef = useRef(null); // 'image' | 'variant' | null
+
   const images = useMemo(() => {
     const list = [];
+<<<<<<< HEAD
+    const seen = new Set();
+    const addImg = (url) => {
+      if (!url) return;
+      const clean = String(url).trim();
+      const key = clean.split('?')[0];
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(clean);
+      }
+    };
+
+    // Primary & gallery images
+    if (product?.primaryImageUrl) {
+      addImg(product.primaryImageUrl);
+    }
+    if (product?.images && product.images.length > 0) {
+      product.images.forEach((img) => addImg(img.imageUrl || img));
+    }
+    // Variant images
+    if (product?.variants && product.variants.length > 0) {
+      product.variants.forEach((v) => addImg(v.imageUrl));
+    }
+
+    if (list.length === 0) {
+      return ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'];
+    }
+    return list;
+  }, [product]);
+
+  // Sync Variant -> Gallery Image
+  useEffect(() => {
+    if (!product || !selectedVariantId) return;
+    if (syncSourceRef.current === 'image') {
+      syncSourceRef.current = null;
+      return;
+    }
+    const variant = product.variants?.find((v) => v.id === selectedVariantId);
+    if (!variant?.imageUrl) return;
+
+    const vKey = variant.imageUrl.split('?')[0];
+    const matchIdx = images.findIndex((img) => (typeof img === 'string' ? img : img.imageUrl || '').split('?')[0] === vKey);
+    if (matchIdx !== -1 && matchIdx !== activeImageIdx) {
+      syncSourceRef.current = 'variant';
+      setActiveImageIdx(matchIdx);
+    }
+  }, [selectedVariantId, product, images, activeImageIdx]);
+
+  // Sync Gallery Image -> Variant
+  const handleImageSelect = (idx, url) => {
+    setActiveImageIdx(idx);
+    if (!url || !product?.variants) return;
+    const cleanUrl = url.split('?')[0];
+    const matched = product.variants.find((v) => v.imageUrl && v.imageUrl.split('?')[0] === cleanUrl);
+    if (matched && matched.id !== selectedVariantId) {
+      syncSourceRef.current = 'image';
+      setSelectedVariantId(matched.id);
+    }
+  };
+=======
     if (product?.images && product.images.length > 0) {
       list.push(...product.images.map((img) => (typeof img === 'string' ? img : img.imageUrl)));
     } else if (product?.primaryImageUrl) {
@@ -152,6 +264,7 @@ export default function ProductDetailPage() {
       setActiveImageIdx(matchedIdx);
     }
   }, [selectedVariantId, currentVariant, images]);
+>>>>>>> origin
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -240,6 +353,7 @@ export default function ProductDetailPage() {
             images={images}
             activeImageIdx={activeImageIdx}
             setActiveImageIdx={setActiveImageIdx}
+            onImageSelect={handleImageSelect}
             productName={product.name}
             originalPrice={originalPrice}
             savedAmount={savedAmount}
