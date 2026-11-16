@@ -141,7 +141,23 @@ export default function AdminProductModal() {
         };
 
         if (editProduct.variants && editProduct.variants.length > 0) {
+<<<<<<< HEAD
           applyVariants(editProduct.variants);
+=======
+          setVariants(
+            editProduct.variants.map((v) => ({
+              id: v.id || createId(),
+              sku: v.sku || `SKU-${Date.now().toString().slice(-4)}`,
+              size: v.size || '',
+              color: v.color || '',
+              stock: v.stock ?? 20,
+              price: v.price ?? editProduct.basePrice,
+              salePrice: v.salePrice ?? '',
+              weight: v.weight ?? v.weightGram ?? 80,
+              imageUrl: v.imageUrl || '',
+            }))
+          );
+>>>>>>> origin
         } else {
           setVariants([]);
         }
@@ -427,7 +443,7 @@ export default function AdminProductModal() {
       isActive: status === 'ACTIVE',
       stock: variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0),
       variants: variants.map((v) => ({
-        id: v.id,
+        id: typeof v.id === 'number' ? v.id : null,
         sku: v.sku.trim(),
         size: v.size.trim() || 'Tiêu chuẩn',
         color: v.color.trim() || 'Tiêu chuẩn',
@@ -502,10 +518,10 @@ export default function AdminProductModal() {
                     onChange={(e) => setStatus(e.target.value)}
                     className="h-8 px-2.5 rounded-md bg-page border border-line text-[12px] font-bold text-ink focus:outline-none focus:border-accent"
                   >
-                    <option value="DRAFT">Bản nháp (DRAFT)</option>
-                    <option value="ACTIVE">Đang bán (ACTIVE)</option>
-                    <option value="OUT_OF_STOCK">Hết hàng (OUT_OF_STOCK)</option>
-                    <option value="DISCONTINUED">Ngừng kinh doanh (DISCONTINUED)</option>
+                    <option value="DRAFT">Mới tạo</option>
+                    <option value="ACTIVE">Đang bán</option>
+                    <option value="OUT_OF_STOCK">Hết hàng</option>
+                    <option value="DISCONTINUED">Ngừng kinh doanh</option>
                   </select>
                 </div>
               )}

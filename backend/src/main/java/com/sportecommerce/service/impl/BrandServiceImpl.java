@@ -68,7 +68,7 @@ public class BrandServiceImpl implements BrandService {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy brand_id: " + id));
 
-        if (productRepository.existsByBrand_Id(id)) {
+        if (productRepository.existsByBrand_IdAndDeletedAtIsNull(id)) {
             throw new AppException("Không thể xóa: vẫn còn sản phẩm thuộc thương hiệu này");
         }
 

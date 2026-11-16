@@ -12,6 +12,8 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class ProductVariantRequest {
+    private Long id;
+
     @NotBlank(message = "SKU không được để trống")
     private String sku;
 

@@ -25,4 +25,10 @@ public class ProductSummaryResponse {
     private Integer soldCount;
     private Integer stock;
     private Boolean isFeatured;
+    private Integer totalStock;
+    private Integer variantCount;
+    private String primarySku;
+    private Integer soldCount;
+    private Long categoryId;
+    private Long brandId;
 }

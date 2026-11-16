@@ -66,6 +66,25 @@ export default function CategoriesDropdown() {
 
   if (!isCategoriesOpen) return null;
 
+<<<<<<< HEAD
+=======
+  const currentCategory =
+    categoriesList.find((c) => c.id === activeCatId) || categoriesList[0] || {};
+
+  const categoryProducts = products
+    .filter((p) => {
+      const pCatId = p.categoryId || p.category?.id;
+      const pCatName = p.categoryName || p.category?.name || p.category;
+      
+      const matchId = pCatId && String(pCatId) === String(currentCategory.id);
+      const matchName = pCatName && currentCategory.name && 
+        pCatName.trim().toLowerCase() === currentCategory.name.trim().toLowerCase();
+        
+      return matchId || matchName;
+    })
+    .slice(0, 4);
+
+>>>>>>> origin
   const handleSelectCategory = (catId = null) => {
     setIsCategoriesOpen(false);
     if (catId) {
@@ -177,6 +196,7 @@ export default function CategoriesDropdown() {
               ) : categoryProducts.length > 0 ? (
                 categoryProducts.map((p) => {
                   const img =
+                    p.primaryImageUrl ||
                     p.images?.[0]?.imageUrl ||
                     p.image ||
                     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';

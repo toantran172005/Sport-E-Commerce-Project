@@ -28,4 +28,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Override
     @EntityGraph(attributePaths = {"category", "brand"})
     Page<Product> findAll(Specification<Product> spec, Pageable pageable);
+
+    boolean existsByCategory_IdAndDeletedAtIsNull(Long categoryId);
+
+    boolean existsByBrand_IdAndDeletedAtIsNull(Long brandId);
 }
