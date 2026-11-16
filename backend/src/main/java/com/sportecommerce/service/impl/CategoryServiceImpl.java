@@ -79,7 +79,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
 
         // Không cho xóa nếu vẫn còn Product gắn với Category này
-        if (productRepository.existsByCategory_Id(id)) {
+        if (productRepository.existsByCategory_IdAndDeletedAtIsNull(id)) {
             throw new AppException(
                     "Không thể xóa: vẫn còn sản phẩm thuộc category này");
         }

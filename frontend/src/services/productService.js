@@ -169,6 +169,7 @@ export const productService = {
       salePrice: data.salePrice ? Number(data.salePrice) : null,
       variants: (data.variants || []).map((v) => ({
         ...v,
+        id: v.id || null,
         price: Number(v.price) || Number(data.basePrice),
         salePrice: v.salePrice ? Number(v.salePrice) : null,
         stock: Number(v.stock) || 0,

@@ -102,6 +102,12 @@ public class MapperUtil {
                         ? null
                         : p.getProductImages().get(0).getImageUrl());
 
+        int totalStock = p.getProductVariants().stream()
+                .mapToInt(v -> v.getStock() != null ? v.getStock() : 0)
+                .sum();
+        int variantCount = p.getProductVariants().size();
+        String primarySku = p.getProductVariants().isEmpty() ? null : p.getProductVariants().get(0).getSku();
+
         return ProductSummaryResponse.builder()
                 .id(p.getId())
                 .name(p.getName())
@@ -114,7 +120,13 @@ public class MapperUtil {
                 .primaryImageUrl(primaryImageUrl)
                 .avgRating(p.getAvgRating())
                 .reviewCount(p.getReviewCount())
+                .soldCount(p.getSoldCount() != null ? p.getSoldCount() : 0)
                 .isFeatured(p.getIsFeatured())
+                .totalStock(totalStock)
+                .variantCount(variantCount)
+                .primarySku(primarySku)
+                .categoryId(p.getCategory() != null ? p.getCategory().getId() : null)
+                .brandId(p.getBrand() != null ? p.getBrand().getId() : null)
                 .build();
     }
 

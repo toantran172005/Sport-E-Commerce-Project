@@ -42,7 +42,7 @@ export function CatalogProvider({ children }) {
       const [cats, brs, prodsRes] = await Promise.all([
         categoryService.getAllFlatCategories().catch(() => []),
         brandService.getBrands().catch(() => []),
-        productService.getProducts({ size: 24 }).catch(() => ({ items: [] })),
+        productService.getProducts({ size: 1000 }).catch(() => ({ items: [] })),
       ]);
 
       setCategoriesList(cats || []);

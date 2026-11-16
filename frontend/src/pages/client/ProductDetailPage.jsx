@@ -121,11 +121,37 @@ export default function ProductDetailPage() {
   const isWishlisted = product ? isInWishlist(product.id) : false;
 
   const images = useMemo(() => {
-    if (!product?.images || product.images.length === 0) {
-      return ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'];
+    const list = [];
+    if (product?.images && product.images.length > 0) {
+      list.push(...product.images.map((img) => (typeof img === 'string' ? img : img.imageUrl)));
+    } else if (product?.primaryImageUrl) {
+      list.push(product.primaryImageUrl);
     }
-    return product.images.map((img) => img.imageUrl || img);
+
+    if (product?.variants && product.variants.length > 0) {
+      product.variants.forEach((v) => {
+        if (v.imageUrl && !list.includes(v.imageUrl)) {
+          list.push(v.imageUrl);
+        }
+      });
+    }
+
+    return list.length > 0
+      ? list
+      : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'];
   }, [product]);
+
+  useEffect(() => {
+    if (!currentVariant?.imageUrl || images.length === 0) return;
+    const targetUrl = currentVariant.imageUrl.trim();
+    const matchedIdx = images.findIndex((img) => {
+      const url = typeof img === 'string' ? img : img?.imageUrl;
+      return url && url.trim() === targetUrl;
+    });
+    if (matchedIdx !== -1) {
+      setActiveImageIdx(matchedIdx);
+    }
+  }, [selectedVariantId, currentVariant, images]);
 
   const handleAddToCart = () => {
     if (!product) return;
