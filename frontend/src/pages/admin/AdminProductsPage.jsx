@@ -140,11 +140,11 @@ export default function AdminProductsPage() {
           <button
             type="button"
             onClick={() => setProductStatus(product.id, "ACTIVE")}
-            title="Nhấp để chuyển sang Đang bán (ACTIVE)"
+            title="Nhấp để chuyển sang Đang bán"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 cursor-pointer transition hover:bg-amber-500/20"
           >
             <FileQuestion className="w-3.5 h-3.5" />
-            <span>Bản nháp</span>
+            <span>Mới tạo</span>
           </button>
         );
       case "ACTIVE":
@@ -152,7 +152,7 @@ export default function AdminProductsPage() {
           <button
             type="button"
             onClick={() => setProductStatus(product.id, "DRAFT")}
-            title="Nhấp để chuyển về Bản nháp (DRAFT)"
+            title="Nhấp để chuyển về Mới tạo"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 cursor-pointer transition hover:bg-emerald-500/20"
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -359,10 +359,10 @@ export default function AdminProductsPage() {
                   className="h-9 px-3 rounded-md bg-page border border-line text-[12.5px] font-bold text-ink focus:outline-none focus:border-accent"
                 >
                   <option value="ALL">Trạng thái: Tất cả</option>
-                  <option value="DRAFT">Bản nháp (DRAFT)</option>
-                  <option value="ACTIVE">Đang hoạt động (ACTIVE)</option>
-                  <option value="OUT_OF_STOCK">Hết hàng (OUT_OF_STOCK)</option>
-                  <option value="DISCONTINUED">Ngừng bán (DISCONTINUED)</option>
+                  <option value="DRAFT">Mới tạo</option>
+                  <option value="ACTIVE">Đang hoạt động</option>
+                  <option value="OUT_OF_STOCK">Hết hàng</option>
+                  <option value="DISCONTINUED">Ngừng bán</option>
                 </select>
               </div>
 
@@ -395,13 +395,7 @@ export default function AdminProductsPage() {
                       product.images?.[0]?.imageUrl ||
                       product.images?.[0]?.url ||
                       product.image;
-                    const stock =
-                      product.stock ??
-                      product.variants?.reduce(
-                        (s, v) => s + (v.stock || 0),
-                        0,
-                      ) ??
-                      20;
+                    const stock = product.totalStock ?? product.stock ?? product.variants?.reduce((s, v) => s + (v.stock || 0), 0) ?? 0;
                     const isLowStock = stock <= 10;
 
                     return (
@@ -448,21 +442,25 @@ export default function AdminProductsPage() {
 
                         <td className="py-3 px-3">
                           <p className="font-bold text-ink">
-                            {product.sku ||
-                              product.variants?.[0]?.sku ||
-                              "SKU-STD"}
+                            {product.primarySku || product.sku || product.variants?.[0]?.sku || "SKU-STD"}
                           </p>
                           <p className="text-[11.5px] text-ink-muted">
-                            {product.variants?.length || 1} biến thể
+                            {product.variantCount ?? product.variants?.length ?? 1} biến thể
                           </p>
                         </td>
 
                         <td className="py-3 px-3">
-                          <p className="font-bold text-accent">
-                            {formatCurrency(product.price || product.basePrice)}
-                          </p>
-                          {product.salePrice && (
-                            <p className="text-[11px] text-ink-subtle line-through">
+                          {product.salePrice && product.salePrice < product.basePrice ? (
+                            <>
+                              <p className="font-bold text-accent">
+                                {formatCurrency(product.salePrice)}
+                              </p>
+                              <p className="text-[11px] text-ink-subtle line-through">
+                                {formatCurrency(product.basePrice)}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="font-bold text-accent">
                               {formatCurrency(product.basePrice)}
                             </p>
                           )}
@@ -672,12 +670,19 @@ export default function AdminProductsPage() {
                             src={b.logoUrl}
                             alt={b.name}
                             className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.nextElementSibling;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
                           />
-                        ) : (
-                          <span className="text-lg font-bold text-accent">
-                            {(b.name?.[0] || "B").toUpperCase()}
-                          </span>
-                        )}
+                        ) : null}
+                        <span 
+                          style={{ display: b.logoUrl ? 'none' : 'flex' }}
+                          className="w-full h-full items-center justify-center text-lg font-bold text-accent"
+                        >
+                          {(b.name?.[0] || "B").toUpperCase()}
+                        </span>
                       </div>
 
                       <div>

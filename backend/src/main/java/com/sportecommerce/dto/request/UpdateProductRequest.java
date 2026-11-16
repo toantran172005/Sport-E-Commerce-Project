@@ -34,5 +34,8 @@ public class UpdateProductRequest {
     private ProductStatus status;
 
     @Valid
+    private List<ProductVariantRequest> variants;
+
+    @Valid
     private List<ProductImageRequest> images;
 }

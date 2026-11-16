@@ -112,7 +112,6 @@ public class ProductServiceImpl implements ProductService {
                             "Không tìm thấy brand_id: " + request.getBrandId()));
         }
 
-        // Chỉ generate lại slug nếu tên đổi tránh đổi URL sản phẩm không cần thiết
         if (!product.getName().equals(request.getName())) {
             product.setSlug(generateUniqueProductSlug(SlugUtil.toSlug(request.getName())));
         }
@@ -138,6 +137,46 @@ public class ProductServiceImpl implements ProductService {
                         .sortOrder(iReq.getSortOrder() != null ? iReq.getSortOrder() : 0)
                         .build();
                 product.addImage(image);
+            }
+        }
+
+        if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+            java.util.Set<Long> incomingIds = request.getVariants().stream()
+                    .map(ProductVariantRequest::getId)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toSet());
+            product.getProductVariants().removeIf(v -> v.getId() != null && !incomingIds.contains(v.getId()));
+            for (ProductVariantRequest vReq : request.getVariants()) {
+                if (vReq.getId() != null) {
+                    product.getProductVariants().stream()
+                            .filter(v -> v.getId().equals(vReq.getId()))
+                            .findFirst()
+                            .ifPresent(existingVariant -> {
+                                existingVariant.setSku(vReq.getSku());
+                                existingVariant.setSize(vReq.getSize());
+                                existingVariant.setColor(vReq.getColor());
+                                existingVariant.setPrice(vReq.getPrice());
+                                existingVariant.setSalePrice(vReq.getSalePrice());
+                                existingVariant.setStock(vReq.getStock());
+                                existingVariant.setWeightGram(vReq.getWeightGram());
+                                existingVariant.setImageUrl(vReq.getImageUrl());
+                            });
+                } else {
+                    if (variantRepository.existsBySku(vReq.getSku())) {
+                        throw new AppException("SKU đã tồn tại trong hệ thống: " + vReq.getSku());
+                    }
+                    ProductVariant newVariant = ProductVariant.builder()
+                            .sku(vReq.getSku())
+                            .size(vReq.getSize())
+                            .color(vReq.getColor())
+                            .price(vReq.getPrice())
+                            .salePrice(vReq.getSalePrice())
+                            .stock(vReq.getStock())
+                            .weightGram(vReq.getWeightGram())
+                            .imageUrl(vReq.getImageUrl())
+                            .build();
+                    product.addVariant(newVariant);
+                }
             }
         }
 
