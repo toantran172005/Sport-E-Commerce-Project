@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
 import { ProductCard } from '../../components/product';
+import { ProductCardSkeleton } from '../../components/common/Skeleton.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 
 export default function HomePage() {
-  const { products, categoriesList } = useStore();
+  const { products, categoriesList, catalogLoading } = useStore();
   const navigate = useNavigate();
 
   const mainCategories = useMemo(() => {
@@ -84,23 +85,37 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
-            {mainCategories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => navigate(`/products?categoryId=${cat.id}`)}
-                className="p-3 rounded-md bg-surface border border-line hover:border-accent hover:shadow-xs transition text-center flex flex-col items-center justify-center gap-1.5 group cursor-pointer"
-              >
-                <span className="text-[13px] font-bold text-ink group-hover:text-accent line-clamp-1">
-                  {cat.name}
-                </span>
-                <span className="text-[10.5px] text-ink-subtle line-clamp-1">
-                  Chính hãng
-                </span>
-              </button>
-            ))}
-          </div>
+          {catalogLoading && categoriesList.length === 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="p-3 rounded-md bg-surface border border-line animate-pulse flex flex-col items-center justify-center gap-1.5"
+                >
+                  <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded w-16" />
+                  <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-10 mt-1" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+              {mainCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => navigate(`/products?categoryId=${cat.id}`)}
+                  className="p-3 rounded-md bg-surface border border-line hover:border-accent hover:shadow-xs transition text-center flex flex-col items-center justify-center gap-1.5 group cursor-pointer"
+                >
+                  <span className="text-[13px] font-bold text-ink group-hover:text-accent line-clamp-1">
+                    {cat.name}
+                  </span>
+                  <span className="text-[10.5px] text-ink-subtle line-clamp-1">
+                    Chính hãng
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* 3. Khối Sản Phẩm Mới (New Arrivals) - Không có tabs lọc danh mục */}
@@ -121,11 +136,19 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {newArrivals.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {catalogLoading && products.length === 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {newArrivals.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* 4. Khối Sản Phẩm Bán Chạy (Best Sellers) */}
@@ -146,11 +169,19 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {bestSellers.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {catalogLoading && products.length === 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {bestSellers.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
   );

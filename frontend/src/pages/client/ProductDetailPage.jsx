@@ -29,6 +29,9 @@ export default function ProductDetailPage() {
 
   // Tối ưu hiệu năng: Dùng dữ liệu sản phẩm có sẵn trong bộ nhớ (state hoặc context) để render tức thì 0ms
   const initialProduct = useMemo(() => {
+    const cachedDetail = productService.peekProductById?.(id);
+    if (cachedDetail) return cachedDetail;
+
     if (location.state?.product && String(location.state.product.id) === String(id)) {
       return location.state.product;
     }
@@ -174,7 +177,6 @@ export default function ProductDetailPage() {
 
   const images = useMemo(() => {
     const list = [];
-<<<<<<< HEAD
     const seen = new Set();
     const addImg = (url) => {
       if (!url) return;
@@ -233,38 +235,6 @@ export default function ProductDetailPage() {
       setSelectedVariantId(matched.id);
     }
   };
-=======
-    if (product?.images && product.images.length > 0) {
-      list.push(...product.images.map((img) => (typeof img === 'string' ? img : img.imageUrl)));
-    } else if (product?.primaryImageUrl) {
-      list.push(product.primaryImageUrl);
-    }
-
-    if (product?.variants && product.variants.length > 0) {
-      product.variants.forEach((v) => {
-        if (v.imageUrl && !list.includes(v.imageUrl)) {
-          list.push(v.imageUrl);
-        }
-      });
-    }
-
-    return list.length > 0
-      ? list
-      : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'];
-  }, [product]);
-
-  useEffect(() => {
-    if (!currentVariant?.imageUrl || images.length === 0) return;
-    const targetUrl = currentVariant.imageUrl.trim();
-    const matchedIdx = images.findIndex((img) => {
-      const url = typeof img === 'string' ? img : img?.imageUrl;
-      return url && url.trim() === targetUrl;
-    });
-    if (matchedIdx !== -1) {
-      setActiveImageIdx(matchedIdx);
-    }
-  }, [selectedVariantId, currentVariant, images]);
->>>>>>> origin
 
   const handleAddToCart = () => {
     if (!product) return;

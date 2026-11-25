@@ -34,7 +34,20 @@ export function normalizeProductItem(p) {
 
 export const normalizeProduct = normalizeProductItem;
 
+const productDetailCache = new Map();
+const inFlightRequests = new Map();
+const DETAIL_CACHE_TTL = 5 * 60 * 1000; // 5 phút
+
 export const productService = {
+  peekProductById(id) {
+    if (!id) return null;
+    const numId = Number(id);
+    const cached = productDetailCache.get(numId);
+    if (cached && Date.now() - cached.timestamp < DETAIL_CACHE_TTL) {
+      return cached.data;
+    }
+    return null;
+  },
   async getProducts(params = {}) {
     const {
       page = 0,
@@ -125,8 +138,36 @@ export const productService = {
 
   async getProductById(id) {
     if (!id) throw new Error('ID sản phẩm không hợp lệ');
-    const data = await axiosClient.get(`/products/${id}`);
-    return normalizeProductItem(data);
+    const numId = Number(id);
+
+    // 1. Trả về ngay nếu có trong cache (0ms)
+    const cached = productDetailCache.get(numId);
+    if (cached && Date.now() - cached.timestamp < DETAIL_CACHE_TTL) {
+      return cached.data;
+    }
+
+    // 2. Chống gọi trùng lặp (in-flight deduplication)
+    if (inFlightRequests.has(numId)) {
+      return inFlightRequests.get(numId);
+    }
+
+    // 3. Gọi API và lưu cache
+    const requestPromise = axiosClient
+      .get(`/products/${numId}`)
+      .then((data) => {
+        const normalized = normalizeProductItem(data);
+        productDetailCache.set(numId, {
+          data: normalized,
+          timestamp: Date.now(),
+        });
+        return normalized;
+      })
+      .finally(() => {
+        inFlightRequests.delete(numId);
+      });
+
+    inFlightRequests.set(numId, requestPromise);
+    return requestPromise;
   },
 
   async getFeaturedProducts(limit = 4) {

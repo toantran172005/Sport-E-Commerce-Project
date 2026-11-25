@@ -2,11 +2,14 @@ import axiosClient from '../api/axiosClient.js';
 import { createTtlCache } from '../utils/ttlCache.js';
 import {
   SHIPPING_CACHE_TTL_MS,
-  FALLBACK_SHIPPING_TTL_MS,
   PROVIDERS_CACHE_TTL_MS,
   buildShippingCacheKey,
 } from '../utils/shippingCacheKey.js';
-import { normalizeShippingQuote } from '../utils/shippingQuote.js';
+import {
+  normalizeShippingQuote,
+  calculateShippingFee,
+  calculateEstimatedDeliveryDate,
+} from '../utils/shippingQuote.js';
 
 export const DEFAULT_SHIPPING_PROVIDERS = [
   { id: 1, name: 'Giao Hàng Nhanh (GHN Express)', code: 'GHN', baseFee: 30000, isActive: true },
@@ -76,7 +79,7 @@ export const shippingService = {
   },
 
   /**
-   * Báo giá vận chuyển (có caching theo provider, destination, subtotal bucket)
+   * Báo giá vận chuyển (tính toán đồng bộ trực tiếp trên client 0ms, không tốn network roundtrip)
    */
   async calculateShipping({ providerCode = 'GHN', addressId, city, subTotal = 0 }) {
     const code = (providerCode || 'GHN').toUpperCase();
@@ -92,27 +95,20 @@ export const shippingService = {
       return cached;
     }
 
-    try {
-      const params = {
-        providerCode: code,
-        subTotal,
-      };
-      if (addressId) params.addressId = addressId;
-      if (city) params.city = city;
+    // Tính toán trực tiếp tức thì 0ms trên client theo quy tắc của hệ thống
+    const fee = calculateShippingFee(code, city, subTotal);
+    const est = calculateEstimatedDeliveryDate(code, city);
+    const result = {
+      providerCode: code,
+      shippingFee: fee,
+      estimatedDeliveryDate: est.estimatedDeliveryDate,
+      formattedDeliveryDate: est.formattedDeliveryDate,
+      source: 'client',
+    };
 
-      const response = await axiosClient.get('/shipments/calculate', { params });
-      const rawData = response?.data || response;
-      const normalized = normalizeShippingQuote(rawData, { subTotal, source: 'api' });
-
-      shippingCache.set(cacheKey, normalized, { ttlMs: SHIPPING_CACHE_TTL_MS });
-      return normalized;
-    } catch (err) {
-      console.warn('Lỗi gọi API tính phí vận chuyển, dùng fallback 30s:', err.message);
-      const fallback = normalizeShippingQuote(null, { subTotal, source: 'fallback' });
-      // Lưu fallback trong 30 giây để sớm thử lại API thực tế
-      shippingCache.set(cacheKey, fallback, { ttlMs: FALLBACK_SHIPPING_TTL_MS });
-      return fallback;
-    }
+    const normalized = normalizeShippingQuote(result, { subTotal, source: 'client' });
+    shippingCache.set(cacheKey, normalized, { ttlMs: SHIPPING_CACHE_TTL_MS });
+    return normalized;
   },
 };
 

@@ -2,6 +2,7 @@ package com.sportecommerce.dto.response;
 
 import com.sportecommerce.enums.ProductStatus;
 import lombok.*;
+import java.util.List;
 
 @Getter
 @Setter
@@ -28,7 +29,5 @@ public class ProductSummaryResponse {
     private Integer totalStock;
     private Integer variantCount;
     private String primarySku;
-    private Integer soldCount;
-    private Long categoryId;
-    private Long brandId;
+    private List<ProductVariantResponse> variants;
 }
