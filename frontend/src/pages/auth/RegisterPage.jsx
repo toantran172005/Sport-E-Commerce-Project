@@ -41,9 +41,9 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       // Backend tạo tài khoản ở trạng thái PENDING và gửi OTP qua email (chưa cấp token)
-      await authService.register({ fullName, email, phoneNumber, password });
+      await authService.register({ fullName: fullName.trim(), email: email.trim(), phoneNumber: phoneNumber.trim(), password });
       showToast('Đã gửi mã OTP tới email của bạn. Nhập mã để kích hoạt tài khoản.', 'success');
-      navigate(`/verify-otp?email=${encodeURIComponent(email)}&purpose=REGISTER`);
+      navigate(`/verify-otp?email=${encodeURIComponent(email.trim())}&purpose=REGISTER`);
     } catch (err) {
       setError(err.message || 'Lỗi khi đăng ký tài khoản');
     } finally {

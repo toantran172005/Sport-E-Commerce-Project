@@ -49,7 +49,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) {
             throw new AppException("Email này đã được đăng ký", HttpStatus.CONFLICT);
         }
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()
@@ -91,16 +91,23 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void resendOtp(ResendOtpRequest request) {
+        // Endpoint công khai: chỉ cho gửi lại OTP đăng ký / quên mật khẩu và chỉ tới tài khoản có thật,
+        // tránh bị lợi dụng để gửi mail OTP rác tới email bất kỳ. OTP đổi email/SĐT chỉ gửi qua API đã đăng nhập.
         if (request.getPurpose() == OtpPurpose.REGISTER) {
-            findActivatableUserByEmail(request.getEmail());
+            User user = findActivatableUserByEmail(request.getEmail());
+            otpService.generateAndSend(user.getEmail(), OtpPurpose.REGISTER);
+        } else if (request.getPurpose() == OtpPurpose.RESET_PASSWORD) {
+            userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.getEmail())
+                    .ifPresent(user -> otpService.generateAndSend(user.getEmail(), OtpPurpose.RESET_PASSWORD));
+        } else {
+            throw new AppException("Mục đích OTP không hợp lệ cho thao tác này", HttpStatus.BAD_REQUEST);
         }
-        otpService.generateAndSend(request.getEmail(), request.getPurpose());
     }
 
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+        User user = userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.getEmail())
                 .orElseThrow(() -> new AppException("Email hoặc mật khẩu không đúng", HttpStatus.UNAUTHORIZED));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -180,14 +187,23 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
         // Khong tiet lo email co ton tai hay khong de tranh do tham do (user enumeration).
-        userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
-                .ifPresent(user -> otpService.generateAndSend(user.getEmail(), OtpPurpose.RESET_PASSWORD));
+        // Bỏ qua lỗi "đợi cooldown" (429) để phản hồi luôn giống nhau dù email có tồn tại hay không.
+        userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.getEmail())
+                .ifPresent(user -> {
+                    try {
+                        otpService.generateAndSend(user.getEmail(), OtpPurpose.RESET_PASSWORD);
+                    } catch (AppException ex) {
+                        if (ex.getStatus() != HttpStatus.TOO_MANY_REQUESTS) {
+                            throw ex;
+                        }
+                    }
+                });
     }
 
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+        User user = userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.getEmail())
                 .orElseThrow(() -> new AppException("Yêu cầu không hợp lệ", HttpStatus.BAD_REQUEST));
 
         otpService.verify(request.getEmail(), OtpPurpose.RESET_PASSWORD, request.getOtp());
@@ -200,7 +216,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private User findActivatableUserByEmail(String email) {
-        User user = userRepository.findByEmailAndDeletedAtIsNull(email)
+        User user = userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(email)
                 .orElseThrow(() -> new AppException("Không tìm thấy tài khoản với email này", HttpStatus.NOT_FOUND));
 
         if (user.getStatus() != UserStatus.PENDING) {

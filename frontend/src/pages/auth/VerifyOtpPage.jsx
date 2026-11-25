@@ -14,6 +14,8 @@ export default function VerifyOtpPage() {
   const email = searchParams.get('email') || '';
   const purpose = searchParams.get('purpose') || 'REGISTER';
   const isReset = purpose === 'RESET_PASSWORD';
+  // Từ trang đăng nhập (tài khoản chưa xác thực) sang đây → gửi lại một mã mới cho chắc (mã cũ có thể đã hết hạn)
+  const autoResend = searchParams.get('resend') === '1';
 
   const { setUser, showToast } = useStore();
   const navigate = useNavigate();
@@ -34,10 +36,16 @@ export default function VerifyOtpPage() {
       return undefined;
     }
     inputRefs.current[0]?.focus();
+    if (autoResend) {
+      // Nếu vừa gửi mã trong vòng 60s, backend trả 429: bỏ qua vì mã trước đó vẫn còn hiệu lực
+      authService.resendOtp({ email, purpose }).catch(() => {});
+    }
     const timer = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
+    // chỉ chạy một lần khi mở trang
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, isReset, navigate]);
 
   const handleChange = (index, value) => {

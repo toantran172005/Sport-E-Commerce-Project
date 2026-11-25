@@ -21,6 +21,11 @@ public class ResendOtpRequest {
     @Email(message = "Email không hợp lệ")
     private String email;
 
+    /** Chuẩn hoá email (bỏ khoảng trắng, viết thường) để đăng ký / đăng nhập / OTP luôn khớp nhau. */
+    public void setEmail(String email) {
+        this.email = email == null ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
     @NotNull(message = "Mục đích xác thực OTP không được để trống")
     private OtpPurpose purpose;
 }

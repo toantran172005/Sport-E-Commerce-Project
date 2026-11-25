@@ -61,9 +61,9 @@ public class EmailServiceImpl implements EmailService {
         return """
                 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
                     <h2 style="color:#1a73e8;">Delta Sport</h2>
-                    <p>Ma xac thuc (OTP) cua ban la:</p>
+                    <p>Mã xác thực (OTP) của bạn là:</p>
                     <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #111;">%s</p>
-                    <p>Mã này sẽ hết hạn sau 15 phút. Vui lòng không chia sẻ mã này với bất kì ai!.</p>
+                    <p>Mã này sẽ hết hạn sau 15 phút. Vui lòng không chia sẻ mã này với bất kỳ ai!</p>
                     <p style="color:#888; font-size: 12px;">Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
                 </div>
                 """.formatted(otp);

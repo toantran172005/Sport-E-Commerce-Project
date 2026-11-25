@@ -128,7 +128,7 @@ public class UserServiceImpl implements UserService {
         if (request.getNewEmail().equalsIgnoreCase(user.getEmail())) {
             throw new AppException("Email mới phải khác email hiện tại", HttpStatus.BAD_REQUEST);
         }
-        if (userRepository.existsByEmail(request.getNewEmail())) {
+        if (userRepository.existsByEmailIgnoreCase(request.getNewEmail())) {
             throw new AppException("Email này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
@@ -143,7 +143,7 @@ public class UserServiceImpl implements UserService {
 
         otpService.verify(request.getNewEmail(), OtpPurpose.CHANGE_EMAIL, request.getOtp());
 
-        if (userRepository.existsByEmail(request.getNewEmail())) {
+        if (userRepository.existsByEmailIgnoreCase(request.getNewEmail())) {
             throw new AppException("Email này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
