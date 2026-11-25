@@ -20,6 +20,11 @@ public class ConfirmChangeEmailRequest {
     @Email(message = "Email mới không hợp lệ")
     private String newEmail;
 
+    /** Chuẩn hoá email (bỏ khoảng trắng, viết thường) để đăng ký / đăng nhập / OTP luôn khớp nhau. */
+    public void setNewEmail(String newEmail) {
+        this.newEmail = newEmail == null ? null : newEmail.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
     @NotBlank
     @Pattern(regexp = "^[0-9]{4,8}$", message = "Mã OTP không hợp lệ")
     private String otp;

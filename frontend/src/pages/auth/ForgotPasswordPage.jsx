@@ -23,7 +23,7 @@ export default function ForgotPasswordPage() {
     try {
       await authService.forgotPassword(email.trim());
       showToast('Mã OTP xác thực đã được gửi về email của bạn!', 'success');
-      navigate(`/verify-otp?email=${encodeURIComponent(email)}&purpose=RESET_PASSWORD`);
+      navigate(`/verify-otp?email=${encodeURIComponent(email.trim())}&purpose=RESET_PASSWORD`);
     } catch (err) {
       setError(err.message || 'Lỗi khi gửi yêu cầu');
     } finally {

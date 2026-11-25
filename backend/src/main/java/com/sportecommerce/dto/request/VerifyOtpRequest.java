@@ -22,6 +22,11 @@ public class VerifyOtpRequest {
     @Email(message = "Email không hợp lệ")
     private String email;
 
+    /** Chuẩn hoá email (bỏ khoảng trắng, viết thường) để đăng ký / đăng nhập / OTP luôn khớp nhau. */
+    public void setEmail(String email) {
+        this.email = email == null ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
     @NotBlank
     @Pattern(regexp = "^[0-9]{4,8}$", message = "Mã OTP không hợp lệ")
     private String otp;

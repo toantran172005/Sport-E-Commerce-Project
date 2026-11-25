@@ -16,6 +16,8 @@ import java.util.Collection;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailAndDeletedAtIsNull(String email);
+    // Tim theo email khong phan biet hoa/thuong (tai khoan cu co the luu email co chu hoa)
+    Optional<User> findByEmailIgnoreCaseAndDeletedAtIsNull(String email);
     boolean existsByEmail(String email);
     boolean existsByPhoneNumber(String phoneNumber);
 

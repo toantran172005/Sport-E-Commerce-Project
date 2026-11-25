@@ -1,22 +1,30 @@
 package com.sportecommerce.exception;
 
 import com.sportecommerce.common.ApiResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -112,13 +120,60 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Bắt lỗi 500: Tất cả các lỗi hệ thống không mong muốn còn lại
+     * Bắt lỗi 400: Body JSON sai cú pháp / sai kiểu dữ liệu (vd. ngày sinh "abc"), thiếu tham số, sai kiểu tham số URL
+     */
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ApiResponse<Object>> handleMalformedRequest(Exception ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Dữ liệu gửi lên không đúng định dạng"));
+    }
+
+    /**
+     * Bắt lỗi 405: Sai phương thức HTTP
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiResponse.error("Phương thức yêu cầu không được hỗ trợ"));
+    }
+
+    /**
+     * Bắt lỗi 404: Đường dẫn API không tồn tại
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNoResource(NoResourceFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Không tìm thấy đường dẫn yêu cầu"));
+    }
+
+    /**
+     * Bắt lỗi 409: Vi phạm ràng buộc dữ liệu (trùng email/SĐT do hai request đồng thời, xoá bản ghi đang được tham chiếu...)
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Vi phạm ràng buộc dữ liệu: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Dữ liệu bị trùng lặp hoặc đang được sử dụng, vui lòng kiểm tra lại"));
+    }
+
+    /**
+     * Bắt lỗi 500: Tất cả các lỗi hệ thống không mong muốn còn lại.
+     * Ghi log đầy đủ stacktrace ở server, KHÔNG trả chi tiết lỗi nội bộ về cho client.
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ResponseEntity<ApiResponse<Object>> handleGlobalException(Exception ex) {
+        log.error("Lỗi hệ thống không mong muốn", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Đã xảy ra lỗi hệ thống, vui lòng thử lại sau: " + ex.getMessage()));
+                .body(ApiResponse.error("Đã xảy ra lỗi hệ thống, vui lòng thử lại sau"));
     }
 }

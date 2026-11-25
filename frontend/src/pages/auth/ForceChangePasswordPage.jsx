@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { KeyRound, ShieldCheck, RefreshCw, Eye, EyeOff, LogOut } from 'lucide-react';
 import BrandLogo from '../../components/common/BrandLogo.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getDefaultAdminPath } from '../../utils/permissions.js';
 import { useUI } from '../../context/UIContext.jsx';
 import { userService } from '../../services/userService.js';
 import { authService } from '../../services/authService.js';
@@ -54,7 +55,8 @@ export default function ForceChangePasswordPage() {
   const [loading, setLoading] = useState(false);
 
   if (!user) return <Navigate to="/login" replace />;
-  if (!user.mustChangePassword) return <Navigate to="/" replace />;
+  // Đã đổi mật khẩu xong (hoặc không cần đổi) → về đúng nơi theo vai trò: nhân viên/quản trị vào CMS, khách về trang chủ
+  if (!user.mustChangePassword) return <Navigate to={getDefaultAdminPath(user.role)} replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,7 +82,7 @@ export default function ForceChangePasswordPage() {
       await userService.changePassword({ oldPassword: currentPassword, newPassword });
       setUser({ ...user, mustChangePassword: false });
       showToast('Đổi mật khẩu thành công! Chào mừng bạn đến với hệ thống.', 'success');
-      navigate(user.role === 'ADMIN' || user.role === 'STAFF' ? '/admin' : '/', { replace: true });
+      navigate(getDefaultAdminPath(user.role), { replace: true });
     } catch (err) {
       showToast(err.message || 'Không thể đổi mật khẩu, vui lòng thử lại', 'error');
     } finally {

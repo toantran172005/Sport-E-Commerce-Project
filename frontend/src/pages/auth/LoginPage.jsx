@@ -58,7 +58,7 @@ export default function LoginPage() {
       // Backend trả 403 khi tài khoản đăng ký xong nhưng chưa nhập OTP (trạng thái PENDING)
       if (err.status === 403 && /xác thực/i.test(err.message || '')) {
         showToast('Tài khoản chưa xác thực email. Vui lòng nhập mã OTP đã gửi tới email của bạn.', 'warning');
-        navigate(`/verify-otp?email=${encodeURIComponent(loginEmail.trim())}&purpose=REGISTER`);
+        navigate(`/verify-otp?email=${encodeURIComponent(loginEmail.trim())}&purpose=REGISTER&resend=1`);
         return;
       }
       setError(err.message || 'Email hoặc mật khẩu không chính xác');
