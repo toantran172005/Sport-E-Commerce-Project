@@ -31,14 +31,14 @@ public class ShipmentController {
             @RequestParam(required = false) String city,
             @RequestParam(defaultValue = "0.0") Double subTotal
     ) {
-        UserAddress address = null;
-        if (addressId != null) {
-            address = userAddressRepository.findById(addressId).orElse(null);
-        }
-        if (address == null) {
-            address = UserAddress.builder()
-                    .city(city != null ? city : "")
-                    .build();
+        UserAddress address;
+        if (city != null && !city.isBlank()) {
+            address = UserAddress.builder().city(city.trim()).build();
+        } else if (addressId != null) {
+            address = userAddressRepository.findById(addressId)
+                    .orElse(UserAddress.builder().city("").build());
+        } else {
+            address = UserAddress.builder().city("").build();
         }
 
         double fee = shipmentService.calculateShippingFee(providerCode, address, subTotal);

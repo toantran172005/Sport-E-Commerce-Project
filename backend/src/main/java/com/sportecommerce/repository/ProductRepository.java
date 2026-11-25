@@ -22,7 +22,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     boolean existsByBrand_Id(Long brandId);
 
-    @EntityGraph(attributePaths = {"category", "brand", "productImages", "productVariants"})
+    @EntityGraph(attributePaths = {"category", "brand", "productVariants"})
     Optional<Product> findByIdAndDeletedAtIsNull(Long id);
 
     @Override

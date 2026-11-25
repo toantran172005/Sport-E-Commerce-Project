@@ -103,20 +103,31 @@ public class MapperUtil {
                         ? null
                         : p.getProductImages().get(0).getImageUrl());
 
-<<<<<<< HEAD
         int totalStock = p.getProductVariants() != null
                 ? p.getProductVariants().stream()
-                        .filter(v -> v.getStock() != null)
-                        .mapToInt(ProductVariant::getStock)
+                        .mapToInt(v -> v.getStock() != null ? v.getStock() : 0)
                         .sum()
                 : 0;
-=======
-        int totalStock = p.getProductVariants().stream()
-                .mapToInt(v -> v.getStock() != null ? v.getStock() : 0)
-                .sum();
-        int variantCount = p.getProductVariants().size();
-        String primarySku = p.getProductVariants().isEmpty() ? null : p.getProductVariants().get(0).getSku();
->>>>>>> origin
+        int variantCount = p.getProductVariants() != null ? p.getProductVariants().size() : 0;
+        String primarySku = (p.getProductVariants() != null && !p.getProductVariants().isEmpty())
+                ? p.getProductVariants().get(0).getSku()
+                : null;
+
+        List<ProductVariantResponse> variantSummaries = p.getProductVariants() != null
+                ? p.getProductVariants().stream()
+                        .map(v -> ProductVariantResponse.builder()
+                                .id(v.getId())
+                                .sku(v.getSku())
+                                .size(v.getSize())
+                                .color(v.getColor())
+                                .price(v.getPrice())
+                                .salePrice(v.getSalePrice())
+                                .stock(v.getStock())
+                                .isActive(v.getIsActive())
+                                .imageUrl(v.getImageUrl())
+                                .build())
+                        .collect(Collectors.toList())
+                : Collections.emptyList();
 
         return ProductSummaryResponse.builder()
                 .id(p.getId())
@@ -133,16 +144,12 @@ public class MapperUtil {
                 .avgRating(p.getAvgRating())
                 .reviewCount(p.getReviewCount())
                 .soldCount(p.getSoldCount() != null ? p.getSoldCount() : 0)
-<<<<<<< HEAD
                 .stock(totalStock)
-=======
->>>>>>> origin
                 .isFeatured(p.getIsFeatured())
                 .totalStock(totalStock)
                 .variantCount(variantCount)
                 .primarySku(primarySku)
-                .categoryId(p.getCategory() != null ? p.getCategory().getId() : null)
-                .brandId(p.getBrand() != null ? p.getBrand().getId() : null)
+                .variants(variantSummaries)
                 .build();
     }
 

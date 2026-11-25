@@ -96,7 +96,7 @@ export default function AdminProductModal() {
           if (varsList && varsList.length > 0) {
             setVariants(
               varsList.map((v) => ({
-                id: createId(),
+                id: v.id || createId(),
                 sku: v.sku || `SKU-${Date.now().toString().slice(-4)}`,
                 size: v.size || '',
                 color: v.color || '',
@@ -141,23 +141,7 @@ export default function AdminProductModal() {
         };
 
         if (editProduct.variants && editProduct.variants.length > 0) {
-<<<<<<< HEAD
           applyVariants(editProduct.variants);
-=======
-          setVariants(
-            editProduct.variants.map((v) => ({
-              id: v.id || createId(),
-              sku: v.sku || `SKU-${Date.now().toString().slice(-4)}`,
-              size: v.size || '',
-              color: v.color || '',
-              stock: v.stock ?? 20,
-              price: v.price ?? editProduct.basePrice,
-              salePrice: v.salePrice ?? '',
-              weight: v.weight ?? v.weightGram ?? 80,
-              imageUrl: v.imageUrl || '',
-            }))
-          );
->>>>>>> origin
         } else {
           setVariants([]);
         }

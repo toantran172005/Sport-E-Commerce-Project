@@ -408,23 +408,20 @@ export default function AdminProductsPage() {
                       product.images?.[0]?.imageUrl ||
                       product.images?.[0]?.url ||
                       product.image;
-<<<<<<< HEAD
                     const rawStock =
-                      product.stock !== undefined
+                      product.totalStock !== undefined
+                        ? product.totalStock
+                        : product.stock !== undefined
                         ? product.stock
                         : product.variants?.reduce(
                             (s, v) => s + (v.stock || 0),
                             0,
                           );
                     const isKnownStock = rawStock !== undefined;
-                    const stock = isKnownStock ? rawStock : null;
+                    const stock = isKnownStock ? rawStock : 0;
                     const isLowStock = isKnownStock
                       ? stock < 10
                       : product.status === "OUT_OF_STOCK";
-=======
-                    const stock = product.totalStock ?? product.stock ?? product.variants?.reduce((s, v) => s + (v.stock || 0), 0) ?? 0;
-                    const isLowStock = stock <= 10;
->>>>>>> origin
 
                     return (
                       <tr
