@@ -11,6 +11,8 @@ public interface PaymentService {
 
     PaymentResponse createPayment(CreatePaymentRequest request, HttpServletRequest httpRequest);
 
+    PaymentResponse confirmQrPayment(Long orderId);
+
     ApiResponse<Object> handleWebhook(Map<String, String> params);
 
     PaymentResponse getPaymentByOrderId(Long orderId);

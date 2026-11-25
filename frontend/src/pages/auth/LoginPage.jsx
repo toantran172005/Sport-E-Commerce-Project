@@ -15,7 +15,6 @@ import { ROLES, getDefaultAdminPath, isAdminPathAllowed } from '../../utils/perm
 import AuthBanner from '../../components/auth/AuthBanner.jsx';
 import BrandLogo from '../../components/common/BrandLogo.jsx';
 
-
 export default function LoginPage() {
   const { setUser, showToast } = useStore();
   const navigate = useNavigate();

@@ -5,7 +5,6 @@ export default function AddressesPage() {
   const { addresses: userAddresses, setDefaultAddress, deleteAddress } = useAddress();
   const { openModal } = useUI();
 
-
   return (
     <div className="bg-surface rounded-lg border border-line p-6 space-y-5 shadow-2xs">
       <div className="flex items-center justify-between pb-4 border-b border-line">

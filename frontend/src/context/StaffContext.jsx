@@ -1,31 +1,20 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useCallback } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState.js';
-import { users as mockUsers } from '../mocks/users.js';
 import { validateStaffInput } from '../utils/staffRules.js';
 import { useUI } from './UIContext.jsx';
 
 const StaffContext = createContext(null);
 
 const getInitialStaff = () => {
-  const defaultStaffMocks = mockUsers.filter((u) => u.role === 'STAFF');
   try {
     const raw = localStorage.getItem('sport_staff');
-    if (!raw) return defaultStaffMocks;
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return defaultStaffMocks;
-
-    // Merge các mock staff còn thiếu vào danh sách đã lưu để tránh bị ghi đè mất mock mới
-    const existingIds = new Set(parsed.map((p) => Number(p.id)));
-    const merged = [...parsed];
-    for (const m of defaultStaffMocks) {
-      if (!existingIds.has(Number(m.id))) {
-        merged.push(m);
-      }
-    }
-    return merged;
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
   } catch {
-    return defaultStaffMocks;
+    return [];
   }
 };
 

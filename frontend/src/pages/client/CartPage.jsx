@@ -5,14 +5,14 @@ import { ProductCard } from '../../components/product';
 import { EmptyState } from '../../components/common';
 import { CartItemRow, CartSummary } from '../../components/cart';
 import { useStore } from '../../context/StoreContext.jsx';
+import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 import { buildLineNumberMap, getItemKey } from '../../utils/cartNumbering.js';
 import { getShippingQuotes } from '../../services/shippingService.js';
-import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 
 export default function CartPage() {
   const {
-    cart,
     user,
+    cart,
     products,
     addresses = [],
     updateCartQuantity,

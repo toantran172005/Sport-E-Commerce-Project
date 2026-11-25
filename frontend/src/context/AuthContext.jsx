@@ -11,6 +11,16 @@ export function AuthProvider({ children }) {
   // Phiên đăng nhập thật: mặc định là khách (null) cho tới khi đăng nhập qua backend.
   const [user, setUserState] = usePersistentState('sport_user', null);
 
+  // Tự động dọn dẹp các key mock cũ trong localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('sport_staff');
+      localStorage.removeItem('sport_user_addresses');
+    } catch {
+      // bỏ qua
+    }
+  }, []);
+
   // Đăng xuất (user = null) thì xóa cache phí vận chuyển của phiên cũ
   const setUser = useCallback(
     (nextUser) => {

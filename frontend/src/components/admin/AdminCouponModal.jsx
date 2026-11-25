@@ -2,6 +2,19 @@ import { useState, useEffect } from 'react';
 import { X, Ticket } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
+function toInputDate(dateVal, fallback = '2026-01-01') {
+  if (!dateVal) return fallback;
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+    return dateVal;
+  }
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return fallback;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function AdminCouponModal() {
   const { activeModal, modalPayload, closeModal, addCoupon, updateCoupon, showToast } = useStore();
 
@@ -18,18 +31,19 @@ export default function AdminCouponModal() {
   const [description, setDescription] = useState(
     'Giảm 100.000₫ cho đơn hàng thể thao từ 800.000₫'
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (activeModal === 'admin_coupon_modal') {
       if (editCoupon) {
         setCode(editCoupon.code || '');
         setDiscountType(editCoupon.discountType || 'FIXED_AMOUNT');
-        setDiscountValue(editCoupon.discountValue || editCoupon.discount || 100000);
-        setMinOrderAmount(editCoupon.minOrderAmount || editCoupon.minOrder || 0);
-        setMaxDiscountAmount(editCoupon.maxDiscountAmount || 100000);
-        setStartDate(editCoupon.startDate || '2026-01-01');
-        setEndDate(editCoupon.endDate || '2026-12-31');
-        setUsageLimit(editCoupon.usageLimit || 500);
+        setDiscountValue(editCoupon.discountValue ?? editCoupon.discount ?? 100000);
+        setMinOrderAmount(editCoupon.minOrderAmount ?? editCoupon.minOrder ?? 0);
+        setMaxDiscountAmount(editCoupon.maxDiscountAmount ?? 100000);
+        setStartDate(toInputDate(editCoupon.startDate, '2026-01-01'));
+        setEndDate(toInputDate(editCoupon.endDate, '2026-12-31'));
+        setUsageLimit(editCoupon.usageLimit ?? 500);
         setDescription(editCoupon.description || editCoupon.desc || '');
       } else {
         setCode('SPORT50K');
@@ -47,42 +61,37 @@ export default function AdminCouponModal() {
 
   if (activeModal !== 'admin_coupon_modal') return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const cleanCode = code.trim().toUpperCase();
     if (!cleanCode) return;
 
     const couponData = {
-      id: editCoupon ? editCoupon.id : Date.now(),
       code: cleanCode,
       discountType,
       discountValue: Number(discountValue),
-      discount: Number(discountValue),
       minOrderAmount: Number(minOrderAmount),
-      minOrder: Number(minOrderAmount),
       maxDiscountAmount: Number(maxDiscountAmount),
       startDate,
       endDate,
       usageLimit: Number(usageLimit),
-      usedCount: editCoupon ? editCoupon.usedCount || 0 : 0,
       isActive: editCoupon ? editCoupon.isActive : true,
       description: description.trim(),
-      desc: description.trim(),
     };
 
-    if (editCoupon) {
-      updateCoupon(editCoupon.id || editCoupon.code, couponData);
-    } else {
-      addCoupon(couponData);
+    setIsSubmitting(true);
+    try {
+      if (editCoupon) {
+        await updateCoupon(editCoupon.id || editCoupon.code, couponData);
+      } else {
+        await addCoupon(couponData);
+      }
+      closeModal();
+    } catch (err) {
+      showToast(err.message || 'Không thể lưu mã khuyến mãi!', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    closeModal();
-    showToast(
-      editCoupon
-        ? `Đã cập nhật mã ${cleanCode} thành công!`
-        : `Đã tạo mã ${cleanCode} mới thành công!`,
-      'success',
-    );
   };
 
   return (
@@ -232,15 +241,21 @@ export default function AdminCouponModal() {
             <button
               type="button"
               onClick={closeModal}
+              disabled={isSubmitting}
               className="px-4 py-2 rounded-md bg-surface border border-line hover:bg-surface-2 text-[12.5px] font-bold text-ink-muted transition"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-md bg-accent hover:bg-accent-hover text-white text-[12.5px] font-bold shadow-xs transition"
+              disabled={isSubmitting}
+              className="px-5 py-2 rounded-md bg-accent hover:bg-accent-hover text-white text-[12.5px] font-bold shadow-xs transition disabled:opacity-50"
             >
-              {editCoupon ? 'Cập Nhật Voucher' : 'Tạo Voucher'}
+              {isSubmitting
+                ? 'Đang lưu...'
+                : editCoupon
+                  ? 'Cập Nhật Voucher'
+                  : 'Tạo Voucher'}
             </button>
           </div>
         </form>

@@ -4,6 +4,7 @@ import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
 import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 import { formatCurrency } from '../../utils/formatters.js';
+import { productService } from '../../services/productService.js';
 
 export default function ProductCard({ product }) {
   const navigate = useNavigate();
@@ -24,13 +25,19 @@ export default function ProductCard({ product }) {
   const primaryImage =
     product.images?.find((img) => img.isPrimary)?.imageUrl ||
     product.images?.[0]?.imageUrl ||
+    product.primaryImageUrl || 
     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600';
-
-  const brandName = product.brand?.name || 'Delta Sport';
-  const categoryName = product.category?.name || 'Đồ thể thao';
+    
+  const brandName = product.brand?.name || product.brandName || 'Delta Sport';
+  const categoryName = product.category?.name || product.categoryName || 'Đồ thể thao';
 
   const handleCardClick = () => {
-    navigate(`/products/${product.id}`);
+    navigate(`/products/${product.id}`, { state: { product } });
+  };
+
+  const handleMouseEnter = () => {
+    // Prefetch chi tiết trước khi click để khi chuyển trang có ngay tức thì (0ms)
+    productService.getProductById(product.id).catch(() => {});
   };
 
   const handleQuickAdd = (e) => {
@@ -54,6 +61,7 @@ export default function ProductCard({ product }) {
   return (
     <div
       onClick={handleCardClick}
+      onMouseEnter={handleMouseEnter}
       className="group bg-surface rounded-lg border border-line hover:border-accent hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col overflow-hidden text-ink"
     >
       {/* Product Image Thumbnail */}

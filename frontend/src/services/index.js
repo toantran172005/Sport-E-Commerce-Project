@@ -9,3 +9,5 @@ export * from './userService.js';
 export * from './notificationService.js';
 export * from './shippingService.js';
 export * from './paymentService.js';
+export * from './cartService.js';
+export * from './wishlistService.js';

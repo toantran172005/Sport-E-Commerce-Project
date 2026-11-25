@@ -1,5 +1,4 @@
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-const fakeDelay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
+import axiosClient from '../api/axiosClient.js';
 
 export const paymentService = {
   /**
@@ -7,33 +6,32 @@ export const paymentService = {
    * POST /api/payments/create
    */
   async createPayment({ orderId, method = 'BANK_TRANSFER', bankCode = '' }) {
-    if (USE_MOCK) {
-      await fakeDelay(350);
-      const isBank = method === 'BANK_TRANSFER' || method === 'VNPAY';
-      const paymentUrl = isBank
-        ? `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=ORD-${orderId}&vnp_Amount=1000000`
-        : null;
-
-      return {
-        paymentId: Date.now(),
-        orderId,
-        orderCode: `ORD-${orderId}`,
-        method: isBank ? 'BANK_TRANSFER' : 'COD',
-        status: 'PENDING',
-        paymentUrl,
-        message: isBank
-          ? 'Tạo yêu cầu thanh toán VNPay thành công. Vui lòng hoàn tất giao dịch.'
-          : 'Đặt hàng thành công với hình thức thanh toán khi nhận hàng (COD).',
-      };
-    }
-
-    const { default: axiosClient } = await import('../api/axiosClient.js');
     const response = await axiosClient.post('/payments/create', {
-      orderId,
-      method,
+      orderId: Number(orderId),
+      method: method === 'VNPAY' ? 'BANK_TRANSFER' : method,
       bankCode: bankCode || undefined,
     });
-    return response.data || response;
+    return response?.data ?? response;
+  },
+
+  /**
+   * Xác nhận đã hoàn tất thanh toán QR cho đơn hàng
+   * POST /api/payments/confirm/{orderId}
+   */
+  async confirmPayment(orderId) {
+    const response = await axiosClient.post(`/payments/confirm/${orderId}`);
+    return response?.data ?? response;
+  },
+
+  /**
+   * Xác thực kết quả trả về từ cổng VNPay Sandbox (kiểm tra chữ ký vnp_SecureHash & cập nhật trạng thái)
+   * GET /api/payments/webhook
+   */
+  async verifyVnPayReturn(vnpParams = {}) {
+    const response = await axiosClient.get('/payments/webhook', {
+      params: vnpParams,
+    });
+    return response?.data ?? response;
   },
 
   /**
@@ -41,23 +39,8 @@ export const paymentService = {
    * GET /api/payments/order/{orderId}
    */
   async getPaymentByOrderId(orderId) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      return {
-        paymentId: 1,
-        orderId,
-        orderCode: `ORD-${orderId}`,
-        amount: 1265000,
-        method: 'BANK_TRANSFER',
-        status: 'PAID',
-        transactionCode: 'TXN-9999',
-        paidAt: new Date().toISOString(),
-      };
-    }
-
-    const { default: axiosClient } = await import('../api/axiosClient.js');
     const response = await axiosClient.get(`/payments/order/${orderId}`);
-    return response.data || response;
+    return response?.data ?? response;
   },
 
   /**
@@ -65,18 +48,8 @@ export const paymentService = {
    * GET /api/payments/{id}
    */
   async getPaymentById(id) {
-    if (USE_MOCK) {
-      await fakeDelay(150);
-      return {
-        paymentId: id,
-        method: 'BANK_TRANSFER',
-        status: 'PAID',
-      };
-    }
-
-    const { default: axiosClient } = await import('../api/axiosClient.js');
     const response = await axiosClient.get(`/payments/${id}`);
-    return response.data || response;
+    return response?.data ?? response;
   },
 };
 

@@ -21,9 +21,9 @@ export default function HomePage() {
   }, [products]);
 
   return (
-    <div className="max-w-[1360px] w-full mx-auto px-4 md:px-6 py-6 space-y-8">
+    <div className="max-w-340 w-full mx-auto px-4 md:px-6 py-6 space-y-8">
         {/* 1. Hero tĩnh đơn giản chuẩn TMĐT quốc tế */}
-        <div className="rounded-lg bg-gradient-to-r from-[#0a0f20] to-[#1e2950] text-white p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-white/5">
+        <div className="rounded-lg bg-linear-to-r from-[#0a0f20] to-[#1e2950] text-white p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-white/5">
           <div className="space-y-4 max-w-xl z-10">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-accent/20 text-[#8fb0ff] text-[12px] font-bold uppercase tracking-wider border border-accent/30">
               <Sparkles className="w-3.5 h-3.5" />
@@ -52,13 +52,13 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="hidden lg:block relative w-[340px] h-[220px] rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-lg">
+          <div className="hidden lg:block relative w-85 h-55 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-lg">
             <img
               src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80"
               alt="Sport Equipment"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+            <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent flex items-end p-4">
               <p className="text-xs text-white font-medium">Bộ sưu tập giày đinh sân cỏ & giày marathon 2026</p>
             </div>
           </div>

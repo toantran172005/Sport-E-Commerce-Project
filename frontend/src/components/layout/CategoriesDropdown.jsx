@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
@@ -11,10 +11,16 @@ import { useStore } from '../../context/StoreContext.jsx';
 import { formatCurrency } from '../../utils/formatters.js';
 
 export default function CategoriesDropdown() {
-  const { isCategoriesOpen, setIsCategoriesOpen, categoriesList, products } = useStore();
+  const { isCategoriesOpen, setIsCategoriesOpen, categoriesList, products, catalogLoading } = useStore();
   const [activeCatId, setActiveCatId] = useState(categoriesList[0]?.id || 1);
   const navigate = useNavigate();
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (categoriesList.length > 0 && !categoriesList.some((c) => c.id === activeCatId)) {
+      setActiveCatId(categoriesList[0].id);
+    }
+  }, [categoriesList, activeCatId]);
 
   useEffect(() => {
     if (!isCategoriesOpen) return;
@@ -31,15 +37,54 @@ export default function CategoriesDropdown() {
     };
   }, [isCategoriesOpen, setIsCategoriesOpen]);
 
+  const currentCategory = useMemo(() => {
+    return categoriesList.find((c) => c.id === activeCatId) || categoriesList[0] || {};
+  }, [categoriesList, activeCatId]);
+
+  const categoryProducts = useMemo(() => {
+    if (!currentCategory?.id) return [];
+
+    const childCats = categoriesList.filter((c) => c.parentId === currentCategory.id);
+    const validCatIds = [currentCategory.id, ...childCats.map((c) => c.id)].map(String);
+    const validCatNames = [
+      currentCategory.name?.toLowerCase().trim(),
+      ...childCats.map((c) => c.name?.toLowerCase().trim()),
+    ].filter(Boolean);
+
+    return products
+      .filter((p) => {
+        const pCatId = String(p.categoryId || p.category?.id || '');
+        if (pCatId && validCatIds.includes(pCatId)) return true;
+
+        const pCatName = (p.categoryName || p.category?.name || p.category || '').toLowerCase().trim();
+        if (pCatName && validCatNames.includes(pCatName)) return true;
+
+        return false;
+      })
+      .slice(0, 4);
+  }, [products, currentCategory, categoriesList]);
+
   if (!isCategoriesOpen) return null;
 
+<<<<<<< HEAD
+=======
   const currentCategory =
     categoriesList.find((c) => c.id === activeCatId) || categoriesList[0] || {};
 
   const categoryProducts = products
-    .filter((p) => p.categoryId === currentCategory.id)
+    .filter((p) => {
+      const pCatId = p.categoryId || p.category?.id;
+      const pCatName = p.categoryName || p.category?.name || p.category;
+      
+      const matchId = pCatId && String(pCatId) === String(currentCategory.id);
+      const matchName = pCatName && currentCategory.name && 
+        pCatName.trim().toLowerCase() === currentCategory.name.trim().toLowerCase();
+        
+      return matchId || matchName;
+    })
     .slice(0, 4);
 
+>>>>>>> origin
   const handleSelectCategory = (catId = null) => {
     setIsCategoriesOpen(false);
     if (catId) {
@@ -134,9 +179,24 @@ export default function CategoriesDropdown() {
 
             {/* Lưới sản phẩm tiêu biểu của danh mục */}
             <div className="grid grid-cols-2 gap-3">
-              {categoryProducts.length > 0 ? (
+              {catalogLoading && products.length === 0 ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="p-2.5 rounded-lg border border-line bg-surface-2/40 flex items-center gap-3 animate-pulse"
+                  >
+                    <div className="w-14 h-14 rounded-md bg-slate-200 dark:bg-slate-700 shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+                    </div>
+                  </div>
+                ))
+              ) : categoryProducts.length > 0 ? (
                 categoryProducts.map((p) => {
                   const img =
+                    p.primaryImageUrl ||
                     p.images?.[0]?.imageUrl ||
                     p.image ||
                     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';

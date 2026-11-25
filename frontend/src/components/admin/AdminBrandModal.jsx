@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Upload, Tag } from 'lucide-react';
+import { X, Upload, Tag, Loader2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
+import { productService } from '../../services/productService.js';
 
 function generateSlug(text) {
   return (text || '')
@@ -31,7 +32,7 @@ export default function AdminBrandModal() {
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [_logoFile, setLogoFile] = useState(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const fileInputRef = useRef(null);
@@ -44,17 +45,16 @@ export default function AdminBrandModal() {
         setSlug(editBrand.slug || '');
         setDescription(editBrand.description || '');
         setLogoUrl(editBrand.logoUrl || '');
-        setLogoFile(null);
         isManualSlug.current = true;
       } else {
         setName('');
         setSlug('');
         setDescription('');
         setLogoUrl('');
-        setLogoFile(null);
         isManualSlug.current = false;
       }
       setErrorMsg('');
+      setUploadingLogo(false);
     }
   }, [activeModal, editBrand]);
 
@@ -67,8 +67,7 @@ export default function AdminBrandModal() {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
+  const handleUploadLogoFile = async (file) => {
     if (!file) return;
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
@@ -80,26 +79,29 @@ export default function AdminBrandModal() {
       return;
     }
 
-    setLogoFile(file);
-    setLogoUrl(URL.createObjectURL(file));
+    try {
+      setUploadingLogo(true);
+      setErrorMsg('');
+      const uploadedUrl = await productService.uploadProductImage(file);
+      setLogoUrl(uploadedUrl);
+      showToast('Tải logo lên Cloudinary thành công', 'success');
+    } catch (err) {
+      showToast('Lỗi khi tải logo lên: ' + (err.message || 'Thất bại'), 'error');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    handleUploadLogoFile(file);
+    if (e.target) e.target.value = '';
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      showToast('Logo phải có định dạng JPG, PNG hoặc WebP', 'error');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Logo tối đa 5 MB', 'error');
-      return;
-    }
-
-    setLogoFile(file);
-    setLogoUrl(URL.createObjectURL(file));
+    handleUploadLogoFile(file);
   };
 
   const handleSubmit = (e) => {
@@ -109,12 +111,17 @@ export default function AdminBrandModal() {
       return;
     }
 
+    if (uploadingLogo) {
+      setErrorMsg('Vui lòng đợi logo tải lên hoàn tất');
+      return;
+    }
+
     const finalSlug = slug.trim() || generateSlug(name);
     const brandData = {
       name: name.trim(),
       slug: finalSlug,
       description: description.trim(),
-      logoUrl: logoUrl || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200',
+      logoUrl: logoUrl.trim() || '', 
       isActive: editBrand?.isActive ?? true,
     };
 
@@ -139,9 +146,6 @@ export default function AdminBrandModal() {
               <h2 className="text-[16px] font-bold text-ink">
                 {isEditing ? 'Chỉnh Sửa Thương Hiệu' : 'Thêm Thương Hiệu'}
               </h2>
-              <p className="text-[12px] text-ink-muted">
-                Đường dẫn (slug) được sinh tự động từ tên.
-              </p>
             </div>
           </div>
           <button
@@ -175,8 +179,7 @@ export default function AdminBrandModal() {
               className="w-full h-10 px-3.5 rounded-lg bg-page border border-line text-[13px] text-ink focus:outline-none focus:border-accent"
             />
             <p className="mt-1 text-[11.5px] text-ink-subtle">
-              Không được trùng với thương hiệu đã có. Slug dự kiến:{' '}
-              <span className="font-bold text-ink">{slug || generateSlug(name) || '---'}</span>
+              Không được trùng với thương hiệu đã có.
             </p>
           </div>
 
@@ -190,8 +193,10 @@ export default function AdminBrandModal() {
               onDrop={handleDrop}
               className="flex items-center gap-4 rounded-xl border-2 border-dashed border-line p-3.5 bg-page/50 hover:border-accent/50 transition"
             >
-              <div className="w-16 h-16 rounded-lg bg-surface border border-line overflow-hidden shrink-0 flex items-center justify-center p-1">
-                {logoUrl ? (
+              <div className="w-16 h-16 rounded-lg bg-surface border border-line overflow-hidden shrink-0 flex items-center justify-center p-1 relative">
+                {uploadingLogo ? (
+                  <Loader2 className="w-6 h-6 text-accent animate-spin" />
+                ) : logoUrl ? (
                   <img
                     src={logoUrl}
                     alt="Logo preview"
@@ -206,11 +211,16 @@ export default function AdminBrandModal() {
               <div className="flex-1 min-w-0">
                 <button
                   type="button"
+                  disabled={uploadingLogo}
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-md border border-line bg-surface hover:bg-surface-2 text-[12px] font-bold text-ink transition cursor-pointer flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-md border border-line bg-surface hover:bg-surface-2 text-[12px] font-bold text-ink transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Chọn ảnh từ máy</span>
+                  {uploadingLogo ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                  ) : (
+                    <Upload className="w-3.5 h-3.5" />
+                  )}
+                  <span>{uploadingLogo ? 'Đang tải lên...' : 'Chọn ảnh từ máy'}</span>
                 </button>
                 <p className="mt-1 text-[11px] text-ink-subtle">
                   JPG, PNG, WebP · tối đa 5 MB. Chưa có logo thì hiện chữ cái đầu của tên.
@@ -235,7 +245,7 @@ export default function AdminBrandModal() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Ví dụ: Giày chạy bộ và giày thể thao Nhật Bản"
+              placeholder="Ví dụ: Giày chạy bộ và dụng cụ thể thao Nhật Bản"
               className="w-full p-3 rounded-lg bg-page border border-line text-[13px] text-ink focus:outline-none focus:border-accent resize-none"
             />
           </div>
@@ -251,9 +261,11 @@ export default function AdminBrandModal() {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-[13px] font-bold shadow-xs transition cursor-pointer"
+              disabled={uploadingLogo}
+              className="px-5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-[13px] font-bold shadow-xs transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
             >
-              {isEditing ? 'Lưu Thay Đổi' : 'Thêm Thương Hiệu'}
+              {uploadingLogo && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{isEditing ? 'Lưu Thay Đổi' : 'Thêm Thương Hiệu'}</span>
             </button>
           </div>
         </form>

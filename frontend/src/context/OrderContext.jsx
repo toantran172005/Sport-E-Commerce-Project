@@ -1,6 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { orders as mockOrders } from '../mocks/orders.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { orderService } from '../services/orderService.js';
@@ -11,7 +10,7 @@ export function OrderProvider({ children }) {
   const { user } = useAuth();
   const { showToast } = useUI();
 
-  const [orders, setOrders] = useState(() => mockOrders);
+  const [orders, setOrders] = useState([]);
 
   // Tự động xóa sạch key sport_orders thừa trong localStorage nếu từng tồn tại
   useEffect(() => {

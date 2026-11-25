@@ -2,6 +2,7 @@ package com.sportecommerce.repository.spec;
 
 import com.sportecommerce.entity.Product;
 import com.sportecommerce.enums.ProductStatus;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -14,7 +15,7 @@ public class ProductSpecification {
     public ProductSpecification() {
     }
 
-    public static Specification<Product> filterBy(ProductStatus status, Long categoryId, Long brandId, Long tagId, String keyword){
+    public static Specification<Product> filterBy(ProductStatus status, Long categoryId, Long brandId, Long tagId, String keyword, Double minPrice, Double maxPrice, Double rating){
         return (root, query, cb) -> {
             assert query != null;
             if(query.getResultType() != Long.class){
@@ -31,7 +32,9 @@ public class ProductSpecification {
             }
 
             if(categoryId != null){
-                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+                Predicate directCategory = cb.equal(root.get("category").get("id"), categoryId);
+                Predicate parentCategory = cb.equal(root.get("category").get("parent").get("id"), categoryId);
+                predicates.add(cb.or(directCategory, parentCategory));
             }
 
             if(brandId != null){
@@ -45,6 +48,18 @@ public class ProductSpecification {
 
             if(keyword != null && !keyword.isBlank()){
                 predicates.add(cb.like(cb.lower(root.get("name")), "%" + keyword.toLowerCase() + "%"));
+            }
+
+            Expression<Double> effectivePrice = cb.coalesce(root.get("salePrice"), root.get("basePrice"));
+            if (minPrice != null) {
+                predicates.add(cb.greaterThanOrEqualTo(effectivePrice, minPrice));
+            }
+            if (maxPrice != null) {
+                predicates.add(cb.lessThanOrEqualTo(effectivePrice, maxPrice));
+            }
+
+            if (rating != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("avgRating"), rating));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

@@ -20,7 +20,7 @@ import Avatar from '../common/Avatar.jsx';
 export default function Header() {
   const {
     user,
-    cartItemCount,
+    cartTotalUnits,
     notifications,
     products,
     isCategoriesOpen,
@@ -225,9 +225,9 @@ export default function Header() {
               className="w-9 h-9 rounded-md bg-surface border border-line hover:bg-surface-2 text-ink-muted hover:text-ink flex items-center justify-center relative transition shadow-xs"
             >
               <ShoppingCart className="w-4 h-4" />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center">
-                  {cartItemCount}
+              {cartTotalUnits > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                  {cartTotalUnits > 99 ? '99+' : cartTotalUnits}
                 </span>
               )}
             </Link>

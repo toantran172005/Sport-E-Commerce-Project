@@ -29,6 +29,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -50,7 +51,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponse createPayment(CreatePaymentRequest request, HttpServletRequest httpRequest) {
         Order order = orderService.getOrderById(request.getOrderId());
 
-        if (order.getStatus() == OrderStatus.CONFIRMED && order.getPayment() != null 
+        if (order.getStatus() == OrderStatus.CONFIRMED && order.getPayment() != null
                 && order.getPayment().getStatus() == PaymentStatus.PAID) {
             throw new BadRequestException("Đơn hàng này đã được thanh toán thành công!");
         }
@@ -86,6 +87,36 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
+    public PaymentResponse confirmQrPayment(Long orderId) {
+        Order order = orderService.getOrderById(orderId);
+        Payment payment = paymentRepository.findByOrderId(order.getId())
+                .orElseGet(() -> {
+                    Payment newPayment = new Payment();
+                    newPayment.setOrder(order);
+                    newPayment.setMethod(PaymentMethod.BANK_TRANSFER);
+                    newPayment.setAmount(order.getTotalAmount());
+                    return newPayment;
+                });
+
+        if (payment.getStatus() != PaymentStatus.PAID) {
+            payment.setStatus(PaymentStatus.PAID);
+            if (payment.getTransactionCode() == null || payment.getTransactionCode().isEmpty()) {
+                payment.setTransactionCode("VNPQR-" + System.currentTimeMillis());
+            }
+            payment.setPaidAt(Instant.now());
+            payment = paymentRepository.save(payment);
+
+            if (order.getStatus() == OrderStatus.PENDING) {
+                orderService.confirmOrder(order.getId());
+            }
+            notificationService.notifyPaymentSuccess(order);
+        }
+
+        return mapperUtil.mapToPaymentResponse(payment, null, "Xác nhận thanh toán VNPay QR thành công");
+    }
+
+    @Override
+    @Transactional
     public ApiResponse<Object> handleWebhook(Map<String, String> params) {
         log.info("Nhận Webhook từ cổng thanh toán VNPay: {}", params);
 
@@ -93,7 +124,7 @@ public class PaymentServiceImpl implements PaymentService {
         boolean isSignatureValid = VNPayUtil.verifySignature(params, vnPayConfig.getHashSecret());
         if (!isSignatureValid) {
             log.warn("Cảnh báo: Webhook chữ ký không hợp lệ! Bỏ qua yêu cầu.");
-            throw new BadRequestException("Chữ ký không hợp lệ!");
+            throw new BadRequestException("Chữ ký bảo mật VNPay không hợp lệ!");
         }
 
         String txnRef = params.get("vnp_TxnRef");
@@ -110,7 +141,7 @@ public class PaymentServiceImpl implements PaymentService {
         // 3. Tính Idempotency: nếu đơn đã được xác nhận thanh toán rồi thì trả về thành công ngay
         if (payment.getStatus() == PaymentStatus.PAID) {
             log.info("Đơn hàng {} đã được thanh toán trước đó. Bỏ qua xử lý lặp.", txnRef);
-            return ApiResponse.success("Đã ghi nhận", Map.of("RspCode", "00", "Message", "Order already confirmed"));
+            return ApiResponse.success("Đã ghi nhận", buildWebhookResult(order, payment, responseCode, "Order already confirmed"));
         }
 
         // Kiểm tra kết quả giao dịch
@@ -124,7 +155,7 @@ public class PaymentServiceImpl implements PaymentService {
             notificationService.notifyPaymentSuccess(order);
 
             log.info("Thanh toán thành công cho đơn hàng: {}", txnRef);
-            return ApiResponse.success("Đã ghi nhận", Map.of("RspCode", "00", "Message", "Confirm Success"));
+            return ApiResponse.success("Thanh toán thành công", buildWebhookResult(order, payment, responseCode, "Confirm Success"));
         } else {
             // Giao dịch thất bại
             payment.setStatus(PaymentStatus.FAILED);
@@ -133,8 +164,23 @@ public class PaymentServiceImpl implements PaymentService {
             notificationService.notifyPaymentFailed(order);
 
             log.warn("Thanh toán thất bại cho đơn hàng: {}, mã lỗi VNPay: {}", txnRef, responseCode);
-            return ApiResponse.success("Đã ghi nhận", Map.of("RspCode", "00", "Message", "Transaction Failed"));
+            return ApiResponse.success("Giao dịch thanh toán không thành công", buildWebhookResult(order, payment, responseCode, "Transaction Failed"));
         }
+    }
+
+    private Map<String, Object> buildWebhookResult(Order order, Payment payment, String responseCode, String message) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("RspCode", "00");
+        result.put("Message", message);
+        result.put("responseCode", responseCode);
+        result.put("orderId", order.getId());
+        result.put("orderCode", order.getOrderCode());
+        result.put("paymentId", payment.getId());
+        result.put("amount", payment.getAmount());
+        result.put("status", payment.getStatus().name());
+        result.put("transactionCode", payment.getTransactionCode());
+        result.put("paidAt", payment.getPaidAt());
+        return result;
     }
 
     @Override
@@ -167,7 +213,7 @@ public class PaymentServiceImpl implements PaymentService {
         vnpParams.put("vnp_Amount", String.valueOf(amountInVnd));
         vnpParams.put("vnp_CurrCode", vnPayConfig.getCurrCode());
         vnpParams.put("vnp_TxnRef", order.getOrderCode());
-        vnpParams.put("vnp_OrderInfo", "Thanh toán đơn hàng " + order.getOrderCode());
+        vnpParams.put("vnp_OrderInfo", "Thanh toan don hang " + order.getOrderCode());
         vnpParams.put("vnp_OrderType", "other");
         vnpParams.put("vnp_Locale", "vn");
         vnpParams.put("vnp_ReturnUrl", vnPayConfig.getReturnUrl());

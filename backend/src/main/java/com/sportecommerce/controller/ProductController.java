@@ -9,6 +9,7 @@ import com.sportecommerce.dto.response.ProductSummaryResponse;
 import com.sportecommerce.enums.ProductStatus;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.security.UserPrincipal;
+import com.sportecommerce.service.FileStorageService;
 import com.sportecommerce.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,15 +17,36 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
 public class ProductController {
     private final ProductService productService;
+    private final FileStorageService fileStorageService;
+
+    @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<String>> uploadProductImage(
+            @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new AppException("Vui lòng chọn tệp ảnh hợp lệ", HttpStatus.BAD_REQUEST);
+        }
+        try {
+            String publicId = "products/" + UUID.randomUUID();
+            FileStorageService.StoredFile stored = fileStorageService.uploadImage(file.getBytes(), publicId);
+            return ResponseEntity.ok(ApiResponse.success("Tải ảnh lên Cloudinary thành công", stored.url()));
+        } catch (IOException e) {
+            throw new AppException("Không đọc được dữ liệu ảnh tải lên", HttpStatus.BAD_REQUEST);
+        }
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
@@ -62,14 +84,17 @@ public class ProductController {
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) Double rating,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        // Khách chỉ được xem sản phẩm đang bán; lọc theo trạng thái khác (ẩn/nháp...) dành cho ADMIN/STAFF.
+
         if (status != null && status != ProductStatus.ACTIVE
                 && (userPrincipal == null || !userPrincipal.isStaff())) {
             throw new AppException("Bạn không có quyền xem sản phẩm ở trạng thái này", HttpStatus.FORBIDDEN);
         }
         PageResponse<ProductSummaryResponse> response =
-                productService.getAll(status, categoryId, brandId, tagId, keyword, pageable);
+                productService.getAll(status, categoryId, brandId, tagId, keyword, minPrice, maxPrice, rating, pageable);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách sản phẩm thành công", response));
     }
 

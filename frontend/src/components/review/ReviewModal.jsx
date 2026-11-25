@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Star, X, Image as ImageIcon, UploadCloud, Trash2 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI } from '../../context/UIContext.jsx';
 import { reviewService } from '../../services/reviewService.js';
 
 const QUICK_TAGS = [
@@ -12,7 +12,7 @@ const QUICK_TAGS = [
 ];
 
 export default function ReviewModal() {
-  const { activeModal, modalPayload, closeModal, showToast, user } = useStore();
+  const { activeModal, modalPayload, closeModal, showToast } = useUI();
   const [rating, setRating] = useState(5);
   const [selectedTags, setSelectedTags] = useState(['Đúng mô tả 100%', 'Đóng gói rất kỹ càng']);
   const [comment, setComment] = useState('');
@@ -76,7 +76,6 @@ export default function ReviewModal() {
 
       await reviewService.createReview({
         productId,
-        userId: user?.id || 1,
         rating,
         comment: fullComment,
         images,
