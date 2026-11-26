@@ -100,7 +100,7 @@ export default function CartItemRow({
           </span>
           <button
             type="button"
-            disabled={false}
+            disabled={item.quantity >= effectiveStock || isOutOfStock}
             onClick={() => onUpdateQuantity && onUpdateQuantity(1)}
             className="w-7 h-7 flex items-center justify-center hover:bg-surface-2 text-ink disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
           >

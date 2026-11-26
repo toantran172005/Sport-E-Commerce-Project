@@ -7,6 +7,7 @@ import com.sportecommerce.dto.response.ReviewResponse;
 import com.sportecommerce.entity.*;
 import com.sportecommerce.enums.OrderStatus;
 import com.sportecommerce.enums.ReviewStatus;
+import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.BadRequestException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.*;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final OrderItemRepository orderItemRepository;
     private final OrderRepository orderRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final UserAddressRepository userAddressRepository;
 
     private ReviewResponse mapToResponse(Review r) {
         Product p = r.getProduct();
@@ -181,50 +184,17 @@ public class ReviewServiceImpl implements ReviewService {
         if (orderItem == null) {
             List<OrderItem> userOrderItems = orderItemRepository.findByUserAndProduct(userId, product.getId());
             for (OrderItem oi : userOrderItems) {
-                if (!reviewRepository.existsByOrderItemId(oi.getId())) {
+                if (oi.getOrder() != null
+                        && oi.getOrder().getStatus() == OrderStatus.DELIVERED
+                        && !reviewRepository.existsByOrderItemId(oi.getId())) {
                     orderItem = oi;
                     break;
                 }
             }
         }
 
-        // Nếu người dùng chưa có đơn hàng cho sản phẩm này trong DB (hoặc test mode),
-        // tạo một OrderItem hợp lệ liên kết để không vi phạm ràng buộc NOT NULL và UNIQUE
         if (orderItem == null) {
-            List<ProductVariant> variants = productVariantRepository.findByProduct_Id(product.getId());
-            ProductVariant variant = (!variants.isEmpty()) ? variants.get(0) : null;
-            if (variant == null) {
-                variant = ProductVariant.builder()
-                        .product(product)
-                        .sku("SKU-" + product.getId() + "-" + System.currentTimeMillis())
-                        .price(product.getBasePrice() != null ? product.getBasePrice() : 100000.0)
-                        .stock(50)
-                        .build();
-                variant = productVariantRepository.save(variant);
-            }
-
-            Order testOrder = Order.builder()
-                    .orderCode("REV-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                    .user(user)
-                    .status(OrderStatus.DELIVERED)
-                    .subTotal(variant.getPrice())
-                    .totalAmount(variant.getPrice())
-                    .shippingAddressSnapshot(user.getFullName() != null ? user.getFullName() : "Khách hàng")
-                    .placedAt(Instant.now())
-                    .build();
-            testOrder = orderRepository.save(testOrder);
-
-            orderItem = OrderItem.builder()
-                    .order(testOrder)
-                    .variant(variant)
-                    .productNameSnapshot(product.getName())
-                    .skuSnapshot(variant.getSku() != null ? variant.getSku() : "SKU-DEFAULT")
-                    .variantSnapshot(variant.getSize() != null ? variant.getSize() : "Tiêu chuẩn")
-                    .unitPrice(variant.getPrice())
-                    .quantity(1)
-                    .subtotal(variant.getPrice())
-                    .build();
-            orderItem = orderItemRepository.save(orderItem);
+            throw new AppException("Bạn cần mua hàng để đánh giá", HttpStatus.FORBIDDEN);
         }
 
         Review review = Review.builder()
