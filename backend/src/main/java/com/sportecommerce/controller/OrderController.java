@@ -60,6 +60,23 @@ public class OrderController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping
+    public ResponseEntity<ApiResponse<java.util.List<OrderDetailResponse>>> getAllOrders(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        ApiResponse<java.util.List<OrderDetailResponse>> response = orderService.getAllOrders();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/my-orders")
+    public ResponseEntity<ApiResponse<java.util.List<OrderDetailResponse>>> getMyOrders(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            throw new com.sportecommerce.exception.AppException("Vui lòng đăng nhập!");
+        }
+        ApiResponse<java.util.List<OrderDetailResponse>> response = orderService.getMyOrders(userPrincipal.getId());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getOrderById(
             @AuthenticationPrincipal UserPrincipal userPrincipal,

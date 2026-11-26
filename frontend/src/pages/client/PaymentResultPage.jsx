@@ -8,7 +8,7 @@ import { formatCurrency, formatDateTime } from '../../utils/formatters.js';
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
-  const { orders, setAppliedCoupon, refreshCoupons, showToast } = useStore();
+  const { orders, setAppliedCoupon, refreshCoupons, showToast, fetchOrders, fetchAdminOrders } = useStore();
 
   // Tham số từ VNPay Sandbox Return URL (nếu có)
   const vnpResponseCode = searchParams.get('vnp_ResponseCode');
@@ -56,6 +56,11 @@ export default function PaymentResultPage() {
       .then((res) => {
         const data = res?.data ?? res;
         setWebhookResult(data);
+
+        // Ngay lập tức đồng bộ lại OrderContext để UI lập tức chuyển sang PAID mà không cần chờ F5
+        if (typeof fetchOrders === 'function') fetchOrders(true);
+        if (typeof fetchAdminOrders === 'function') fetchAdminOrders(true);
+
         if (data?.orderId) {
           return Promise.allSettled([
             orderService.getOrderById(data.orderId),

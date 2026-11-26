@@ -71,8 +71,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         // 2. Rẽ nhánh theo phương thức thanh toán
         if (request.getMethod() == PaymentMethod.COD) {
-            // Giữ payments ở trạng thái PENDING, cập nhật orders.status = CONFIRMED
-            orderService.confirmOrder(order.getId());
+            // Giữ payments ở trạng thái PENDING, đơn hàng giữ PENDING để chờ Admin/Staff duyệt
             notificationService.notifyOrderPlaced(order);
 
             return mapperUtil.mapToPaymentResponse(savedPayment, null,

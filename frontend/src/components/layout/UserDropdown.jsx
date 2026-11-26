@@ -12,6 +12,7 @@ import {
 import { useStore } from "../../context/StoreContext.jsx";
 import { authService } from "../../services/authService.js";
 import Avatar from "../common/Avatar.jsx";
+import { getDefaultAdminPath } from "../../utils/permissions.js";
 
 export default function UserDropdown() {
   const {
@@ -121,7 +122,7 @@ export default function UserDropdown() {
           {/* Quick link to Seller CMS (Only for ADMIN role) */}
           {isAdmin && (
             <Link
-              to="/admin"
+              to={getDefaultAdminPath(user?.role)}
               onClick={() => setIsUserMenuOpen(false)}
               className="flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-semibold text-accent bg-accent-soft hover:bg-accent-soft/80 transition"
             >

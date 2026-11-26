@@ -1,9 +1,25 @@
-import { Plus, MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, MapPin, Trash2, AlertTriangle } from 'lucide-react';
 import { useAddress, useUI } from '../../../context';
 
 export default function AddressesPage() {
   const { addresses: userAddresses, setDefaultAddress, deleteAddress } = useAddress();
   const { openModal } = useUI();
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteAddress(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch {
+      // error handled in context
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="bg-surface rounded-lg border border-line p-6 space-y-5 shadow-2xs">
@@ -83,9 +99,7 @@ export default function AddressesPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm('Bạn chắc chắn muốn xóa địa chỉ này?')) deleteAddress(addr.id);
-                    }}
+                    onClick={() => setDeleteTarget(addr)}
                     className="px-3 py-1.5 rounded-md text-[12px] font-bold text-danger hover:underline cursor-pointer"
                   >
                     Xóa
@@ -96,6 +110,49 @@ export default function AddressesPage() {
           })
         )}
       </div>
+
+      {/* Modal xác nhận xóa địa chỉ */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-surface rounded-xl p-6 max-w-md w-full border border-line shadow-2xl space-y-4 animate-scaleIn text-ink">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-danger-soft text-danger flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-bold text-ink">Xác nhận xóa địa chỉ</h3>
+                <p className="text-[12.5px] text-ink-muted">
+                  Bạn có chắc chắn muốn xóa địa chỉ của <strong>{deleteTarget.recipientName || deleteTarget.name}</strong>?
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[12px] text-ink-muted bg-surface-2 p-3 rounded-lg border border-line">
+              📍 {deleteTarget.fullAddress || `${deleteTarget.addressLine || ''}, ${deleteTarget.ward || ''}, ${deleteTarget.district || ''}, ${deleteTarget.city || ''}`}
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-line">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-lg border border-line text-[12.5px] font-bold text-ink hover:bg-surface-2 transition cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-lg bg-danger hover:bg-danger-hover text-white text-[12.5px] font-bold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

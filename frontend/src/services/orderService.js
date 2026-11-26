@@ -1,5 +1,13 @@
 import axiosClient from "../api/axiosClient.js";
 
+const extractList = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.content)) return response.content;
+  return [];
+};
+
 export const orderService = {
   async placeOrder(orderData) {
     const payload = {
@@ -14,7 +22,12 @@ export const orderService = {
       couponId: orderData.couponId ? Number(orderData.couponId) : null,
     };
 
-    if (
+    if (orderData.items && (!orderData.cartItemIds || orderData.cartItemIds.length === 0)) {
+      payload.items = {
+        variantId: Number(orderData.items.variantId),
+        quantity: Number(orderData.items.quantity || 1),
+      };
+    } else if (
       orderData.cartItemIds &&
       Array.isArray(orderData.cartItemIds) &&
       orderData.cartItemIds.length > 0
@@ -84,6 +97,16 @@ export const orderService = {
   async getOrderById(id) {
     const response = await axiosClient.get(`/orders/${id}`);
     return response.data || response;
+  },
+
+  async getAllOrders() {
+    const response = await axiosClient.get("/orders");
+    return extractList(response);
+  },
+
+  async getMyOrders() {
+    const response = await axiosClient.get("/orders/my-orders");
+    return extractList(response);
   },
 };
 

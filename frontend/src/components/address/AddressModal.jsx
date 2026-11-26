@@ -68,7 +68,11 @@ export default function AddressModal() {
         closeModal();
         return;
       }
-      await addAddress(payload);
+      const created = await addAddress(payload);
+      if (created?.id) {
+        setSelectedAddressId(created.id);
+      }
+      closeModal();
       setIsAddingNew(false);
       setRecipientName('');
       setPhoneNumber('');

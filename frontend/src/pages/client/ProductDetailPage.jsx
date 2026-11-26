@@ -253,17 +253,21 @@ export default function ProductDetailPage() {
   const handleBuyNow = () => {
     if (!product) return;
     if (!requireLogin('Vui lòng đăng nhập để tiến hành đặt hàng')) return;
-    addToCart(
-      {
-        ...product,
-        selectedVariant: currentVariant,
-        variantId: currentVariant?.id,
-        price: currentPrice,
-        originalPrice,
+    navigate('/checkout', {
+      state: {
+        buyNowItem: {
+          product,
+          productId: product.id,
+          variantId: currentVariant?.id,
+          name: product.name,
+          variant: `${currentVariant?.size || 'Tiêu chuẩn'} - ${currentVariant?.color || 'Mặc định'}`,
+          price: currentPrice,
+          originalPrice,
+          quantity,
+          imageUrl: currentVariant?.imageUrl || product.imageUrl || (product.images && product.images[0]?.imageUrl) || '',
+        },
       },
-      quantity
-    );
-    navigate('/checkout');
+    });
   };
 
   if (loading) {
@@ -453,7 +457,7 @@ export default function ProductDetailPage() {
               onClick={() => {
                 if (requireLogin('Vui lòng đăng nhập để lưu sản phẩm yêu thích')) toggleWishlist(product.id);
               }}
-              className={`w-11 h-11 rounded-md border flex items-center justify-center transition shrink-0 ${
+              className={`group/heart w-11 h-11 rounded-md border flex items-center justify-center transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer ${
                 isWishlisted
                   ? 'border-danger/30 bg-danger-soft text-danger'
                   : 'border-line bg-surface text-ink-muted hover:border-danger hover:text-danger'
@@ -461,7 +465,7 @@ export default function ProductDetailPage() {
               title={isWishlisted ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
             >
               <Heart
-                className={`w-4 h-4 ${isWishlisted ? 'fill-danger text-danger' : ''}`}
+                className={`w-4 h-4 transition-all duration-200 group-hover/heart:scale-125 ${isWishlisted ? 'fill-danger text-danger scale-105' : ''}`}
               />
             </button>
           </div>

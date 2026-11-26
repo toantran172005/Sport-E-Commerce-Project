@@ -34,8 +34,7 @@ export default function CancelOrderModal() {
     const finalReason = selectedReason === 'Lý do khác (chi tiết)' ? (customReason || 'Khách hàng yêu cầu hủy') : selectedReason;
     setIsSubmitting(true);
     try {
-      await orderService.cancelOrder(orderId, finalReason);
-      cancelOrderById(orderId, finalReason);
+      await cancelOrderById(orderId, finalReason);
       showToast(`Đã hủy đơn hàng ${orderCode}`, 'success');
       closeModal();
     } catch (err) {

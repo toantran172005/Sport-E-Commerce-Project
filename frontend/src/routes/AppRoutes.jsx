@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Route, Routes, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useUI } from '../context';
 import { useRequireLogin } from '../hooks/useRequireLogin.js';
@@ -65,12 +65,29 @@ function PasswordChangeGate({ children }) {
 
 function ForbiddenRedirect({ to, message }) {
   const { showToast } = useUI();
+  const hasShownToastRef = useRef(false);
+
   useEffect(() => {
-    if (message) {
+    if (message && !hasShownToastRef.current) {
+      hasShownToastRef.current = true;
       showToast(message, 'error');
     }
   }, [message, showToast]);
   return <Navigate to={to} replace />;
+}
+
+function AdminDashboardEntry() {
+  const { user } = useAuth();
+
+  if (user?.role === ROLES.STAFF) {
+    return <Navigate to={getDefaultAdminPath(user.role)} replace />;
+  }
+
+  return (
+    <RoleRoute permission={ADMIN_PERMISSIONS.DASHBOARD}>
+      <AdminDashboardPage />
+    </RoleRoute>
+  );
 }
 
 function RoleRoute({ permission, children }) {
@@ -200,14 +217,7 @@ export default function AppRoutes() {
         <Route path="/force-change-password" element={<ForceChangePasswordPage />} />
 
         {/* Admin CMS Routes (Strictly Protected with Granular Role Permissions) */}
-        <Route
-          path="/admin"
-          element={
-            <RoleRoute permission={ADMIN_PERMISSIONS.DASHBOARD}>
-              <AdminDashboardPage />
-            </RoleRoute>
-          }
-        />
+        <Route path="/admin" element={<AdminDashboardEntry />} />
         <Route
           path="/admin/products"
           element={

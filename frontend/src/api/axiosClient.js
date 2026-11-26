@@ -5,7 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 const axiosClient = axios.create({
   baseURL: API_URL,
   headers: { "Content-Type": "application/json" },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Các API này trả 4xx khi sai mật khẩu/OTP/token → không được tự refresh hay đá về /login

@@ -6,7 +6,6 @@ import { useUI } from './UIContext.jsx';
 import { useAuth } from './AuthContext.jsx';
 import { wishlistService } from '../services/wishlistService.js';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 const WishlistContext = createContext(null);
 
 export function WishlistProvider({ children }) {
@@ -24,9 +23,9 @@ export function WishlistProvider({ children }) {
     }
   }, []);
 
-  // Khi đã đăng nhập và chạy chế độ thật: tải danh sách ID yêu thích từ server
+  // Khi đã đăng nhập: tải danh sách ID yêu thích trực tiếp từ database server
   useEffect(() => {
-    if (USE_MOCK || !user) return;
+    if (!user) return;
     let active = true;
     wishlistService
       .getWishlistIds()
@@ -45,24 +44,25 @@ export function WishlistProvider({ children }) {
     async (productId) => {
       const numId = Number(productId);
       const exists = wishlistIds.includes(numId);
+      const nextAdded = !exists;
 
-      if (!USE_MOCK && user) {
+      // Optimistic update: phản hồi tức thì 0ms trên giao diện
+      setWishlistIds((prev) =>
+        nextAdded ? (prev.includes(numId) ? prev : [...prev, numId]) : prev.filter((id) => id !== numId)
+      );
+      showToast(nextAdded ? 'Đã thêm vào danh sách yêu thích' : 'Đã xóa khỏi danh sách yêu thích');
+
+      if (user) {
         try {
-          const res = await wishlistService.toggleWishlist(numId);
-          const added = res?.added !== undefined ? res.added : !exists;
-          setWishlistIds((prev) =>
-            added ? (prev.includes(numId) ? prev : [...prev, numId]) : prev.filter((id) => id !== numId)
-          );
-          showToast(added ? 'Đã thêm vào danh sách yêu thích' : 'Đã xóa khỏi danh sách yêu thích');
-          return;
+          await wishlistService.toggleWishlist(numId);
         } catch (err) {
+          // Rollback nếu gọi API thất bại
+          setWishlistIds((prev) =>
+            exists ? (prev.includes(numId) ? prev : [...prev, numId]) : prev.filter((id) => id !== numId)
+          );
           showToast(err.message || 'Không thể cập nhật danh sách yêu thích', 'error');
-          return;
         }
       }
-
-      setWishlistIds((prev) => (exists ? prev.filter((id) => id !== numId) : [...prev, numId]));
-      showToast(exists ? 'Đã xóa khỏi danh sách yêu thích' : 'Đã thêm vào danh sách yêu thích');
     },
     [wishlistIds, setWishlistIds, showToast, user]
   );

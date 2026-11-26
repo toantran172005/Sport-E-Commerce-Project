@@ -35,6 +35,87 @@ public class MapperUtil {
     }
 
     public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(Order order) {
+        String providerCode = null;
+        String providerName = null;
+        String trackingNum = null;
+        com.sportecommerce.dto.response.OrderDetailResponse.ShipmentSummary shipmentSummary = null;
+
+        if (order.getShipment() != null) {
+            com.sportecommerce.entity.Shipment s = order.getShipment();
+            trackingNum = s.getTrackingNumber();
+            if (s.getProvider() != null) {
+                providerCode = s.getProvider().getCode();
+                providerName = s.getProvider().getName();
+            }
+            shipmentSummary = com.sportecommerce.dto.response.OrderDetailResponse.ShipmentSummary.builder()
+                    .provider(com.sportecommerce.dto.response.OrderDetailResponse.ShipmentSummary.ProviderInfo.builder()
+                            .code(providerCode)
+                            .name(providerName)
+                            .build())
+                    .trackingNumber(trackingNum)
+                    .status(s.getStatus() != null ? s.getStatus().name() : null)
+                    .shippingFee(s.getShippingFee())
+                    .build();
+        }
+
+        String payMethod = null;
+        String payStatus = null;
+        com.sportecommerce.dto.response.OrderDetailResponse.PaymentSummary paymentSummary = null;
+        if (order.getPayment() != null) {
+            com.sportecommerce.entity.Payment p = order.getPayment();
+            payMethod = p.getMethod() != null ? p.getMethod().name() : null;
+            payStatus = p.getStatus() != null ? p.getStatus().name() : null;
+            paymentSummary = com.sportecommerce.dto.response.OrderDetailResponse.PaymentSummary.builder()
+                    .method(payMethod)
+                    .status(payStatus)
+                    .amount(p.getAmount())
+                    .transactionCode(p.getTransactionCode())
+                    .paidAt(p.getPaidAt())
+                    .build();
+        }
+
+        com.sportecommerce.dto.response.OrderDetailResponse.UserSummary userSummary = null;
+        String custName = null;
+        String custPhone = null;
+        String custEmail = null;
+        if (order.getUser() != null) {
+            User u = order.getUser();
+            custName = u.getFullName();
+            custPhone = u.getPhoneNumber();
+            custEmail = u.getEmail();
+            userSummary = com.sportecommerce.dto.response.OrderDetailResponse.UserSummary.builder()
+                    .id(u.getId())
+                    .fullName(custName)
+                    .phoneNumber(custPhone)
+                    .email(custEmail)
+                    .build();
+        }
+
+        List<com.sportecommerce.dto.response.OrderDetailResponse.OrderItemSummary> itemSummaries = null;
+        if (order.getOrderItems() != null) {
+            itemSummaries = order.getOrderItems().stream().map(oi -> {
+                String img = null;
+                Long vId = null;
+                if (oi.getVariant() != null) {
+                    vId = oi.getVariant().getId();
+                    img = oi.getVariant().getImageUrl();
+                }
+                return com.sportecommerce.dto.response.OrderDetailResponse.OrderItemSummary.builder()
+                        .id(oi.getId())
+                        .variantId(vId)
+                        .productName(oi.getProductNameSnapshot())
+                        .productNameSnapshot(oi.getProductNameSnapshot())
+                        .skuSnapshot(oi.getSkuSnapshot())
+                        .variantSnapshot(oi.getVariantSnapshot())
+                        .unitPrice(oi.getUnitPrice())
+                        .price(oi.getUnitPrice())
+                        .quantity(oi.getQuantity())
+                        .subtotal(oi.getSubtotal())
+                        .imageUrl(img)
+                        .build();
+            }).collect(Collectors.toList());
+        }
+
         return com.sportecommerce.dto.response.OrderDetailResponse.builder()
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
@@ -44,9 +125,26 @@ public class MapperUtil {
                 .shippingFee(order.getShippingFee())
                 .totalAmount(order.getTotalAmount())
                 .recipientSnapshot(order.getShippingAddressSnapshot())
+                .shippingAddressSnapshot(order.getShippingAddressSnapshot())
                 .note(order.getNote())
+                .cancelReason(order.getCancelReason())
                 .placedAt(order.getPlacedAt())
                 .confirmedAt(order.getConfirmedAt())
+                .canceledAt(order.getCanceledAt())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .paymentMethod(payMethod)
+                .paymentStatus(payStatus)
+                .shippingProviderCode(providerCode)
+                .shippingProviderName(providerName)
+                .trackingNumber(trackingNum)
+                .customerName(custName)
+                .customerPhone(custPhone)
+                .customerEmail(custEmail)
+                .user(userSummary)
+                .shipment(shipmentSummary)
+                .payment(paymentSummary)
+                .orderItems(itemSummaries)
                 .build();
     }
 

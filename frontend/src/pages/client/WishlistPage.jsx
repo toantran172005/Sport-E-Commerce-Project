@@ -6,58 +6,52 @@ import { EmptyState, Skeleton } from "../../components/common";
 import { useStore } from "../../context/StoreContext.jsx";
 import { wishlistService } from "../../services/wishlistService.js";
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-
 export default function WishlistPage() {
   const { products, wishlistIds } = useStore();
   const [apiWishlistProducts, setApiWishlistProducts] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!USE_MOCK) {
-      setLoading(true);
-      wishlistService
-        .getWishlist()
-        .then((res) => {
-          if (Array.isArray(res)) {
-            // Map WishlistResponse to Product structure compatible with ProductCard
-            const mapped = res.map((item) => ({
-              id: item.productId || item.id,
-              name: item.productName || item.name,
-              slug: item.productSlug || item.slug,
-              basePrice: item.basePrice || item.price,
-              salePrice: item.salePrice,
-              images: item.imageUrl ? [{ imageUrl: item.imageUrl, isPrimary: true }] : [],
-              avgRating: item.avgRating || 5.0,
-              reviewCount: item.reviewCount || 0,
-              variants: item.defaultVariantId
-                ? [
-                    {
-                      id: item.defaultVariantId,
-                      size: item.defaultVariantSize,
-                      color: item.defaultVariantColor,
-                      price: item.defaultVariantPrice,
-                      salePrice: item.defaultVariantSalePrice,
-                      stock: item.defaultVariantStock,
-                      imageUrl: item.imageUrl,
-                    },
-                  ]
-                : [],
-            }));
-            setApiWishlistProducts(mapped);
-          }
-        })
-        .catch(() => {})
-        .finally(() => {
-          setLoading(false);
-        });
-    }
+    setLoading(true);
+    wishlistService
+      .getWishlist()
+      .then((res) => {
+        if (Array.isArray(res)) {
+          // Map WishlistResponse to Product structure compatible with ProductCard
+          const mapped = res.map((item) => ({
+            id: item.productId || item.id,
+            name: item.productName || item.name,
+            slug: item.productSlug || item.slug,
+            basePrice: item.basePrice || item.price,
+            salePrice: item.salePrice,
+            images: item.imageUrl ? [{ imageUrl: item.imageUrl, isPrimary: true }] : [],
+            avgRating: item.avgRating || 5.0,
+            reviewCount: item.reviewCount || 0,
+            variants: item.defaultVariantId
+              ? [
+                  {
+                    id: item.defaultVariantId,
+                    size: item.defaultVariantSize,
+                    color: item.defaultVariantColor,
+                    price: item.defaultVariantPrice,
+                    salePrice: item.defaultVariantSalePrice,
+                    stock: item.defaultVariantStock,
+                    imageUrl: item.imageUrl,
+                  },
+                ]
+              : [],
+          }));
+          setApiWishlistProducts(mapped);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setLoading(false);
+      });
   }, [wishlistIds]);
 
   const localWishlistProducts = products.filter((p) => wishlistIds.includes(p.id));
-  const displayProducts = !USE_MOCK && apiWishlistProducts.length > 0
-    ? apiWishlistProducts
-    : localWishlistProducts;
+  const displayProducts = apiWishlistProducts.length > 0 ? apiWishlistProducts : localWishlistProducts;
 
   return (
     <div className="max-w-340 w-full mx-auto px-4 md:px-6 py-6 space-y-6 text-ink">

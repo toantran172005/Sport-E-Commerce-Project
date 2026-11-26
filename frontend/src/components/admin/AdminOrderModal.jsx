@@ -41,6 +41,7 @@ export default function AdminOrderModal() {
     modalPayload,
     closeModal,
     orders,
+    adminOrders,
     updateOrderStatus,
     showToast,
     showErrorModal,
@@ -51,14 +52,19 @@ export default function AdminOrderModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const orderId = modalPayload?.orderId || modalPayload?.order?.id;
-  const order = orders.find((o) => o.id === orderId || o.code === orderId || o.orderCode === orderId) || modalPayload?.order;
+  const currentOrdersList = adminOrders && adminOrders.length > 0 ? adminOrders : orders;
+  const order = currentOrdersList.find((o) => String(o.id) === String(orderId) || String(o.code) === String(orderId) || String(o.orderCode) === String(orderId)) || modalPayload?.order;
+
+  const currentStatus = (order?.status || 'PENDING').toUpperCase();
+  const allowedNextStatuses = ALLOWED_TRANSITIONS[currentStatus] || [];
+  const isTerminal = allowedNextStatuses.length === 0;
 
   useEffect(() => {
-    if (order) {
-      setSelectedStatus(order.status || 'PENDING');
+    if (order?.status) {
+      setSelectedStatus(order.status.toUpperCase());
       setAdminNote('');
     }
-  }, [order]);
+  }, [order?.id, order?.status]);
 
   if (activeModal !== 'admin_order_modal') return null;
 
@@ -79,12 +85,8 @@ export default function AdminOrderModal() {
     );
   }
 
-  const currentStatus = order?.status || 'PENDING';
-  const allowedNextStatuses = ALLOWED_TRANSITIONS[currentStatus] || [];
-  const isTerminal = allowedNextStatuses.length === 0;
-
   const handleUpdateStatus = async () => {
-    if (isTerminal || selectedStatus === currentStatus) {
+    if (isTerminal || selectedStatus.toUpperCase() === currentStatus) {
       closeModal();
       return;
     }
@@ -97,7 +99,7 @@ export default function AdminOrderModal() {
         adminNote || `Cập nhật trạng thái sang ${selectedStatus}`,
         selectedStatus === 'CANCELED' ? (adminNote || 'Hủy bởi Quản trị viên') : ''
       );
-      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} sang ${selectedStatus}!`, 'success');
+      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} từ ${currentStatus} sang ${selectedStatus}!`, 'success');
       closeModal();
     } catch (err) {
       console.error('Lỗi cập nhật trạng thái đơn hàng:', err);
@@ -107,12 +109,64 @@ export default function AdminOrderModal() {
     }
   };
 
-  const receiverName = order.userAddress?.receiverName || order.adminCustomerName || order.recipientName || 'Khách hàng';
-  const receiverPhone = order.userAddress?.phone || order.adminCustomerSub || order.phoneNumber || '—';
+  let snapshotName = '';
+  let snapshotPhone = '';
+  let snapshotAddress = '';
+  const rawSnapshot = order?.shippingAddressSnapshot || order?.recipientSnapshot || '';
+  if (typeof rawSnapshot === 'string') {
+    if (rawSnapshot.includes(' - ')) {
+      const parts = rawSnapshot.split(' - ');
+      if (parts.length >= 3) {
+        snapshotName = parts[0]?.trim();
+        snapshotPhone = parts[1]?.trim();
+        snapshotAddress = parts.slice(2).join(' - ').trim();
+      } else if (parts.length === 2) {
+        snapshotName = parts[0]?.trim();
+        snapshotAddress = parts[1]?.trim();
+      }
+    } else if (rawSnapshot.includes(' • ')) {
+      const parts = rawSnapshot.split(' • ');
+      if (parts.length >= 3) {
+        snapshotName = parts[0]?.trim();
+        snapshotPhone = parts[1]?.trim();
+        snapshotAddress = parts.slice(2).join(' • ').trim();
+      } else if (parts.length === 2) {
+        snapshotName = parts[0]?.trim();
+        snapshotAddress = parts[1]?.trim();
+      }
+    }
+  }
+
+  const receiverName =
+    snapshotName ||
+    order.recipientName ||
+    order.receiverName ||
+    order.customerName ||
+    order.user?.fullName ||
+    order.adminCustomerName ||
+    order.userFullName ||
+    'Khách hàng';
+
+  const receiverPhone =
+    snapshotPhone ||
+    order.customerPhone ||
+    order.receiverPhone ||
+    order.phoneNumber ||
+    order.user?.phoneNumber ||
+    order.user?.phone ||
+    order.userAddress?.phone ||
+    order.adminCustomerSub ||
+    '—';
+
   const receiverAddress =
-    order.userAddress?.streetAddress
-      ? `${order.userAddress.streetAddress}, ${order.userAddress.ward}, ${order.userAddress.district}, ${order.userAddress.province}`
-      : order.shippingAddressSnapshot || order.address || 'Địa chỉ nhận hàng';
+    order.shippingAddress ||
+    snapshotAddress ||
+    rawSnapshot ||
+    order.recipientSnapshot ||
+    (order.userAddress?.streetAddress
+      ? `${order.userAddress.streetAddress}, ${order.userAddress.ward}, ${order.userAddress.district}, ${order.userAddress.province || order.userAddress.city}`
+      : order.address) ||
+    'Địa chỉ nhận hàng';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
@@ -180,6 +234,13 @@ export default function AdminOrderModal() {
                 <span>Trạng thái TT:</span>
                 {(() => {
                   const payStatus = order.payment?.status || order.paymentStatus || 'PENDING';
+                  if ((order.paymentMethod === 'COD' || (!order.paymentMethod && order.payment?.method === 'COD')) && (currentStatus === 'DELIVERED' || currentStatus === 'COMPLETED')) {
+                    return (
+                      <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        ✓ Đã thanh toán (PAID)
+                      </span>
+                    );
+                  }
                   if (payStatus === 'REFUND') {
                     return (
                       <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -211,7 +272,21 @@ export default function AdminOrderModal() {
               <div className="text-[12.5px] text-ink flex items-center justify-between">
                 <span>Vận chuyển:</span>
                 <span className="font-bold text-ink">
-                  {order.shippingProviderShort || 'GHN'} Express — {order.trackingCode || 'Chưa có mã'}
+                  {(() => {
+                    const rawCode = (
+                      order.shippingProviderCode ||
+                      order.shippingProvider ||
+                      order.shippingProviderShort ||
+                      order.shipment?.provider?.code ||
+                      ''
+                    ).toUpperCase();
+                    const isGHTK = rawCode.includes('GHTK') ||
+                      order.shipment?.provider?.name?.toLowerCase().includes('tiết kiệm') ||
+                      (order.shipment?.trackingNumber?.startsWith('GHTK') ?? false);
+                    const providerName = order.shipment?.provider?.name || (isGHTK ? 'Giao Hàng Tiết Kiệm (GHTK)' : 'Giao Hàng Nhanh (GHN)');
+                    const tracking = order.trackingCode || order.trackingNumber || order.shipment?.trackingNumber;
+                    return `${providerName} — ${tracking ? tracking : 'Chưa có mã'}`;
+                  })()}
                 </span>
               </div>
             </div>
@@ -258,26 +333,40 @@ export default function AdminOrderModal() {
           </div>
 
           {/* Order Totals */}
-          <div className="bg-surface-2/40 p-3.5 rounded-lg border border-line space-y-1.5 text-[12.5px]">
-            <div className="flex justify-between text-ink-muted">
-              <span>Tạm tính hàng hoá:</span>
-              <span>{formatCurrency(order.subtotal || order.subTotal || (order.total || order.totalAmount) - 30000)}</span>
-            </div>
-            <div className="flex justify-between text-ink-muted">
-              <span>Phí vận chuyển:</span>
-              <span>{formatCurrency(order.shippingFee || 30000)}</span>
-            </div>
-            {order.discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-                <span>Giảm giá khuyến mãi:</span>
-                <span>-{formatCurrency(order.discountAmount)}</span>
+          {(() => {
+            const orderItemsList = order.items || order.orderItems || [];
+            const computedItemsSubtotal = orderItemsList.reduce(
+              (sum, item) => sum + (item.subtotal || (item.unitPrice || item.price || 0) * (item.quantity || 1)),
+              0
+            );
+            const displaySubtotal = order.subTotal || order.subtotal || computedItemsSubtotal;
+            const displayShippingFee = order.shippingFee ?? 30000;
+            const displayDiscount = order.discountAmount || 0;
+            const displayTotal = order.totalAmount || order.total || Math.max(0, displaySubtotal + displayShippingFee - displayDiscount);
+
+            return (
+              <div className="bg-surface-2/40 p-3.5 rounded-lg border border-line space-y-1.5 text-[12.5px]">
+                <div className="flex justify-between text-ink-muted">
+                  <span>Tạm tính hàng hoá:</span>
+                  <span>{formatCurrency(displaySubtotal)}</span>
+                </div>
+                <div className="flex justify-between text-ink-muted">
+                  <span>Phí vận chuyển:</span>
+                  <span>{formatCurrency(displayShippingFee)}</span>
+                </div>
+                {displayDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Giảm giá khuyến mãi:</span>
+                    <span>-{formatCurrency(displayDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-[14px] font-bold text-ink pt-2 border-t border-line">
+                  <span>Tổng thanh toán:</span>
+                  <span className="text-accent">{formatCurrency(displayTotal)}</span>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between text-[14px] font-bold text-ink pt-2 border-t border-line">
-              <span>Tổng thanh toán:</span>
-              <span className="text-accent">{formatCurrency(order.total || order.totalAmount)}</span>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Status Update Form */}
           <div className="p-4 rounded-lg border-2 border-accent/20 bg-accent-soft space-y-3">

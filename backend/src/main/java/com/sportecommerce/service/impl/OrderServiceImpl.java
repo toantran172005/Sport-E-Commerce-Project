@@ -45,6 +45,7 @@ public class OrderServiceImpl implements OrderService {
     private final ShippingIntegrationService shippingIntegrationService;
     private final CouponService couponService;
     private final ProductRepository productRepository;
+    private final OrderItemRepository orderItemRepository;
 
     @Override
     @Transactional
@@ -82,6 +83,13 @@ public class OrderServiceImpl implements OrderService {
         if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
             List<CartItem> cartItems = cartItemRepository
                     .findAllById(request.getCartItemIds());
+
+            if (cartItems.isEmpty()) {
+                throw new BadRequestException("Không tìm thấy sản phẩm hợp lệ trong giỏ hàng!");
+            }
+            if (cartItems.size() != request.getCartItemIds().size()) {
+                throw new BadRequestException("Một số sản phẩm trong giỏ hàng không còn tồn tại!");
+            }
 
             for (CartItem cartItem : cartItems) {
 
@@ -257,8 +265,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public Order getOrderById(Long orderId) {
-        return orderRepository.findById(orderId)
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với ID: " + orderId));
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            orderItemRepository.findByOrderInWithVariant(java.util.Collections.singletonList(order));
+        }
+        return order;
     }
     public ApiResponse<?> updateOrderStatus(Long userId, UpdateOrderStatusRequest request) {
 
@@ -274,6 +286,11 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng mã: " + orderId));
 
         OrderStatus currentStatus = order.getStatus();
+
+        if (currentStatus.equals(newStatus)) {
+            return ApiResponse.success("Đơn hàng hiện đã ở trạng thái " + newStatus,
+                    mapperUtil.mapOrderToOrderDetailResponse(order));
+        }
 
         if (user.getRole().equals(UserRole.CUSTOMER)) {
             if (!(newStatus.equals(OrderStatus.CANCELED)
@@ -475,7 +492,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getId(), order.getOrderCode(), order.getUser().getId(), currentStatus, newStatus));
 
         return ApiResponse.success("Cập nhật trạng thái thành công!",
-                mapperUtil.mapOrderToPlaceOrderResponse(order));
+                mapperUtil.mapOrderToOrderDetailResponse(order));
     }
 
 
@@ -489,5 +506,34 @@ public class OrderServiceImpl implements OrderService {
                 .note(reason)
                 .build();
         return updateOrderStatus(userId, request);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<com.sportecommerce.dto.response.OrderDetailResponse>> getAllOrders() {
+        List<Order> orders = orderRepository.findAllWithDetails();
+        if (!orders.isEmpty()) {
+            orderItemRepository.findByOrderInWithVariant(orders);
+        }
+        List<com.sportecommerce.dto.response.OrderDetailResponse> payload = orders.stream()
+                .map(mapperUtil::mapOrderToOrderDetailResponse)
+                .collect(java.util.stream.Collectors.toList());
+        return ApiResponse.success("Lấy danh sách đơn hàng thành công", payload);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<com.sportecommerce.dto.response.OrderDetailResponse>> getMyOrders(Long userId) {
+        if (userId == null) {
+            throw new BadRequestException("User ID không được để trống!");
+        }
+        List<Order> orders = orderRepository.findMyOrdersWithDetails(userId);
+        if (!orders.isEmpty()) {
+            orderItemRepository.findByOrderInWithVariant(orders);
+        }
+        List<com.sportecommerce.dto.response.OrderDetailResponse> payload = orders.stream()
+                .map(mapperUtil::mapOrderToOrderDetailResponse)
+                .collect(java.util.stream.Collectors.toList());
+        return ApiResponse.success("Lấy danh sách đơn hàng thành công", payload);
     }
 }

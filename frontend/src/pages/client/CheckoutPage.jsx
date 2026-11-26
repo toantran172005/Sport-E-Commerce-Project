@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   MapPin,
   Truck,
@@ -40,8 +40,25 @@ export default function CheckoutPage() {
     }
   }, [user, navigate, showToast]);
 
+  const location = useLocation();
+  const buyNowItem = location.state?.buyNowItem || null;
+  const isBuyNow = Boolean(buyNowItem);
+
   // Cố định (freeze) danh sách sản phẩm trong phiên checkout hiện tại
   const [frozenCheckoutItems] = useState(() => {
+    if (buyNowItem) {
+      return [{
+        cartItemId: null,
+        id: null,
+        variantId: buyNowItem.variantId,
+        productId: buyNowItem.productId,
+        name: buyNowItem.name,
+        imageUrl: buyNowItem.imageUrl,
+        price: buyNowItem.price,
+        quantity: buyNowItem.quantity,
+        variant: buyNowItem.variant,
+      }];
+    }
     const initialList =
       selectedCartItems && selectedCartItems.length > 0 ? selectedCartItems : cart;
     return initialList ? [...initialList] : [];
@@ -103,9 +120,13 @@ export default function CheckoutPage() {
 
     setIsSubmitting(true);
     try {
-      const hasRealCartItemIds = checkoutItems.some(
-        (it) => it.cartItemId && typeof it.cartItemId === 'number'
-      );
+      const validCartItemIds = checkoutItems
+        .map((it) => it.id ?? it.cartItemId)
+        .filter((id) => id != null && !isNaN(Number(id)) && Number(id) > 0 && Number(id) < 1000000000000)
+        .map((id) => Number(id));
+      const hasRealCartItemIds = validCartItemIds.length > 0 && validCartItemIds.length === checkoutItems.length;
+
+      const fullAddressSnapshot = `${selectedAddress.recipientName || 'Khách hàng'} - ${selectedAddress.phoneNumber || '0901234567'} - ${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`;
 
       const orderPayload = {
         userId: user?.id ? Number(user.id) : null,
@@ -118,7 +139,7 @@ export default function CheckoutPage() {
         discountAmount,
         shippingFee,
         totalAmount,
-        shippingAddressSnapshot: `${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`,
+        shippingAddressSnapshot: fullAddressSnapshot,
         orderItems: checkoutItems.map((item, idx) => ({
           id: Date.now() + idx,
           variantId: item.variantId,
@@ -132,10 +153,8 @@ export default function CheckoutPage() {
         })),
       };
 
-      if (hasRealCartItemIds) {
-        orderPayload.cartItemIds = checkoutItems
-          .map((item) => item.cartItemId)
-          .filter(Boolean);
+      if (!isBuyNow && hasRealCartItemIds) {
+        orderPayload.cartItemIds = validCartItemIds;
       } else {
         orderPayload.items = {
           variantId: Number(checkoutItems[0]?.variantId || 1),
@@ -152,16 +171,34 @@ export default function CheckoutPage() {
         id: orderId,
         orderCode: orderCode,
         code: orderCode,
-        status: paymentMethod === 'BANK_TRANSFER' ? 'PENDING' : 'CONFIRMED',
+        status: 'PENDING',
         total: newOrder?.totalAmount || totalAmount,
         totalAmount: newOrder?.totalAmount || totalAmount,
         subTotal: checkoutSubtotal,
         shippingFee,
         discountAmount,
         paymentMethod: paymentMethod === 'BANK_TRANSFER' ? 'VNPAY' : 'COD',
+        shippingProviderCode: selectedProviderCode,
+        shippingProvider: selectedProviderCode,
+        shippingProviderShort: selectedProviderCode,
+        shipment: {
+          provider: {
+            code: selectedProviderCode,
+            name: selectedProviderCode === 'GHTK' ? 'Giao Hàng Tiết Kiệm' : 'Giao Hàng Nhanh',
+          },
+          trackingNumber: null,
+          status: 'PENDING',
+        },
         shippingAddress: `${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`,
+        shippingAddressSnapshot: fullAddressSnapshot,
+        address: `${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`,
         receiverName: selectedAddress.recipientName || 'Khách hàng',
+        recipientName: selectedAddress.recipientName || 'Khách hàng',
+        customerName: selectedAddress.recipientName || user?.fullName || 'Khách hàng',
+        adminCustomerName: selectedAddress.recipientName || user?.fullName || 'Khách hàng',
+        userFullName: user?.fullName || selectedAddress.recipientName || 'Khách hàng',
         receiverPhone: selectedAddress.phoneNumber || '0901234567',
+        phoneNumber: selectedAddress.phoneNumber || '0901234567',
         items: checkoutItems.map((it) => ({
           id: it.variantId || it.productId,
           variantId: it.variantId,
@@ -181,9 +218,11 @@ export default function CheckoutPage() {
         addOrder(orderForContext);
       }
 
-      checkoutItems.forEach((item) => {
-        removeFromCart(item.productId, item.variantId);
-      });
+      if (!isBuyNow) {
+        checkoutItems.forEach((item) => {
+          removeFromCart(item.productId, item.variantId);
+        });
+      }
 
       if (paymentMethod === 'BANK_TRANSFER') {
         const paymentRes = await paymentService.createPayment({

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Package,
@@ -24,9 +24,13 @@ const STATUS_TABS = [
 ];
 
 export default function OrderListPage() {
-  const { orders, addToCart, openModal, showToast } = useStore();
+  const { orders, addToCart, openModal, showToast, fetchOrders } = useStore();
   const [activeTab, setActiveTab] = useState('ALL');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchOrders?.();
+  }, [fetchOrders]);
 
   const filteredOrders = useMemo(() => {
     if (activeTab === 'ALL') return orders;
