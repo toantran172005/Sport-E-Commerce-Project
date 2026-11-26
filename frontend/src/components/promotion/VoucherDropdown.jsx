@@ -130,13 +130,18 @@ export default function VoucherDropdown({
   if (appliedCoupon && orderSubtotal > 0) {
     if (appliedCoupon.discountType === 'PERCENTAGE') {
       const pct = appliedCoupon.discountValue || appliedCoupon.discount || 0;
-      const raw = (orderSubtotal * pct) / 100;
-      const maxDiscount = appliedCoupon.maxDiscountAmount || raw;
-      discountAmount = Math.min(raw, maxDiscount);
+      const raw = Math.round((orderSubtotal * pct) / 100);
+      const maxDiscount =
+        appliedCoupon.maxDiscountAmount && appliedCoupon.maxDiscountAmount > 0
+          ? appliedCoupon.maxDiscountAmount
+          : raw;
+      discountAmount = Math.round(Math.min(raw, maxDiscount));
     } else if (appliedCoupon.discountType === 'FREE_SHIPPING') {
       discountAmount = 30000;
     } else {
-      discountAmount = appliedCoupon.discountValue || appliedCoupon.discount || 0;
+      discountAmount = Math.round(
+        Math.min(orderSubtotal, appliedCoupon.discountValue || appliedCoupon.discount || 0)
+      );
     }
   }
 

@@ -3,6 +3,7 @@ package com.sportecommerce.service.impl;
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.response.NotificationResponse;
 import com.sportecommerce.dto.response.PageResponse;
+import com.sportecommerce.entity.Coupon;
 import com.sportecommerce.entity.Notification;
 import com.sportecommerce.entity.Order;
 import com.sportecommerce.entity.User;
@@ -100,6 +101,39 @@ public class    NotificationServiceImpl implements NotificationService {
 
         notificationRepository.save(notification);
         log.info("Đã tạo thông báo đặt hàng thành công cho đơn hàng: {}", order.getOrderCode());
+    }
+
+    @Override
+    @Transactional
+    public void notifyPromotionCreated(Coupon coupon, String description) {
+        if (coupon == null) {
+            return;
+        }
+
+        List<User> customers = userRepository.findByRoleAndDeletedAtIsNull(UserRole.CUSTOMER);
+        if (customers.isEmpty()) {
+            return;
+        }
+
+        String title = "Khuyến mãi mới: " + coupon.getCode();
+        String content = (description != null && !description.isBlank())
+                ? "Nhập mã " + coupon.getCode() + " - " + description
+                : "Mã khuyến mãi mới " + coupon.getCode() + " vừa được mở áp dụng!";
+
+        List<Notification> notifications = customers.stream()
+                .map(customer -> Notification.builder()
+                        .user(customer)
+                        .type(NotificationType.PROMOTION)
+                        .title(title)
+                        .content(content)
+                        .referenceId(coupon.getId())
+                        .data(Map.of("couponCode", coupon.getCode()))
+                        .isRead(false)
+                        .build())
+                .toList();
+
+        notificationRepository.saveAll(notifications);
+        log.info("Đã gửi thông báo PROMOTION ({}) tới {} khách hàng", coupon.getCode(), notifications.size());
     }
 
     // ===== Nhom 2: thong bao theo kien truc Spring Event (OrderEventListener goi) =====
