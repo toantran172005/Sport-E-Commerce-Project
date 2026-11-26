@@ -48,6 +48,22 @@ export const productService = {
     }
     return null;
   },
+
+  // Xóa cache của 1 sản phẩm cụ thể
+  invalidateProductDetail(id) {
+    if (id) {
+      const numId = Number(id);
+      productDetailCache.delete(numId);
+      inFlightRequests.delete(numId);
+    }
+  },
+
+  // Xóa toàn bộ cache sản phẩm
+  clearProductDetailCache() {
+    productDetailCache.clear();
+    inFlightRequests.clear();
+  },
+
   async getProducts(params = {}) {
     const {
       page = 0,
@@ -209,6 +225,11 @@ export const productService = {
 
 
   async updateProduct(id, data) {
+    if (id) {
+      productDetailCache.delete(Number(id));
+      inFlightRequests.delete(Number(id));
+    }
+
     const payload = {
       ...data,
       categoryId: Number(data.categoryId),
@@ -224,17 +245,34 @@ export const productService = {
         weightGram: Number(v.weightGram || v.weight || 100),
       })),
     };
-    return axiosClient.put(`/products/${id}`, payload);
+    const res = await axiosClient.put(`/products/${id}`, payload);
+
+    // Đảm bảo xóa sạch cache sau khi backend phản hồi thành công
+    if (id) {
+      productDetailCache.delete(Number(id));
+    }
+    return res;
   },
 
 
   async updateProductStatus(id, status) {
+    // Xóa cache khi đổi trạng thái (ACTIVE / DRAFT / DISCONTINUED)
+    if (id) {
+      productDetailCache.delete(Number(id));
+      inFlightRequests.delete(Number(id));
+    }
+
     return axiosClient.patch(`/products/${id}/status`, null, {
       params: { status },
     });
   },
 
   async deleteProduct(id) {
+    if (id) {
+      productDetailCache.delete(Number(id));
+      inFlightRequests.delete(Number(id));
+    }
+
     return axiosClient.delete(`/products/${id}`);
   },
 
