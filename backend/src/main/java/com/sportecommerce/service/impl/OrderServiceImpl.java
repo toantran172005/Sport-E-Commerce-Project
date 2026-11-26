@@ -275,6 +275,11 @@ public class OrderServiceImpl implements OrderService {
 
         OrderStatus currentStatus = order.getStatus();
 
+        if (currentStatus.equals(newStatus)) {
+            return ApiResponse.success("Đơn hàng hiện đã ở trạng thái " + newStatus,
+                    mapperUtil.mapOrderToPlaceOrderResponse(order));
+        }
+
         if (user.getRole().equals(UserRole.CUSTOMER)) {
             if (!(newStatus.equals(OrderStatus.CANCELED)
                     && order.getUser().getId().equals(userId)
@@ -489,5 +494,28 @@ public class OrderServiceImpl implements OrderService {
                 .note(reason)
                 .build();
         return updateOrderStatus(userId, request);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<com.sportecommerce.dto.response.OrderDetailResponse>> getAllOrders() {
+        List<Order> orders = orderRepository.findAllByOrderByCreatedAtDesc();
+        List<com.sportecommerce.dto.response.OrderDetailResponse> payload = orders.stream()
+                .map(mapperUtil::mapOrderToOrderDetailResponse)
+                .collect(java.util.stream.Collectors.toList());
+        return ApiResponse.success("Lấy danh sách đơn hàng thành công", payload);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<com.sportecommerce.dto.response.OrderDetailResponse>> getMyOrders(Long userId) {
+        if (userId == null) {
+            throw new BadRequestException("User ID không được để trống!");
+        }
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        List<com.sportecommerce.dto.response.OrderDetailResponse> payload = orders.stream()
+                .map(mapperUtil::mapOrderToOrderDetailResponse)
+                .collect(java.util.stream.Collectors.toList());
+        return ApiResponse.success("Lấy danh sách đơn hàng thành công", payload);
     }
 }

@@ -153,6 +153,46 @@ export function CartProvider({ children }) {
       }
 
       if (!USE_MOCK && user && variantId) {
+        const prevCart = cart;
+        const price = selectedVariant.salePrice || selectedVariant.price || product.salePrice || product.basePrice || 0;
+        const originalPrice = selectedVariant.price || product.basePrice || price;
+        const variantLabel = selectedVariant.size
+          ? `${selectedVariant.size}${selectedVariant.color ? ` • ${selectedVariant.color}` : ''}`
+          : 'Tiêu chuẩn';
+
+        // Cập nhật giao diện lập tức (Optimistic UI)
+        setCart((prev) => {
+          const found = prev.find((item) => item.productId === product.id && item.variantId === variantId);
+          if (found) {
+            return prev.map((item) =>
+              item.productId === product.id && item.variantId === variantId
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
+            );
+          }
+          return [
+            ...prev,
+            {
+              id: Date.now(),
+              productId: product.id,
+              variantId,
+              name: product.name,
+              variant: variantLabel,
+              price,
+              originalPrice,
+              quantity,
+              imageUrl: selectedVariant.imageUrl || product.images?.[0]?.imageUrl,
+              stock,
+            },
+          ];
+        });
+
+        setSelectedCartItemKeys((prev) => {
+          const itemKey = `${product.id}_${variantId}`;
+          return prev.includes(itemKey) ? prev : [...prev, itemKey];
+        });
+        showToast(`Đã thêm "${product.name}" vào giỏ hàng`);
+
         try {
           const res = await cartService.addToCart({
             variantId,
@@ -162,13 +202,9 @@ export function CartProvider({ children }) {
           if (res && Array.isArray(res.items)) {
             setCart(mapServerCartItems(res.items));
           }
-          setSelectedCartItemKeys((prev) => {
-            const itemKey = `${product.id}_${variantId}`;
-            return prev.includes(itemKey) ? prev : [...prev, itemKey];
-          });
-          showToast(`Đã thêm "${product.name}" vào giỏ hàng`);
           return;
         } catch (err) {
+          setCart(prevCart);
           showToast(err.message || 'Không thể thêm vào giỏ hàng', 'error');
           return;
         }
@@ -259,27 +295,29 @@ export function CartProvider({ children }) {
 
   const removeFromCart = useCallback(
     async (productId, variantId = null) => {
-      if (!USE_MOCK && user && variantId) {
-        try {
-          const res = await cartService.removeItem(variantId);
-          if (res && Array.isArray(res.items)) {
-            setCart(mapServerCartItems(res.items));
-            return;
-          }
-        } catch (err) {
-          showToast(err.message || 'Không thể xóa sản phẩm', 'error');
-          return;
-        }
-      }
-
+      const prevCart = cart;
       setCart((prev) =>
         prev.filter((item) => {
           if (variantId) return !(item.productId === productId && item.variantId === variantId);
           return item.productId !== productId;
         })
       );
+
+      if (!USE_MOCK && user && variantId) {
+        try {
+          const res = await cartService.removeItem(variantId);
+          if (res && Array.isArray(res.items)) {
+            setCart(mapServerCartItems(res.items));
+          }
+          return;
+        } catch (err) {
+          setCart(prevCart);
+          showToast(err.message || 'Không thể xóa sản phẩm', 'error');
+          return;
+        }
+      }
     },
-    [setCart, showToast, user]
+    [cart, setCart, showToast, user]
   );
 
   const clearCart = useCallback(async () => {

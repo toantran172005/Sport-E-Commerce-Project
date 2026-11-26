@@ -15,7 +15,7 @@ import {
 import { useOrder, useAuth, useCatalog } from '../context';
 import BrandLogo from '../components/common/BrandLogo.jsx';
 import Avatar from '../components/common/Avatar.jsx';
-import { ADMIN_PERMISSIONS, ROLE_LABELS_VI } from '../utils/permissions';
+import { ADMIN_PERMISSIONS, ROLE_LABELS_VI, getDefaultAdminPath } from '../utils/permissions';
 
 const ADMIN_NAV_ITEMS = [
   {
@@ -112,7 +112,7 @@ export default function AdminLayout({
         <div className="max-w-[1440px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
           {/* Left: Brand Logo & CMS Tag */}
           <div className="flex items-center gap-6 shrink-0">
-            <Link to="/admin" className="flex items-center gap-2.5">
+            <Link to={getDefaultAdminPath(user?.role)} className="flex items-center gap-2.5">
               <BrandLogo className="h-8 w-auto" />
               <span className="px-2 py-0.5 rounded bg-accent/20 text-accent text-[10px] font-bold uppercase tracking-wider">
                 CMS
@@ -136,7 +136,7 @@ export default function AdminLayout({
           <div className="flex items-center gap-3 shrink-0">
             <Link
               to="/"
-              className="px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-accent-soft border border-line text-[12px] font-bold text-ink-muted hover:text-accent transition hidden sm:flex items-center gap-1.5"
+              className="h-10 px-3.5 rounded-lg bg-surface-2 hover:bg-accent-soft border border-line text-[12px] font-bold text-ink-muted hover:text-accent transition hidden sm:flex items-center gap-1.5"
               title="Quay lại cửa hàng người mua"
             >
               <ExternalLink className="w-3.5 h-3.5 text-accent" />
@@ -145,7 +145,7 @@ export default function AdminLayout({
 
             <div
               onClick={() => navigate('/admin/settings')}
-              className="flex items-center gap-2 p-1.5 pr-3 rounded-lg bg-surface-2 hover:bg-surface-2/80 border border-line cursor-pointer transition"
+              className="h-10 flex items-center gap-2 p-1.5 pr-3 rounded-lg bg-surface-2 hover:bg-surface-2/80 border border-line cursor-pointer transition"
               title="Cài đặt quản trị"
             >
               <Avatar user={user} name={user?.fullName || user?.name || 'Admin'} size={28} />

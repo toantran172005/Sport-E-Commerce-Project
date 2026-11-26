@@ -97,7 +97,7 @@ export default function AdminOrderModal() {
         adminNote || `Cập nhật trạng thái sang ${selectedStatus}`,
         selectedStatus === 'CANCELED' ? (adminNote || 'Hủy bởi Quản trị viên') : ''
       );
-      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} sang ${selectedStatus}!`, 'success');
+      showToast(`Đã cập nhật trạng thái đơn ${order.code || order.orderCode} từ ${currentStatus} sang ${selectedStatus}!`, 'success');
       closeModal();
     } catch (err) {
       console.error('Lỗi cập nhật trạng thái đơn hàng:', err);
@@ -107,12 +107,45 @@ export default function AdminOrderModal() {
     }
   };
 
-  const receiverName = order.userAddress?.receiverName || order.adminCustomerName || order.recipientName || 'Khách hàng';
-  const receiverPhone = order.userAddress?.phone || order.adminCustomerSub || order.phoneNumber || '—';
+  let snapshotName = '';
+  let snapshotPhone = '';
+  let snapshotAddress = '';
+  const rawSnapshot = order.shippingAddressSnapshot || order.recipientSnapshot;
+  if (typeof rawSnapshot === 'string' && rawSnapshot.includes(' - ')) {
+    const parts = rawSnapshot.split(' - ');
+    if (parts.length >= 3) {
+      snapshotName = parts[0]?.trim();
+      snapshotPhone = parts[1]?.trim();
+      snapshotAddress = parts.slice(2).join(' - ').trim();
+    }
+  }
+
+  const receiverName =
+    order.receiverName ||
+    order.recipientName ||
+    snapshotName ||
+    order.userAddress?.receiverName ||
+    order.adminCustomerName ||
+    order.userFullName ||
+    order.user?.fullName ||
+    'Khách hàng';
+
+  const receiverPhone =
+    order.receiverPhone ||
+    order.phoneNumber ||
+    snapshotPhone ||
+    order.userAddress?.phone ||
+    order.adminCustomerSub ||
+    order.user?.phone ||
+    '—';
+
   const receiverAddress =
-    order.userAddress?.streetAddress
-      ? `${order.userAddress.streetAddress}, ${order.userAddress.ward}, ${order.userAddress.district}, ${order.userAddress.province}`
-      : order.shippingAddressSnapshot || order.address || 'Địa chỉ nhận hàng';
+    order.shippingAddress ||
+    snapshotAddress ||
+    (order.userAddress?.streetAddress
+      ? `${order.userAddress.streetAddress}, ${order.userAddress.ward}, ${order.userAddress.district}, ${order.userAddress.province || order.userAddress.city}`
+      : rawSnapshot || order.address) ||
+    'Địa chỉ nhận hàng';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
@@ -211,7 +244,19 @@ export default function AdminOrderModal() {
               <div className="text-[12.5px] text-ink flex items-center justify-between">
                 <span>Vận chuyển:</span>
                 <span className="font-bold text-ink">
-                  {order.shippingProviderShort || 'GHN'} Express — {order.trackingCode || 'Chưa có mã'}
+                  {(() => {
+                    const providerCode = (
+                      order.shippingProviderCode ||
+                      order.shippingProvider ||
+                      order.shippingProviderShort ||
+                      order.shipment?.provider?.code ||
+                      order.shipment?.provider?.name ||
+                      (order.shipment?.trackingNumber?.startsWith('GHTK') ? 'GHTK' : 'GHN')
+                    ).toUpperCase();
+                    const providerName = order.shipment?.provider?.name || (providerCode.includes('GHTK') ? 'Giao Hàng Tiết Kiệm (GHTK)' : 'GHN Express');
+                    const tracking = order.shipment?.trackingNumber || order.trackingCode || order.trackingNumber;
+                    return `${providerName} — ${tracking ? tracking : 'Chưa có mã'}`;
+                  })()}
                 </span>
               </div>
             </div>
@@ -258,26 +303,40 @@ export default function AdminOrderModal() {
           </div>
 
           {/* Order Totals */}
-          <div className="bg-surface-2/40 p-3.5 rounded-lg border border-line space-y-1.5 text-[12.5px]">
-            <div className="flex justify-between text-ink-muted">
-              <span>Tạm tính hàng hoá:</span>
-              <span>{formatCurrency(order.subtotal || order.subTotal || (order.total || order.totalAmount) - 30000)}</span>
-            </div>
-            <div className="flex justify-between text-ink-muted">
-              <span>Phí vận chuyển:</span>
-              <span>{formatCurrency(order.shippingFee || 30000)}</span>
-            </div>
-            {order.discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-                <span>Giảm giá khuyến mãi:</span>
-                <span>-{formatCurrency(order.discountAmount)}</span>
+          {(() => {
+            const orderItemsList = order.items || order.orderItems || [];
+            const computedItemsSubtotal = orderItemsList.reduce(
+              (sum, item) => sum + (item.subtotal || (item.unitPrice || item.price || 0) * (item.quantity || 1)),
+              0
+            );
+            const displaySubtotal = order.subTotal || order.subtotal || computedItemsSubtotal;
+            const displayShippingFee = order.shippingFee ?? 30000;
+            const displayDiscount = order.discountAmount || 0;
+            const displayTotal = order.totalAmount || order.total || Math.max(0, displaySubtotal + displayShippingFee - displayDiscount);
+
+            return (
+              <div className="bg-surface-2/40 p-3.5 rounded-lg border border-line space-y-1.5 text-[12.5px]">
+                <div className="flex justify-between text-ink-muted">
+                  <span>Tạm tính hàng hoá:</span>
+                  <span>{formatCurrency(displaySubtotal)}</span>
+                </div>
+                <div className="flex justify-between text-ink-muted">
+                  <span>Phí vận chuyển:</span>
+                  <span>{formatCurrency(displayShippingFee)}</span>
+                </div>
+                {displayDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Giảm giá khuyến mãi:</span>
+                    <span>-{formatCurrency(displayDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-[14px] font-bold text-ink pt-2 border-t border-line">
+                  <span>Tổng thanh toán:</span>
+                  <span className="text-accent">{formatCurrency(displayTotal)}</span>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between text-[14px] font-bold text-ink pt-2 border-t border-line">
-              <span>Tổng thanh toán:</span>
-              <span className="text-accent">{formatCurrency(order.total || order.totalAmount)}</span>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Status Update Form */}
           <div className="p-4 rounded-lg border-2 border-accent/20 bg-accent-soft space-y-3">

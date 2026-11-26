@@ -165,6 +165,31 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Bắt lỗi ngắt kết nối do client chủ động hủy (F5, đóng tab, hủy kết nối socket).
+     * Chỉ log ở mức DEBUG/INFO, không in stack trace ERROR 500 làm nhiễu log hệ thống.
+     */
+    @ExceptionHandler({
+            org.springframework.web.context.request.async.AsyncRequestNotUsableException.class,
+            org.apache.catalina.connector.ClientAbortException.class
+    })
+    public ResponseEntity<Void> handleClientAbort(Exception ex) {
+        log.debug("Client đã ngắt kết nối trước khi response hoàn tất: {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
+        return ResponseEntity.noContent().build();
+    }
+
+    @ExceptionHandler(java.io.IOException.class)
+    public ResponseEntity<?> handleIOException(java.io.IOException ex) {
+        String msg = ex.getMessage() != null ? ex.getMessage() : "";
+        if (msg.contains("aborted by the software") || msg.contains("Broken pipe") || msg.contains("Connection reset by peer")) {
+            log.debug("Client đã ngắt kết nối socket IO: {}", msg);
+            return ResponseEntity.noContent().build();
+        }
+        log.error("Lỗi IO hệ thống: ", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Lỗi xuất nhập dữ liệu, vui lòng thử lại sau"));
+    }
+
+    /**
      * Bắt lỗi 500: Tất cả các lỗi hệ thống không mong muốn còn lại.
      * Ghi log đầy đủ stacktrace ở server, KHÔNG trả chi tiết lỗi nội bộ về cho client.
      */

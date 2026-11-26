@@ -253,17 +253,21 @@ export default function ProductDetailPage() {
   const handleBuyNow = () => {
     if (!product) return;
     if (!requireLogin('Vui lòng đăng nhập để tiến hành đặt hàng')) return;
-    addToCart(
-      {
-        ...product,
-        selectedVariant: currentVariant,
-        variantId: currentVariant?.id,
-        price: currentPrice,
-        originalPrice,
+    navigate('/checkout', {
+      state: {
+        buyNowItem: {
+          product,
+          productId: product.id,
+          variantId: currentVariant?.id,
+          name: product.name,
+          variant: `${currentVariant?.size || 'Tiêu chuẩn'} - ${currentVariant?.color || 'Mặc định'}`,
+          price: currentPrice,
+          originalPrice,
+          quantity,
+          imageUrl: currentVariant?.imageUrl || product.imageUrl || (product.images && product.images[0]?.imageUrl) || '',
+        },
       },
-      quantity
-    );
-    navigate('/checkout');
+    });
   };
 
   if (loading) {

@@ -63,12 +63,20 @@ export function AddressProvider({ children }) {
   const addAddress = useCallback(
     async (payload) => {
       const created = await userService.addAddress(payload);
-      await loadAddresses(created?.isDefault ? created.id : undefined);
+      if (created) {
+        setAddresses((prev) => {
+          if (created.isDefault) {
+            return [...prev.map((a) => ({ ...a, isDefault: false })), created];
+          }
+          return [...prev, created];
+        });
+        setSelectedAddressId(created.id);
+      }
       invalidateShippingCache();
       showToast('Đã thêm địa chỉ nhận hàng mới', 'success');
       return created;
     },
-    [loadAddresses, showToast]
+    [showToast]
   );
 
   const updateAddress = useCallback(

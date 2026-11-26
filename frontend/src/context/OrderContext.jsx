@@ -11,6 +11,7 @@ export function OrderProvider({ children }) {
   const { showToast } = useUI();
 
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Tự động xóa sạch key sport_orders thừa trong localStorage nếu từng tồn tại
   useEffect(() => {
@@ -20,6 +21,33 @@ export function OrderProvider({ children }) {
       // ignore
     }
   }, []);
+
+  const isAdmin = useMemo(() => {
+    const role = (user?.role || user?.roles?.[0] || '').toUpperCase();
+    return role.includes('ADMIN') || role.includes('STAFF');
+  }, [user]);
+
+  // Fetch orders trực tiếp từ DB khi component mount hoặc khi user thay đổi (đăng nhập / F5)
+  const fetchOrders = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setOrders([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = isAdmin ? await orderService.getAllOrders() : await orderService.getMyOrders();
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Lỗi tải danh sách đơn hàng từ database:', err?.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const addOrder = useCallback((newOrder) => {
     setOrders((prev) => [newOrder, ...prev.filter((o) => String(o.id) !== String(newOrder.id))]);
@@ -68,13 +96,15 @@ export function OrderProvider({ children }) {
 
   const updateOrderStatus = useCallback(
     async (orderId, nextStatus, note = '', cancelledReason = '') => {
+      let updatedResponse;
       try {
-        await orderService.updateOrderStatus({
+        const res = await orderService.updateOrderStatus({
           orderId,
           newStatus: nextStatus,
           note,
           cancelledReason: cancelledReason || (nextStatus === 'CANCELED' ? note : null),
         });
+        updatedResponse = res?.data || res;
       } catch (err) {
         const errorMsg = err.response?.data?.message || err.message;
         console.error('Lỗi gọi API cập nhật trạng thái đơn:', errorMsg);
@@ -102,11 +132,17 @@ export function OrderProvider({ children }) {
             }
           }
 
+          const freshShipment = updatedResponse?.shipment || o.shipment;
+          const freshTracking = updatedResponse?.trackingNumber || updatedResponse?.shipment?.trackingNumber || o.shipment?.trackingNumber || o.trackingCode;
+
           return {
             ...o,
             status: nextStatus,
             updatedAt: new Date().toISOString(),
             payment: updatedPayment,
+            shipment: freshShipment ? { ...freshShipment, trackingNumber: freshTracking } : o.shipment,
+            trackingCode: freshTracking,
+            trackingNumber: freshTracking,
             confirmedAt: nextStatus === 'CONFIRMED' ? new Date().toISOString() : o.confirmedAt,
             canceledAt: nextStatus === 'CANCELED' ? new Date().toISOString() : o.canceledAt,
             orderStatusHistories: [
@@ -116,26 +152,29 @@ export function OrderProvider({ children }) {
                 status: nextStatus,
                 note: note || `Cập nhật trạng thái sang ${nextStatus}`,
                 createdAt: new Date().toISOString(),
-                changedBy: { id: 99, fullName: 'Admin' },
+                changedBy: { id: user?.id || 99, fullName: user?.fullName || 'Admin' },
               },
             ],
           };
         })
       );
-      showToast('Cập nhật trạng thái đơn hàng thành công', 'success');
+      // Đã loại bỏ toast generic tại đây để không bị nhảy 2 toast! AdminOrderModal sẽ hiển thị 1 toast chi tiết.
+      return updatedResponse;
     },
-    [setOrders, showToast]
+    [setOrders, showToast, user]
   );
 
   const value = useMemo(
     () => ({
       orders,
       setOrders,
+      loading,
+      fetchOrders,
       addOrder,
       cancelOrderById,
       updateOrderStatus,
     }),
-    [orders, setOrders, addOrder, cancelOrderById, updateOrderStatus]
+    [orders, setOrders, loading, fetchOrders, addOrder, cancelOrderById, updateOrderStatus]
   );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;

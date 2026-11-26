@@ -1,6 +1,7 @@
 package com.sportecommerce.repository;
 
 import com.sportecommerce.entity.CartItem;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -9,7 +10,9 @@ import java.util.Optional;
 
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
+    @EntityGraph(attributePaths = {"variant", "variant.product", "variant.product.productImages"})
     List<CartItem> findByCartId(Long cartId);
+
     Optional<CartItem> findByCartIdAndVariantId(Long cartId, Long variantId);
     void deleteByCartIdAndVariantId(Long cartId, Long variantId);
     void deleteByCartId(Long cartId);

@@ -24,6 +24,42 @@ const STATUS_TABS = [
   { id: 'CANCELLED', label: 'Đã hủy (CANCELLED)' },
 ];
 
+function resolveAdminOrderCustomerName(order) {
+  const snapshot = order.shippingAddressSnapshot;
+  const snapshotName =
+    typeof snapshot === 'string' && snapshot.includes(' - ')
+      ? snapshot.split(' - ')[0]
+      : null;
+
+  return (
+    order.recipientName ||
+    order.receiverName ||
+    order.adminCustomerName ||
+    order.customerName ||
+    order.userFullName ||
+    order.user?.fullName ||
+    snapshotName ||
+    'Khách vãng lai'
+  );
+}
+
+function resolveAdminOrderShippingAddress(order) {
+  const snapshot = order.shippingAddressSnapshot;
+  const snapshotAddress =
+    typeof snapshot === 'string' && snapshot.includes(' - ')
+      ? snapshot.split(' - ').slice(2).join(' - ')
+      : snapshot;
+
+  return (
+    order.shippingAddress ||
+    snapshotAddress ||
+    order.recipientSnapshot ||
+    order.userAddress?.fullAddress ||
+    order.address ||
+    'Địa chỉ nhận hàng'
+  );
+}
+
 export default function AdminOrdersPage() {
   const { orders, openModal } = useStore();
   const [statusTab, setStatusTab] = useState('ALL');
@@ -248,12 +284,10 @@ export default function AdminOrdersPage() {
 
                         <td className="py-3.5 px-4">
                           <p className="font-bold text-ink">
-                            {order.adminCustomerName || order.customerName || 'Khách vãng lai'}
+                            {resolveAdminOrderCustomerName(order)}
                           </p>
                           <p className="text-[11.5px] text-ink-muted line-clamp-1 max-w-[200px]">
-                            {order.shippingAddressSnapshot ||
-                              order.userAddress?.fullAddress ||
-                              'Địa chỉ nhận hàng'}
+                            {resolveAdminOrderShippingAddress(order)}
                           </p>
                         </td>
 
@@ -284,7 +318,9 @@ export default function AdminOrdersPage() {
 
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded bg-surface-2 text-ink text-[11px] font-bold border border-line">
-                            {order.shippingProviderShort ||
+                            {order.shippingProviderCode ||
+                              order.shippingProvider ||
+                              order.shippingProviderShort ||
                               order.shipment?.provider?.code ||
                               order.shipment?.provider?.name ||
                               (order.shipment?.trackingNumber?.startsWith('GHTK') ? 'GHTK' : 'GHN')}

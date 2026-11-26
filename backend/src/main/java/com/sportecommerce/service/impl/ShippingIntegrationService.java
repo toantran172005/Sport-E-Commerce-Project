@@ -213,8 +213,16 @@ public class ShippingIntegrationService {
         orderData.put("ward", address.getWard());
         orderData.put("hamlet", "Khác");
         orderData.put("tel", address.getPhoneNumber());
+        long clampedValue = 0L;
+        if (order.getSubTotal() != null) {
+            clampedValue = order.getSubTotal().longValue();
+        }
+        clampedValue = Math.min(Math.max(1L, clampedValue), 20_000_000L);
+
         orderData.put("pick_money", pickMoney);
-        orderData.put("value", order.getSubTotal().intValue());
+        orderData.put("value", clampedValue);
+        orderData.put("is_freeship", "0");
+        orderData.put("transport", "road");
         orderData.put("note", order.getNote() != null ? order.getNote() : "");
         orderData.put("weight_option", "gram");
 

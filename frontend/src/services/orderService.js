@@ -85,6 +85,18 @@ export const orderService = {
     const response = await axiosClient.get(`/orders/${id}`);
     return response.data || response;
   },
+
+  async getAllOrders() {
+    const response = await axiosClient.get("/orders");
+    const payload = response?.data?.data ?? response?.data ?? [];
+    return Array.isArray(payload) ? payload : [];
+  },
+
+  async getMyOrders() {
+    const response = await axiosClient.get("/orders/my-orders");
+    const payload = response?.data?.data ?? response?.data ?? [];
+    return Array.isArray(payload) ? payload : [];
+  },
 };
 
 export default orderService;
