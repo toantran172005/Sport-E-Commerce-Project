@@ -3,6 +3,7 @@ package com.sportecommerce.service;
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.response.NotificationResponse;
 import com.sportecommerce.dto.response.PageResponse;
+import com.sportecommerce.entity.Coupon;
 import com.sportecommerce.entity.Order;
 import com.sportecommerce.enums.OrderStatus;
 
@@ -16,6 +17,9 @@ public interface NotificationService {
     void notifyPaymentFailed(Order order);
 
     void notifyOrderPlaced(Order order);
+
+    // Tao thong bao PROMOTION cho khach hang khi ADMIN tao ma khuyen mai moi (SRS UC017)
+    void notifyPromotionCreated(Coupon coupon, String description);
 
     // ===== Nhom 2: thong bao theo kien truc Spring Event (OrderEventListener goi) =====
 

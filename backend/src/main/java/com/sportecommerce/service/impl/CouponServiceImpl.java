@@ -16,8 +16,10 @@ import com.sportecommerce.repository.CouponUsageRepository;
 import com.sportecommerce.repository.OrderRepository;
 import com.sportecommerce.repository.UserRepository;
 import com.sportecommerce.service.CouponService;
+import com.sportecommerce.service.NotificationService;
 import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CouponServiceImpl implements CouponService {
 
     private static final ZoneId HANOI_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -41,6 +44,7 @@ public class CouponServiceImpl implements CouponService {
     private final CouponUsageRepository couponUsageRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final NotificationService notificationService;
     private final MapperUtil mapperUtil;
 
     @Override
@@ -74,7 +78,7 @@ public class CouponServiceImpl implements CouponService {
         double discount = 0.0;
         switch (coupon.getDiscountType()) {
             case PERCENTAGE -> {
-                discount = (orderAmount * coupon.getDiscountValue()) / 100.0;
+                discount = Math.round((orderAmount * coupon.getDiscountValue()) / 100.0);
                 if (coupon.getMaxDiscountAmount() != null && coupon.getMaxDiscountAmount() > 0 && discount > coupon.getMaxDiscountAmount()) {
                     discount = coupon.getMaxDiscountAmount();
                 }
@@ -83,7 +87,7 @@ public class CouponServiceImpl implements CouponService {
             case FREE_SHIPPING -> discount = 0.0;
         }
 
-        return discount;
+        return (double) Math.round(discount);
     }
 
     @Override
@@ -191,6 +195,19 @@ public class CouponServiceImpl implements CouponService {
             throw new BadRequestException("Mã giảm giá '" + cleanCode + "' đã tồn tại trong hệ thống!");
         }
 
+        double discountValue = request.getDiscountValue() != null ? request.getDiscountValue() : 0.0;
+        double minOrderAmount = request.getMinOrderAmount() != null ? request.getMinOrderAmount() : 0.0;
+        int usageLimit = request.getUsageLimit() != null ? request.getUsageLimit() : 100;
+
+        validateCouponRules(
+                request.getDiscountType(),
+                discountValue,
+                minOrderAmount,
+                request.getMaxDiscountAmount(),
+                usageLimit,
+                0
+        );
+
         Instant start = parseDateInput(request.getStartDate(), true, Instant.now());
         Instant end = parseDateInput(request.getEndDate(), false, Instant.now().plus(365, ChronoUnit.DAYS));
         if (end.isBefore(start)) {
@@ -200,10 +217,10 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = Coupon.builder()
                 .code(cleanCode)
                 .discountType(request.getDiscountType())
-                .discountValue(request.getDiscountValue() != null ? request.getDiscountValue() : 0.0)
-                .minOrderAmount(request.getMinOrderAmount() != null ? request.getMinOrderAmount() : 0.0)
+                .discountValue(discountValue)
+                .minOrderAmount(minOrderAmount)
                 .maxDiscountAmount(request.getMaxDiscountAmount())
-                .usageLimit(request.getUsageLimit() != null ? request.getUsageLimit() : 100)
+                .usageLimit(usageLimit)
                 .usedCount(0)
                 .startDate(start)
                 .endDate(end)
@@ -211,7 +228,17 @@ public class CouponServiceImpl implements CouponService {
                 .build();
 
         Coupon saved = couponRepository.save(coupon);
-        return enrichCouponResponse(saved);
+        CouponResponse response = enrichCouponResponse(saved);
+
+        if (Boolean.TRUE.equals(saved.getIsActive())) {
+            try {
+                notificationService.notifyPromotionCreated(saved, response.getDescription());
+            } catch (Exception ex) {
+                log.warn("Không thể gửi thông báo PROMOTION cho mã {}: {}", saved.getCode(), ex.getMessage());
+            }
+        }
+
+        return response;
     }
 
     @Override
@@ -254,8 +281,57 @@ public class CouponServiceImpl implements CouponService {
             coupon.setIsActive(request.getIsActive());
         }
 
+        validateCouponRules(
+                coupon.getDiscountType(),
+                coupon.getDiscountValue(),
+                coupon.getMinOrderAmount(),
+                coupon.getMaxDiscountAmount(),
+                coupon.getUsageLimit(),
+                coupon.getUsedCount()
+        );
+
         Coupon saved = couponRepository.save(coupon);
         return enrichCouponResponse(saved);
+    }
+
+    private void validateCouponRules(
+            DiscountType discountType,
+            Double discountValue,
+            Double minOrderAmount,
+            Double maxDiscountAmount,
+            Integer usageLimit,
+            Integer usedCount
+    ) {
+        if (discountType == null) {
+            throw new BadRequestException("Loại giảm giá không được để trống!");
+        }
+        double val = discountValue != null ? discountValue : 0.0;
+        if (val < 0) {
+            throw new BadRequestException("Giá trị giảm không được âm!");
+        }
+        if (discountType == DiscountType.PERCENTAGE && (val <= 0 || val > 100)) {
+            throw new BadRequestException("Giá trị giảm theo phần trăm phải lớn hơn 0 và nhỏ hơn hoặc bằng 100!");
+        }
+        if (discountType == DiscountType.FIXED_AMOUNT && val <= 0) {
+            throw new BadRequestException("Giá trị giảm cố định phải lớn hơn 0!");
+        }
+        if (minOrderAmount != null && minOrderAmount < 0) {
+            throw new BadRequestException("Đơn hàng tối thiểu không được âm!");
+        }
+        if (maxDiscountAmount != null && maxDiscountAmount < 0) {
+            throw new BadRequestException("Mức giảm tối đa không được âm!");
+        }
+        if (usageLimit != null) {
+            if (usageLimit <= 0) {
+                throw new BadRequestException("Giới hạn lượt dùng phải lớn hơn 0!");
+            }
+            int currentUsed = usedCount != null ? usedCount : 0;
+            if (usageLimit < currentUsed) {
+                throw new BadRequestException(
+                        "Giới hạn lượt dùng không được nhỏ hơn số lượt đã sử dụng (" + currentUsed + ")!"
+                );
+            }
+        }
     }
 
     @Override

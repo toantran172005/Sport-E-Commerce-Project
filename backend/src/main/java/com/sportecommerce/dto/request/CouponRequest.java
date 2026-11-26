@@ -3,6 +3,7 @@ package com.sportecommerce.dto.request;
 import com.sportecommerce.enums.DiscountType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 
@@ -29,6 +30,7 @@ public class CouponRequest {
     @PositiveOrZero(message = "Mức giảm tối đa phải lớn hơn hoặc bằng 0")
     private Double maxDiscountAmount;
 
+    @Positive(message = "Giới hạn lượt dùng phải lớn hơn 0")
     private Integer usageLimit;
 
     private String startDate;
