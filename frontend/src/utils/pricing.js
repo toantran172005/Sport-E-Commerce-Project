@@ -21,11 +21,14 @@ export function calculateDiscount(coupon, subtotal = 0, shippingFee = 0) {
 
   if (coupon.discountType === 'PERCENTAGE') {
     const pct = coupon.discountValue ?? coupon.discount ?? 0;
-    const rawDiscount = (subtotal * pct) / 100;
-    const maxDiscount = coupon.maxDiscountAmount !== undefined && coupon.maxDiscountAmount !== null
-      ? coupon.maxDiscountAmount
-      : rawDiscount;
-    return Math.min(rawDiscount, maxDiscount);
+    const rawDiscount = Math.round((subtotal * pct) / 100);
+    const maxDiscount =
+      coupon.maxDiscountAmount !== undefined &&
+      coupon.maxDiscountAmount !== null &&
+      coupon.maxDiscountAmount > 0
+        ? coupon.maxDiscountAmount
+        : rawDiscount;
+    return Math.round(Math.min(rawDiscount, maxDiscount));
   }
 
   if (coupon.discountType === 'FREE_SHIPPING') {
@@ -33,7 +36,7 @@ export function calculateDiscount(coupon, subtotal = 0, shippingFee = 0) {
   }
 
   const fixed = coupon.discountValue ?? coupon.discount ?? 0;
-  return Math.min(subtotal, fixed);
+  return Math.round(Math.min(subtotal, fixed));
 }
 
 /**

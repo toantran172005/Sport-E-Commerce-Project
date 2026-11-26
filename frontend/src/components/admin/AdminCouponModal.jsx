@@ -64,17 +64,61 @@ export default function AdminCouponModal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const cleanCode = code.trim().toUpperCase();
-    if (!cleanCode) return;
+    if (!cleanCode) {
+      showToast('Mã giảm giá không được để trống!', 'error');
+      return;
+    }
+
+    const numDiscount = Number(discountValue);
+    const numMinOrder = Number(minOrderAmount);
+    const numMaxDiscount = Number(maxDiscountAmount);
+    const numUsageLimit = Number(usageLimit);
+
+    if (Number.isNaN(numDiscount) || numDiscount < 0) {
+      showToast('Giá trị giảm không hợp lệ (không được âm)!', 'error');
+      return;
+    }
+    if (discountType === 'PERCENTAGE' && (numDiscount <= 0 || numDiscount > 100)) {
+      showToast('Giá trị giảm theo phần trăm phải lớn hơn 0 và nhỏ hơn hoặc bằng 100%!', 'error');
+      return;
+    }
+    if (discountType === 'FIXED_AMOUNT' && numDiscount <= 0) {
+      showToast('Giá trị giảm cố định phải lớn hơn 0!', 'error');
+      return;
+    }
+    if (Number.isNaN(numMinOrder) || numMinOrder < 0) {
+      showToast('Đơn hàng tối thiểu không được âm!', 'error');
+      return;
+    }
+    if (Number.isNaN(numMaxDiscount) || numMaxDiscount < 0) {
+      showToast('Mức giảm tối đa không được âm!', 'error');
+      return;
+    }
+    if (Number.isNaN(numUsageLimit) || numUsageLimit <= 0) {
+      showToast('Giới hạn lượt dùng phải lớn hơn 0!', 'error');
+      return;
+    }
+    if (editCoupon && numUsageLimit < (editCoupon.usedCount || 0)) {
+      showToast(
+        `Giới hạn lượt dùng không được nhỏ hơn số lượt đã sử dụng (${editCoupon.usedCount})!`,
+        'error'
+      );
+      return;
+    }
+    if (startDate && endDate && endDate < startDate) {
+      showToast('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu!', 'error');
+      return;
+    }
 
     const couponData = {
       code: cleanCode,
       discountType,
-      discountValue: Number(discountValue),
-      minOrderAmount: Number(minOrderAmount),
-      maxDiscountAmount: Number(maxDiscountAmount),
+      discountValue: numDiscount,
+      minOrderAmount: numMinOrder,
+      maxDiscountAmount: numMaxDiscount,
       startDate,
       endDate,
-      usageLimit: Number(usageLimit),
+      usageLimit: numUsageLimit,
       isActive: editCoupon ? editCoupon.isActive : true,
       description: description.trim(),
     };
@@ -158,6 +202,8 @@ export default function AdminCouponModal() {
               </label>
               <input
                 type="number"
+                min="0"
+                max={discountType === 'PERCENTAGE' ? '100' : undefined}
                 value={discountValue}
                 onChange={(e) => setDiscountValue(e.target.value)}
                 className="w-full h-10 px-3 rounded-md border border-line bg-page text-[13px] text-ink focus:border-accent focus:outline-none"
@@ -169,6 +215,7 @@ export default function AdminCouponModal() {
               </label>
               <input
                 type="number"
+                min="0"
                 value={minOrderAmount}
                 onChange={(e) => setMinOrderAmount(e.target.value)}
                 className="w-full h-10 px-3 rounded-md border border-line bg-page text-[13px] text-ink focus:border-accent focus:outline-none"
@@ -180,6 +227,7 @@ export default function AdminCouponModal() {
               </label>
               <input
                 type="number"
+                min="0"
                 value={maxDiscountAmount}
                 onChange={(e) => setMaxDiscountAmount(e.target.value)}
                 className="w-full h-10 px-3 rounded-md border border-line bg-page text-[13px] text-ink focus:border-accent focus:outline-none"
@@ -216,6 +264,7 @@ export default function AdminCouponModal() {
               </label>
               <input
                 type="number"
+                min={editCoupon ? Math.max(1, editCoupon.usedCount || 1) : 1}
                 value={usageLimit}
                 onChange={(e) => setUsageLimit(e.target.value)}
                 className="w-full h-10 px-3 rounded-md border border-line bg-page text-[13px] text-ink focus:border-accent focus:outline-none"

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Ticket,
   Plus,
@@ -12,7 +12,10 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import AdminLayout from '../../layouts/AdminLayout';
+import { Pagination } from '../../components/common';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+
+const PAGE_SIZE = 10;
 
 export default function AdminCouponsPage() {
   const {
@@ -25,6 +28,7 @@ export default function AdminCouponsPage() {
   } = useStore();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(0);
 
   const handleDeleteCoupon = (c) => {
     showConfirmModal({
@@ -62,6 +66,17 @@ export default function AdminCouponsPage() {
       return true;
     });
   }, [coupons, filterType, search]);
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, filterType]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  const safePage = Math.min(currentPage, totalPages - 1);
+  const paginatedCoupons = useMemo(() => {
+    const start = safePage * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, safePage]);
 
   const totalUsed = useMemo(() => {
     return coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
@@ -240,7 +255,7 @@ export default function AdminCouponsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {filtered.map((coupon) => {
+                {paginatedCoupons.map((coupon) => {
                   const isActive = coupon.isActive !== false;
                   const discountDisplay =
                     coupon.discountType === 'PERCENTAGE'
@@ -350,6 +365,26 @@ export default function AdminCouponsPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Thanh phân trang & Tóm tắt số lượng */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-line text-[12.5px] text-ink-muted">
+            <div>
+              Hiển thị{' '}
+              <strong>
+                {filtered.length === 0 ? 0 : safePage * PAGE_SIZE + 1}
+              </strong>{' '}
+              -{' '}
+              <strong>
+                {Math.min((safePage + 1) * PAGE_SIZE, filtered.length)}
+              </strong>{' '}
+              trên tổng số <strong>{filtered.length}</strong> mã khuyến mãi
+            </div>
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         </div>
       </div>

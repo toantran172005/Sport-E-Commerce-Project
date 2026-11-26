@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, XCircle, Package, Home, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Package, Home, Loader2, RefreshCw } from 'lucide-react';
 import { useStore } from '../../context/StoreContext.jsx';
 import { orderService } from '../../services/orderService.js';
 import { paymentService } from '../../services/paymentService.js';
@@ -8,7 +8,7 @@ import { formatCurrency, formatDateTime } from '../../utils/formatters.js';
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
-  const { orders, setAppliedCoupon, refreshCoupons } = useStore();
+  const { orders, setAppliedCoupon, refreshCoupons, showToast } = useStore();
 
   // Tham số từ VNPay Sandbox Return URL (nếu có)
   const vnpResponseCode = searchParams.get('vnp_ResponseCode');
@@ -28,6 +28,7 @@ export default function PaymentResultPage() {
   const [webhookResult, setWebhookResult] = useState(null);
   const [verifying, setVerifying] = useState(isVnPayCallback);
   const [verifyError, setVerifyError] = useState('');
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     if (typeof setAppliedCoupon === 'function') {
@@ -147,6 +148,31 @@ export default function PaymentResultPage() {
     webhookResult?.status === 'FAILED' ||
     backendPayment?.status === 'FAILED';
 
+  const handleRetryPayment = async () => {
+    if (!effectiveOrderId || retrying) return;
+    setRetrying(true);
+    try {
+      const res = await paymentService.createPayment({
+        orderId: effectiveOrderId,
+        method: 'BANK_TRANSFER',
+      });
+      const paymentUrl = res?.paymentUrl || res?.data?.paymentUrl;
+      if (paymentUrl) {
+        window.location.href = paymentUrl;
+        return;
+      }
+      if (typeof showToast === 'function') {
+        showToast('Không thể tạo liên kết thanh toán VNPay mới', 'error');
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') {
+        showToast(err.message || 'Không thể khởi tạo lại giao dịch thanh toán', 'error');
+      }
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   if (verifying) {
     return (
       <div className="max-w-[1360px] w-full mx-auto px-4 md:px-6 py-16 flex items-center justify-center text-ink">
@@ -236,7 +262,23 @@ export default function PaymentResultPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3 mt-6">
+        {isFailed && effectiveOrderId && (
+          <button
+            type="button"
+            onClick={handleRetryPayment}
+            disabled={retrying}
+            className="w-full mt-6 py-2.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-bold flex items-center justify-center gap-2 shadow-xs transition disabled:opacity-50 cursor-pointer"
+          >
+            {retrying ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            <span>{retrying ? 'Đang chuyển tới VNPay...' : 'Thử Lại Thanh Toán VNPay'}</span>
+          </button>
+        )}
+
+        <div className={`grid grid-cols-2 gap-3 ${isFailed && effectiveOrderId ? 'mt-3' : 'mt-6'}`}>
           <Link
             to={`/account/orders/${displayOrderId}`}
             className="py-2.5 rounded-md bg-accent hover:bg-accent/90 text-white text-[13px] font-bold flex items-center justify-center gap-2 shadow-xs transition"
