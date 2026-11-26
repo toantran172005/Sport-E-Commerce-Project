@@ -19,8 +19,6 @@ import { useStore } from '../../context/StoreContext';
 import AdminLayout from '../../layouts/AdminLayout';
 import { reviewService } from '../../services/reviewService.js';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-
 export default function AdminReviewsPage() {
   const {
     reviews: contextReviews = [],
@@ -31,7 +29,7 @@ export default function AdminReviewsPage() {
     showToast,
   } = useStore();
 
-  const [reviews, setReviews] = useState(USE_MOCK ? contextReviews : []);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -46,13 +44,11 @@ export default function AdminReviewsPage() {
       const list = Array.isArray(res) ? res : res?.content || res?.items || [];
       setReviews(list);
     } catch {
-      if (USE_MOCK && contextReviews.length > 0) {
-        setReviews(contextReviews);
-      }
+      setReviews([]);
     } finally {
       setLoading(false);
     }
-  }, [contextReviews]);
+  }, []);
 
   useEffect(() => {
     fetchReviews();

@@ -82,40 +82,59 @@ export function AddressProvider({ children }) {
   const updateAddress = useCallback(
     async (id, payload) => {
       const updated = await userService.updateAddress(id, payload);
-      await loadAddresses();
+      setAddresses((prev) =>
+        prev.map((a) => {
+          if (a.id === id) return updated;
+          if (payload?.isDefault && a.id !== id) return { ...a, isDefault: false };
+          return a;
+        })
+      );
       invalidateShippingCache();
       showToast('Đã cập nhật địa chỉ nhận hàng', 'success');
       return updated;
     },
-    [loadAddresses, showToast]
+    [showToast]
   );
 
   const deleteAddress = useCallback(
     async (id) => {
+      let rollbackList;
+      setAddresses((prev) => {
+        rollbackList = prev;
+        return prev.filter((a) => a.id !== id);
+      });
+      setSelectedAddressId((prev) => (prev === id ? null : prev));
       try {
         await userService.deleteAddress(id);
-        await loadAddresses();
         invalidateShippingCache();
         showToast('Đã xóa địa chỉ nhận hàng', 'success');
       } catch (err) {
+        if (rollbackList) setAddresses(rollbackList);
         showToast(err.message || 'Không thể xóa địa chỉ', 'error');
+        throw err;
       }
     },
-    [loadAddresses, showToast]
+    [showToast]
   );
 
   const setDefaultAddress = useCallback(
     async (id) => {
+      let rollbackList;
+      setAddresses((prev) => {
+        rollbackList = prev;
+        return prev.map((a) => ({ ...a, isDefault: a.id === id }));
+      });
+      setSelectedAddressId(id);
       try {
         await userService.setDefaultAddress(id);
-        await loadAddresses(id);
         invalidateShippingCache();
         showToast('Đã thiết lập làm địa chỉ mặc định', 'success');
       } catch (err) {
+        if (rollbackList) setAddresses(rollbackList);
         showToast(err.message || 'Không thể đặt địa chỉ mặc định', 'error');
       }
     },
-    [loadAddresses, showToast]
+    [showToast]
   );
 
   const selectedAddress = useMemo(

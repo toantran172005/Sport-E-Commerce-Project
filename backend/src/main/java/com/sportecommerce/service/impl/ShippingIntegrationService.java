@@ -191,10 +191,12 @@ public class ShippingIntegrationService {
         List<Map<String, Object>> products = new ArrayList<>();
         for (OrderItem orderItem : order.getOrderItems()) {
             Map<String, Object> product = new HashMap<>();
-            product.put("name", orderItem.getProductNameSnapshot());
-            product.put("weight", orderItem.getVariant().getWeightGram() != null
+            product.put("name", orderItem.getProductNameSnapshot() != null ? orderItem.getProductNameSnapshot() : "Sản phẩm Delta Sport");
+            product.put("weight", orderItem.getVariant() != null && orderItem.getVariant().getWeightGram() != null
                     ? orderItem.getVariant().getWeightGram() : 200);
-            product.put("quantity", orderItem.getQuantity());
+            product.put("quantity", orderItem.getQuantity() != null ? orderItem.getQuantity() : 1);
+            long itemPrice = orderItem.getUnitPrice() != null ? orderItem.getUnitPrice().longValue() : 10_000L;
+            product.put("price", Math.max(1_000L, itemPrice));
             products.add(product);
         }
 
@@ -213,11 +215,16 @@ public class ShippingIntegrationService {
         orderData.put("ward", address.getWard());
         orderData.put("hamlet", "Khác");
         orderData.put("tel", address.getPhoneNumber());
-        long clampedValue = 0L;
-        if (order.getSubTotal() != null) {
+        long clampedValue = 10_000L;
+        if (order.getSubTotal() != null && order.getSubTotal() > 0) {
             clampedValue = order.getSubTotal().longValue();
+        } else if (order.getTotalAmount() != null && order.getTotalAmount() > 0) {
+            clampedValue = order.getTotalAmount().longValue();
         }
-        clampedValue = Math.min(Math.max(1L, clampedValue), 20_000_000L);
+        if (pickMoney > 0 && clampedValue < pickMoney) {
+            clampedValue = pickMoney;
+        }
+        clampedValue = Math.min(Math.max(10_000L, clampedValue), 20_000_000L);
 
         orderData.put("pick_money", pickMoney);
         orderData.put("value", clampedValue);

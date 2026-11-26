@@ -48,8 +48,23 @@ export default function ProductCard({ product }) {
   const handleBuyNow = (e) => {
     e.stopPropagation();
     if (!requireLogin('Vui lòng đăng nhập để tiến hành đặt hàng')) return;
-    addToCart(product, 1);
-    navigate('/checkout');
+    const defaultVariant = product.variants?.[0] || product.selectedVariant || {};
+    const effectiveVariantId = defaultVariant.id || product.variantId || 1;
+    navigate('/checkout', {
+      state: {
+        buyNowItem: {
+          product,
+          productId: product.id,
+          variantId: effectiveVariantId,
+          name: product.name,
+          variant: defaultVariant.size ? `${defaultVariant.size} • ${defaultVariant.color || 'Tiêu chuẩn'}` : 'Tiêu chuẩn',
+          price: currentPrice,
+          originalPrice,
+          quantity: 1,
+          imageUrl: product.thumbnail || (product.images && product.images[0]?.imageUrl) || product.imageUrl || '',
+        },
+      },
+    });
   };
 
   const handleWishlistClick = (e) => {
@@ -77,11 +92,11 @@ export default function ProductCard({ product }) {
           type="button"
           onClick={handleWishlistClick}
           aria-label={isWishlisted ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
-          className="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface/90 backdrop-blur-xs flex items-center justify-center text-ink-muted hover:text-danger shadow-xs transition"
+          className="group/heart absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface/90 backdrop-blur-xs flex items-center justify-center text-ink-muted hover:text-danger hover:scale-110 active:scale-90 shadow-xs transition-all duration-200 cursor-pointer"
         >
           <Heart
-            className={`w-4 h-4 transition ${
-              isWishlisted ? 'fill-danger text-danger' : 'text-ink-subtle'
+            className={`w-4 h-4 transition-all duration-200 group-hover/heart:scale-125 ${
+              isWishlisted ? 'fill-danger text-danger scale-105' : 'text-ink-subtle'
             }`}
           />
         </button>

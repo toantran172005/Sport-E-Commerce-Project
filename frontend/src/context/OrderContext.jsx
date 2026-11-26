@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { orderService } from '../services/orderService.js';
@@ -11,7 +11,13 @@ export function OrderProvider({ children }) {
   const { showToast } = useUI();
 
   const [orders, setOrders] = useState([]);
+  const [adminOrders, setAdminOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const isFetchingOrdersRef = useRef(false);
+  const isFetchingAdminRef = useRef(false);
+  const lastFetchedOrdersRef = useRef(0);
+  const lastFetchedAdminRef = useRef(0);
 
   // Tự động xóa sạch key sport_orders thừa trong localStorage nếu từng tồn tại
   useEffect(() => {
@@ -27,31 +33,65 @@ export function OrderProvider({ children }) {
     return role.includes('ADMIN') || role.includes('STAFF');
   }, [user]);
 
-  // Fetch orders trực tiếp từ DB khi component mount hoặc khi user thay đổi (đăng nhập / F5)
-  const fetchOrders = useCallback(async () => {
+  // Fetch đơn hàng của người dùng hiện tại (My Orders)
+  const fetchOrders = useCallback(async (force = false) => {
     const token = localStorage.getItem('token');
     if (!token) {
       setOrders([]);
       return;
     }
+    const now = Date.now();
+    if (!force && isFetchingOrdersRef.current) return;
+    if (!force && now - lastFetchedOrdersRef.current < 4000) return;
+
+    isFetchingOrdersRef.current = true;
     setLoading(true);
     try {
-      const data = isAdmin ? await orderService.getAllOrders() : await orderService.getMyOrders();
+      const data = await orderService.getMyOrders();
       setOrders(Array.isArray(data) ? data : []);
+      lastFetchedOrdersRef.current = Date.now();
     } catch (err) {
-      console.warn('Lỗi tải danh sách đơn hàng từ database:', err?.response?.data?.message || err.message);
+      console.warn('Lỗi tải danh sách đơn hàng của tôi từ database:', err?.response?.data?.message || err.message);
     } finally {
+      isFetchingOrdersRef.current = false;
       setLoading(false);
+    }
+  }, []);
+
+  // Fetch toàn bộ đơn hàng cho Quản trị viên & Nhân viên (Admin Orders)
+  const fetchAdminOrders = useCallback(async (force = false) => {
+    const token = localStorage.getItem('token');
+    if (!token || !isAdmin) {
+      setAdminOrders([]);
+      return;
+    }
+    const now = Date.now();
+    if (!force && isFetchingAdminRef.current) return;
+    if (!force && now - lastFetchedAdminRef.current < 4000) return;
+
+    isFetchingAdminRef.current = true;
+    try {
+      const data = await orderService.getAllOrders();
+      setAdminOrders(Array.isArray(data) ? data : []);
+      lastFetchedAdminRef.current = Date.now();
+    } catch (err) {
+      console.warn('Lỗi tải toàn bộ đơn hàng quản trị từ database:', err?.response?.data?.message || err.message);
+    } finally {
+      isFetchingAdminRef.current = false;
     }
   }, [isAdmin]);
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    if (isAdmin) {
+      fetchAdminOrders();
+    }
+  }, [fetchOrders, fetchAdminOrders, isAdmin]);
 
   const addOrder = useCallback((newOrder) => {
     setOrders((prev) => [newOrder, ...prev.filter((o) => String(o.id) !== String(newOrder.id))]);
-  }, [setOrders]);
+    setAdminOrders((prev) => [newOrder, ...prev.filter((o) => String(o.id) !== String(newOrder.id))]);
+  }, []);
 
   const cancelOrderById = useCallback(
     async (orderId, reason) => {
@@ -112,7 +152,7 @@ export function OrderProvider({ children }) {
         throw err;
       }
 
-      setOrders((prev) =>
+      const mapOrderUpdater = (prev) =>
         prev.map((o) => {
           if (String(o.id) !== String(orderId) && o.orderCode !== String(orderId)) return o;
 
@@ -156,25 +196,30 @@ export function OrderProvider({ children }) {
               },
             ],
           };
-        })
-      );
+        });
+
+      setOrders(mapOrderUpdater);
+      setAdminOrders(mapOrderUpdater);
       // Đã loại bỏ toast generic tại đây để không bị nhảy 2 toast! AdminOrderModal sẽ hiển thị 1 toast chi tiết.
       return updatedResponse;
     },
-    [setOrders, showToast, user]
+    [setOrders, setAdminOrders, showToast, user]
   );
 
   const value = useMemo(
     () => ({
       orders,
       setOrders,
+      adminOrders,
+      setAdminOrders,
       loading,
       fetchOrders,
+      fetchAdminOrders,
       addOrder,
       cancelOrderById,
       updateOrderStatus,
     }),
-    [orders, setOrders, loading, fetchOrders, addOrder, cancelOrderById, updateOrderStatus]
+    [orders, setOrders, adminOrders, setAdminOrders, loading, fetchOrders, fetchAdminOrders, addOrder, cancelOrderById, updateOrderStatus]
   );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;

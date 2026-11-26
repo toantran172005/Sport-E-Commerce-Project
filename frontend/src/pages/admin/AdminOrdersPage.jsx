@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   FileText,
   Truck,
@@ -25,46 +25,80 @@ const STATUS_TABS = [
 ];
 
 function resolveAdminOrderCustomerName(order) {
-  const snapshot = order.shippingAddressSnapshot;
-  const snapshotName =
-    typeof snapshot === 'string' && snapshot.includes(' - ')
-      ? snapshot.split(' - ')[0]
-      : null;
+  const snapshot = order.shippingAddressSnapshot || order.recipientSnapshot;
+  let snapshotName = null;
+  if (typeof snapshot === 'string') {
+    if (snapshot.includes(' - ')) {
+      snapshotName = snapshot.split(' - ')[0]?.trim();
+    } else if (snapshot.includes(' • ')) {
+      snapshotName = snapshot.split(' • ')[0]?.trim();
+    }
+  }
 
   return (
+    snapshotName ||
     order.recipientName ||
     order.receiverName ||
-    order.adminCustomerName ||
     order.customerName ||
+    order.adminCustomerName ||
     order.userFullName ||
     order.user?.fullName ||
-    snapshotName ||
-    'Khách vãng lai'
+    'Khách hàng'
   );
 }
 
 function resolveAdminOrderShippingAddress(order) {
-  const snapshot = order.shippingAddressSnapshot;
-  const snapshotAddress =
-    typeof snapshot === 'string' && snapshot.includes(' - ')
-      ? snapshot.split(' - ').slice(2).join(' - ')
-      : snapshot;
+  const snapshot = order.shippingAddressSnapshot || order.recipientSnapshot;
+  let snapshotAddress = null;
+  if (typeof snapshot === 'string') {
+    if (snapshot.includes(' - ')) {
+      const parts = snapshot.split(' - ');
+      snapshotAddress = parts.slice(2).join(' - ')?.trim() || parts[parts.length - 1]?.trim();
+    } else if (snapshot.includes(' • ')) {
+      const parts = snapshot.split(' • ');
+      snapshotAddress = parts.slice(2).join(' • ')?.trim() || parts[parts.length - 1]?.trim();
+    } else {
+      snapshotAddress = snapshot;
+    }
+  }
 
   return (
-    order.shippingAddress ||
     snapshotAddress ||
-    order.recipientSnapshot ||
+    order.shippingAddress ||
     order.userAddress?.fullAddress ||
     order.address ||
     'Địa chỉ nhận hàng'
   );
 }
 
+function resolveShippingProviderDisplay(order) {
+  const code = (
+    order.shippingProviderCode ||
+    order.shippingProvider ||
+    order.shippingProviderShort ||
+    order.shipment?.provider?.code ||
+    (order.shipment?.provider?.name?.toLowerCase().includes('tiết kiệm') ? 'GHTK' : '') ||
+    (order.shipment?.trackingNumber?.startsWith('GHTK') ? 'GHTK' : '') ||
+    (order.shipment?.provider?.name?.toLowerCase().includes('nhanh') ? 'GHN' : '') ||
+    ''
+  );
+  if (code) return code.toUpperCase();
+  if (order.shipment?.provider?.name) return order.shipment.provider.name;
+  return 'GHTK';
+}
+
 export default function AdminOrdersPage() {
-  const { orders, openModal } = useStore();
+  const { orders: storeOrders, adminOrders, fetchAdminOrders, openModal } = useStore();
+  const orders = (adminOrders && adminOrders.length > 0) ? adminOrders : storeOrders;
   const [statusTab, setStatusTab] = useState('ALL');
   const [providerFilter, setProviderFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    fetchAdminOrders?.();
+  }, [fetchAdminOrders]);
 
   const filteredOrders = orders.filter((o) => {
     if (statusTab !== 'ALL') {
@@ -101,6 +135,21 @@ export default function AdminOrdersPage() {
     }
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ITEMS_PER_PAGE));
+
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusTab, providerFilter, search]);
 
   const renderStatusBadge = (status) => {
     switch (status) {
@@ -263,8 +312,8 @@ export default function AdminOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map((order) => {
+                {paginatedOrders.length > 0 ? (
+                  paginatedOrders.map((order) => {
                     const firstItem = order.items?.[0] || order.orderItems?.[0] || {};
                     const totalQty =
                       order.items?.reduce((s, it) => s + (it.quantity || 1), 0) ||
@@ -308,8 +357,23 @@ export default function AdminOrdersPage() {
                             <span className="text-[10.5px] text-ink-muted">
                               {order.paymentMethod === 'BANK_TRANSFER' ? 'VNPay QR' : 'COD'}
                             </span>
-                            {order.payment?.status === 'REFUND' && (
+                            {(order.paymentStatus === 'PAID' ||
+                              order.payment?.status === 'PAID' ||
+                              (order.paymentMethod === 'COD' && (order.status === 'DELIVERED' || order.status === 'COMPLETED'))) ? (
+                              <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                Đã thanh toán (PAID)
+                              </span>
+                            ) : order.paymentMethod === 'BANK_TRANSFER' ? (
                               <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                Chờ thanh toán
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                                Thu tiền COD
+                              </span>
+                            )}
+                            {(order.payment?.status === 'REFUND' || order.paymentStatus === 'REFUND') && (
+                              <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                                 Đã hoàn tiền (REFUND)
                               </span>
                             )}
@@ -318,16 +382,11 @@ export default function AdminOrdersPage() {
 
                         <td className="py-3.5 px-4">
                           <span className="px-2 py-0.5 rounded bg-surface-2 text-ink text-[11px] font-bold border border-line">
-                            {order.shippingProviderCode ||
-                              order.shippingProvider ||
-                              order.shippingProviderShort ||
-                              order.shipment?.provider?.code ||
-                              order.shipment?.provider?.name ||
-                              (order.shipment?.trackingNumber?.startsWith('GHTK') ? 'GHTK' : 'GHN')}
+                            {resolveShippingProviderDisplay(order)}
                           </span>
-                          {(order.trackingCode || order.shipment?.trackingNumber) && (
+                          {(order.trackingCode || order.trackingNumber || order.shipment?.trackingNumber) && (
                             <p className="text-[10.5px] text-ink-subtle font-mono mt-0.5">
-                              {order.trackingCode || order.shipment?.trackingNumber}
+                              {order.trackingCode || order.trackingNumber || order.shipment?.trackingNumber}
                             </p>
                           )}
                         </td>
@@ -358,6 +417,56 @@ export default function AdminOrdersPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3 text-[12.5px] text-ink-muted">
+              <div>
+                Hiển thị <strong>{(currentPage - 1) * ITEMS_PER_PAGE + 1}</strong> –{' '}
+                <strong>{Math.min(currentPage * ITEMS_PER_PAGE, filteredOrders.length)}</strong> trên tổng số{' '}
+                <strong>{filteredOrders.length}</strong> đơn hàng
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-md border border-line bg-surface hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-ink transition cursor-pointer"
+                >
+                  Trước
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => Math.abs(p - currentPage) <= 2 || p === 1 || p === totalPages)
+                  .map((p, idx, arr) => (
+                    <span key={p} className="flex items-center">
+                      {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-ink-subtle">…</span>}
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={`w-8 h-8 rounded-md text-[12px] font-bold transition cursor-pointer ${
+                          p === currentPage
+                            ? 'bg-accent text-white shadow-xs'
+                            : 'border border-line bg-surface hover:bg-surface-2 text-ink'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </span>
+                  ))}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-md border border-line bg-surface hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-ink transition cursor-pointer"
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>

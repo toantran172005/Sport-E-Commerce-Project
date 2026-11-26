@@ -98,9 +98,7 @@ public class MapperUtil {
                 Long vId = null;
                 if (oi.getVariant() != null) {
                     vId = oi.getVariant().getId();
-                    if (oi.getVariant().getProduct() != null && oi.getVariant().getProduct().getProductImages() != null && !oi.getVariant().getProduct().getProductImages().isEmpty()) {
-                        img = oi.getVariant().getProduct().getProductImages().get(0).getImageUrl();
-                    }
+                    img = oi.getVariant().getImageUrl();
                 }
                 return com.sportecommerce.dto.response.OrderDetailResponse.OrderItemSummary.builder()
                         .id(oi.getId())

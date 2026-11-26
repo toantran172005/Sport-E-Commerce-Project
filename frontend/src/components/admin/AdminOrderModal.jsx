@@ -41,6 +41,7 @@ export default function AdminOrderModal() {
     modalPayload,
     closeModal,
     orders,
+    adminOrders,
     updateOrderStatus,
     showToast,
     showErrorModal,
@@ -51,14 +52,19 @@ export default function AdminOrderModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const orderId = modalPayload?.orderId || modalPayload?.order?.id;
-  const order = orders.find((o) => o.id === orderId || o.code === orderId || o.orderCode === orderId) || modalPayload?.order;
+  const currentOrdersList = adminOrders && adminOrders.length > 0 ? adminOrders : orders;
+  const order = currentOrdersList.find((o) => String(o.id) === String(orderId) || String(o.code) === String(orderId) || String(o.orderCode) === String(orderId)) || modalPayload?.order;
+
+  const currentStatus = (order?.status || 'PENDING').toUpperCase();
+  const allowedNextStatuses = ALLOWED_TRANSITIONS[currentStatus] || [];
+  const isTerminal = allowedNextStatuses.length === 0;
 
   useEffect(() => {
-    if (order) {
-      setSelectedStatus(order.status || 'PENDING');
+    if (order?.status) {
+      setSelectedStatus(order.status.toUpperCase());
       setAdminNote('');
     }
-  }, [order]);
+  }, [order?.id, order?.status]);
 
   if (activeModal !== 'admin_order_modal') return null;
 
@@ -79,12 +85,8 @@ export default function AdminOrderModal() {
     );
   }
 
-  const currentStatus = order?.status || 'PENDING';
-  const allowedNextStatuses = ALLOWED_TRANSITIONS[currentStatus] || [];
-  const isTerminal = allowedNextStatuses.length === 0;
-
   const handleUpdateStatus = async () => {
-    if (isTerminal || selectedStatus === currentStatus) {
+    if (isTerminal || selectedStatus.toUpperCase() === currentStatus) {
       closeModal();
       return;
     }
@@ -110,41 +112,60 @@ export default function AdminOrderModal() {
   let snapshotName = '';
   let snapshotPhone = '';
   let snapshotAddress = '';
-  const rawSnapshot = order.shippingAddressSnapshot || order.recipientSnapshot;
-  if (typeof rawSnapshot === 'string' && rawSnapshot.includes(' - ')) {
-    const parts = rawSnapshot.split(' - ');
-    if (parts.length >= 3) {
-      snapshotName = parts[0]?.trim();
-      snapshotPhone = parts[1]?.trim();
-      snapshotAddress = parts.slice(2).join(' - ').trim();
+  const rawSnapshot = order?.shippingAddressSnapshot || order?.recipientSnapshot || '';
+  if (typeof rawSnapshot === 'string') {
+    if (rawSnapshot.includes(' - ')) {
+      const parts = rawSnapshot.split(' - ');
+      if (parts.length >= 3) {
+        snapshotName = parts[0]?.trim();
+        snapshotPhone = parts[1]?.trim();
+        snapshotAddress = parts.slice(2).join(' - ').trim();
+      } else if (parts.length === 2) {
+        snapshotName = parts[0]?.trim();
+        snapshotAddress = parts[1]?.trim();
+      }
+    } else if (rawSnapshot.includes(' • ')) {
+      const parts = rawSnapshot.split(' • ');
+      if (parts.length >= 3) {
+        snapshotName = parts[0]?.trim();
+        snapshotPhone = parts[1]?.trim();
+        snapshotAddress = parts.slice(2).join(' • ').trim();
+      } else if (parts.length === 2) {
+        snapshotName = parts[0]?.trim();
+        snapshotAddress = parts[1]?.trim();
+      }
     }
   }
 
   const receiverName =
-    order.receiverName ||
-    order.recipientName ||
     snapshotName ||
-    order.userAddress?.receiverName ||
+    order.recipientName ||
+    order.receiverName ||
+    order.customerName ||
+    order.user?.fullName ||
     order.adminCustomerName ||
     order.userFullName ||
-    order.user?.fullName ||
     'Khách hàng';
 
   const receiverPhone =
+    snapshotPhone ||
+    order.customerPhone ||
     order.receiverPhone ||
     order.phoneNumber ||
-    snapshotPhone ||
+    order.user?.phoneNumber ||
+    order.user?.phone ||
     order.userAddress?.phone ||
     order.adminCustomerSub ||
-    order.user?.phone ||
     '—';
 
   const receiverAddress =
     order.shippingAddress ||
     snapshotAddress ||
+    rawSnapshot ||
+    order.recipientSnapshot ||
     (order.userAddress?.streetAddress
       ? `${order.userAddress.streetAddress}, ${order.userAddress.ward}, ${order.userAddress.district}, ${order.userAddress.province || order.userAddress.city}`
-      : rawSnapshot || order.address) ||
+      : order.address) ||
     'Địa chỉ nhận hàng';
 
   return (
@@ -213,6 +234,13 @@ export default function AdminOrderModal() {
                 <span>Trạng thái TT:</span>
                 {(() => {
                   const payStatus = order.payment?.status || order.paymentStatus || 'PENDING';
+                  if ((order.paymentMethod === 'COD' || (!order.paymentMethod && order.payment?.method === 'COD')) && (currentStatus === 'DELIVERED' || currentStatus === 'COMPLETED')) {
+                    return (
+                      <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        ✓ Đã thanh toán (PAID)
+                      </span>
+                    );
+                  }
                   if (payStatus === 'REFUND') {
                     return (
                       <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -245,16 +273,18 @@ export default function AdminOrderModal() {
                 <span>Vận chuyển:</span>
                 <span className="font-bold text-ink">
                   {(() => {
-                    const providerCode = (
+                    const rawCode = (
                       order.shippingProviderCode ||
                       order.shippingProvider ||
                       order.shippingProviderShort ||
                       order.shipment?.provider?.code ||
-                      order.shipment?.provider?.name ||
-                      (order.shipment?.trackingNumber?.startsWith('GHTK') ? 'GHTK' : 'GHN')
+                      ''
                     ).toUpperCase();
-                    const providerName = order.shipment?.provider?.name || (providerCode.includes('GHTK') ? 'Giao Hàng Tiết Kiệm (GHTK)' : 'GHN Express');
-                    const tracking = order.shipment?.trackingNumber || order.trackingCode || order.trackingNumber;
+                    const isGHTK = rawCode.includes('GHTK') ||
+                      order.shipment?.provider?.name?.toLowerCase().includes('tiết kiệm') ||
+                      (order.shipment?.trackingNumber?.startsWith('GHTK') ?? false);
+                    const providerName = order.shipment?.provider?.name || (isGHTK ? 'Giao Hàng Tiết Kiệm (GHTK)' : 'Giao Hàng Nhanh (GHN)');
+                    const tracking = order.trackingCode || order.trackingNumber || order.shipment?.trackingNumber;
                     return `${providerName} — ${tracking ? tracking : 'Chưa có mã'}`;
                   })()}
                 </span>

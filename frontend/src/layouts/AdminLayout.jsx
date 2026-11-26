@@ -39,7 +39,7 @@ const ADMIN_NAV_ITEMS = [
     end: false,
     icon: ClipboardList,
     label: 'Quản Lý Đơn Hàng',
-    badge: 'orders',
+    badge: null,
     permission: ADMIN_PERMISSIONS.ORDERS,
   },
   {

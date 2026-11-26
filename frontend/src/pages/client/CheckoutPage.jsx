@@ -122,9 +122,9 @@ export default function CheckoutPage() {
     try {
       const validCartItemIds = checkoutItems
         .map((it) => it.id ?? it.cartItemId)
-        .filter((id) => id != null && !isNaN(Number(id)) && Number(id) > 0)
+        .filter((id) => id != null && !isNaN(Number(id)) && Number(id) > 0 && Number(id) < 1000000000000)
         .map((id) => Number(id));
-      const hasRealCartItemIds = validCartItemIds.length > 0;
+      const hasRealCartItemIds = validCartItemIds.length > 0 && validCartItemIds.length === checkoutItems.length;
 
       const fullAddressSnapshot = `${selectedAddress.recipientName || 'Khách hàng'} - ${selectedAddress.phoneNumber || '0901234567'} - ${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`;
 
