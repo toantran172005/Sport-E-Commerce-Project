@@ -19,5 +19,11 @@ public class WishlistResponse {
     private String imageUrl;
     private Double avgRating;
     private Integer reviewCount;
+    private Long defaultVariantId;
+    private String defaultVariantSize;
+    private String defaultVariantColor;
+    private Double defaultVariantPrice;
+    private Double defaultVariantSalePrice;
+    private Integer defaultVariantStock;
     private Instant createdAt;
 }

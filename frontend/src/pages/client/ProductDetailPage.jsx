@@ -307,9 +307,9 @@ export default function ProductDetailPage() {
               </span>
               <button
                 type="button"
-                disabled={false}
-                onClick={() => setQuantity((q) => q + 1)}
-                className="w-7 h-7 rounded text-base font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40"
+                disabled={quantity >= maxStock || isOutOfStock}
+                onClick={() => setQuantity((q) => Math.min(maxStock, q + 1))}
+                className="w-7 h-7 rounded text-base font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 +
               </button>

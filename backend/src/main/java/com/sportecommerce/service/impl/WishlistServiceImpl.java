@@ -3,10 +3,12 @@ package com.sportecommerce.service.impl;
 import com.sportecommerce.dto.response.WishlistResponse;
 import com.sportecommerce.entity.Product;
 import com.sportecommerce.entity.ProductImage;
+import com.sportecommerce.entity.ProductVariant;
 import com.sportecommerce.entity.User;
 import com.sportecommerce.entity.Wishlist;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.ProductRepository;
+import com.sportecommerce.repository.ProductVariantRepository;
 import com.sportecommerce.repository.UserRepository;
 import com.sportecommerce.repository.WishlistRepository;
 import com.sportecommerce.service.WishlistService;
@@ -26,6 +28,7 @@ public class WishlistServiceImpl implements WishlistService {
 
     private final WishlistRepository wishlistRepository;
     private final ProductRepository productRepository;
+    private final ProductVariantRepository productVariantRepository;
     private final UserRepository userRepository;
 
     private WishlistResponse mapToResponse(Wishlist wishlist) {
@@ -39,6 +42,11 @@ public class WishlistServiceImpl implements WishlistService {
                     .orElse(p.getProductImages().get(0).getImageUrl());
         }
 
+        ProductVariant defaultVariant = productVariantRepository.findByProduct_Id(p.getId()).stream()
+                .filter(v -> !Boolean.FALSE.equals(v.getIsActive()))
+                .findFirst()
+                .orElse(null);
+
         return WishlistResponse.builder()
                 .id(wishlist.getId())
                 .productId(p.getId())
@@ -49,6 +57,12 @@ public class WishlistServiceImpl implements WishlistService {
                 .imageUrl(imageUrl)
                 .avgRating(p.getAvgRating())
                 .reviewCount(p.getReviewCount())
+                .defaultVariantId(defaultVariant != null ? defaultVariant.getId() : null)
+                .defaultVariantSize(defaultVariant != null ? defaultVariant.getSize() : null)
+                .defaultVariantColor(defaultVariant != null ? defaultVariant.getColor() : null)
+                .defaultVariantPrice(defaultVariant != null ? defaultVariant.getPrice() : null)
+                .defaultVariantSalePrice(defaultVariant != null ? defaultVariant.getSalePrice() : null)
+                .defaultVariantStock(defaultVariant != null ? defaultVariant.getStock() : null)
                 .createdAt(wishlist.getCreatedAt())
                 .build();
     }

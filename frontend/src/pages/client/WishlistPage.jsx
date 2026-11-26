@@ -19,7 +19,7 @@ export default function WishlistPage() {
       wishlistService
         .getWishlist()
         .then((res) => {
-          if (Array.isArray(res) && res.length > 0) {
+          if (Array.isArray(res)) {
             // Map WishlistResponse to Product structure compatible with ProductCard
             const mapped = res.map((item) => ({
               id: item.productId || item.id,
@@ -30,6 +30,19 @@ export default function WishlistPage() {
               images: item.imageUrl ? [{ imageUrl: item.imageUrl, isPrimary: true }] : [],
               avgRating: item.avgRating || 5.0,
               reviewCount: item.reviewCount || 0,
+              variants: item.defaultVariantId
+                ? [
+                    {
+                      id: item.defaultVariantId,
+                      size: item.defaultVariantSize,
+                      color: item.defaultVariantColor,
+                      price: item.defaultVariantPrice,
+                      salePrice: item.defaultVariantSalePrice,
+                      stock: item.defaultVariantStock,
+                      imageUrl: item.imageUrl,
+                    },
+                  ]
+                : [],
             }));
             setApiWishlistProducts(mapped);
           }
