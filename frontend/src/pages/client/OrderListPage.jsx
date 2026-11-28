@@ -12,6 +12,8 @@ import {
 import EmptyState from '../../components/common/EmptyState.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 import { formatCurrency } from '../../utils/formatters.js';
+import { paymentService } from '../../services/paymentService.js';
+import { isAwaitingPayment } from '../../utils/orderPayment.js';
 
 const STATUS_TABS = [
   { key: 'ALL', label: 'Tất cả' },
@@ -24,7 +26,7 @@ const STATUS_TABS = [
 ];
 
 export default function OrderListPage() {
-  const { orders, addToCart, openModal, showToast, fetchOrders } = useStore();
+  const { orders, addToCart, openModal, showToast, fetchOrders, showErrorModal } = useStore();
   const [activeTab, setActiveTab] = useState('ALL');
   const navigate = useNavigate();
 
@@ -42,13 +44,13 @@ export default function OrderListPage() {
     });
   }, [orders, activeTab]);
 
-  const renderStatusBadge = (status) => {
+  const renderStatusBadge = (status, awaitingPayment = false) => {
     switch (status) {
       case 'PENDING':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-warning-soft text-warning text-[11px] font-bold">
             <Clock className="w-3.5 h-3.5" />
-            <span>Chờ xác nhận</span>
+            <span>{awaitingPayment ? 'Chờ thanh toán' : 'Chờ xác nhận'}</span>
           </span>
         );
       case 'CONFIRMED':
@@ -103,6 +105,16 @@ export default function OrderListPage() {
             <span>{status}</span>
           </span>
         );
+    }
+  };
+
+  // Đơn chờ thanh toán: lấy link VNPay mới và chuyển sang cổng thanh toán
+  const handleContinuePayment = async (order) => {
+    try {
+      const url = await paymentService.getVnpayPaymentUrl(order.id);
+      window.location.assign(url);
+    } catch (err) {
+      showErrorModal(err, { title: 'Không Thể Chuyển Tới VNPay' });
     }
   };
 
@@ -203,7 +215,7 @@ export default function OrderListPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {renderStatusBadge(order.status)}
+                    {renderStatusBadge(order.status, isAwaitingPayment(order))}
                   </div>
                 </div>
 
@@ -282,13 +294,23 @@ export default function OrderListPage() {
                       </button>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleReorder(order)}
-                      className="px-3 py-1.5 rounded-md bg-surface border border-line text-ink text-[12px] font-bold hover:bg-surface-2 transition"
-                    >
-                      Mua lại
-                    </button>
+                    {isAwaitingPayment(order) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleContinuePayment(order)}
+                        className="px-3 py-1.5 rounded-md bg-surface border border-accent text-accent text-[12px] font-bold hover:bg-accent-soft transition cursor-pointer"
+                      >
+                        Tiếp tục thanh toán
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleReorder(order)}
+                        className="px-3 py-1.5 rounded-md bg-surface border border-line text-ink text-[12px] font-bold hover:bg-surface-2 transition"
+                      >
+                        Mua lại
+                      </button>
+                    )}
 
                     <Link
                       to={`/account/orders/${order.id}`}

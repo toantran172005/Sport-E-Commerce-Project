@@ -12,6 +12,7 @@ import {
 import { useStore } from '../../context/StoreContext';
 import { formatCurrency } from '../../utils/formatters';
 import LineNumberBadge from '../common/LineNumberBadge';
+import { isAwaitingPayment } from '../../utils/orderPayment';
 
 const ALLOWED_TRANSITIONS = {
   PENDING: ['CONFIRMED', 'CANCELED'],
@@ -56,7 +57,11 @@ export default function AdminOrderModal() {
   const order = currentOrdersList.find((o) => String(o.id) === String(orderId) || String(o.code) === String(orderId) || String(o.orderCode) === String(orderId)) || modalPayload?.order;
 
   const currentStatus = (order?.status || 'PENDING').toUpperCase();
-  const allowedNextStatuses = ALLOWED_TRANSITIONS[currentStatus] || [];
+  // Đơn VNPay chưa thanh toán: nhân viên/admin chỉ được hủy, KHÔNG được tiếp nhận / đi đơn cho tới khi khách trả tiền
+  const awaitingPayment = isAwaitingPayment(order);
+  const allowedNextStatuses = (ALLOWED_TRANSITIONS[currentStatus] || []).filter(
+    (st) => !(awaitingPayment && st === 'CONFIRMED')
+  );
   const isTerminal = allowedNextStatuses.length === 0;
 
   useEffect(() => {
@@ -379,6 +384,13 @@ export default function AdminOrderModal() {
                 Hiện tại: <strong className="text-accent">{currentStatus}</strong>
               </span>
             </div>
+
+            {awaitingPayment && (
+              <div className="p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[12px] leading-relaxed">
+                ⏳ Đơn đang <strong>chờ khách thanh toán VNPay</strong> nên chưa thể tiếp nhận hay đi đơn. Hệ thống tự ghi nhận khi khách thanh toán
+                {order.paymentExpiresAt ? ' trước hạn ' + new Date(order.paymentExpiresAt).toLocaleString('vi-VN') : ''}; quá hạn đơn tự bị hủy. Bạn vẫn có thể hủy đơn.
+              </div>
+            )}
 
             {isTerminal ? (
               <div className="p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[12px] leading-relaxed">

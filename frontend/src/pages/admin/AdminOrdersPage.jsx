@@ -12,6 +12,7 @@ import {
 import { useStore } from '../../context/StoreContext';
 import AdminLayout from '../../layouts/AdminLayout';
 import { formatCurrency } from '../../utils/formatters';
+import { isAwaitingPayment } from '../../utils/orderPayment';
 
 const STATUS_TABS = [
   { id: 'ALL', label: 'Tất cả đơn' },
@@ -151,13 +152,13 @@ export default function AdminOrdersPage() {
     setCurrentPage(1);
   }, [statusTab, providerFilter, search]);
 
-  const renderStatusBadge = (status) => {
+  const renderStatusBadge = (status, awaitingPayment = false) => {
     switch (status) {
       case 'PENDING':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-bold">
             <Clock className="w-3 h-3" />
-            <span>Chờ duyệt</span>
+            <span>{awaitingPayment ? 'Chờ thanh toán' : 'Chờ duyệt'}</span>
           </span>
         );
       case 'CONFIRMED':
@@ -392,7 +393,7 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          {renderStatusBadge(order.status)}
+                          {renderStatusBadge(order.status, isAwaitingPayment(order))}
                         </td>
 
                         <td className="py-3.5 px-4 text-right">

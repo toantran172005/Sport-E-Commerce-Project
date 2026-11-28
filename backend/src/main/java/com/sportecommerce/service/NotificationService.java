@@ -5,6 +5,7 @@ import com.sportecommerce.dto.response.NotificationResponse;
 import com.sportecommerce.dto.response.PageResponse;
 import com.sportecommerce.entity.Coupon;
 import com.sportecommerce.entity.Order;
+import com.sportecommerce.entity.Review;
 import com.sportecommerce.enums.OrderStatus;
 
 public interface NotificationService {
@@ -29,6 +30,9 @@ public interface NotificationService {
     // Tao thong bao ORDER_UPDATE cho khach hang khi don hang cua ho doi trang thai
     void notifyCustomerOrderStatusChanged(Long orderId, String orderCode, Long customerId,
                                            OrderStatus oldStatus, OrderStatus newStatus);
+
+    // Tao thong bao REVIEW_REPLY cho khach hang khi ADMIN phan hoi (hoac sua phan hoi) danh gia cua ho
+    void notifyReviewReply(Review review, boolean updated);
 
     // ===== Nhom 3: API cho man hinh thong bao cua user (NotificationController goi) =====
 

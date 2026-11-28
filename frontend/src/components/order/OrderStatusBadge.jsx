@@ -1,4 +1,4 @@
-export default function OrderStatusBadge({ status, className = '' }) {
+export default function OrderStatusBadge({ status, awaitingPayment = false, className = '' }) {
   const normalized = (status || '').toUpperCase();
 
   const getBadgeConfig = () => {
@@ -6,7 +6,7 @@ export default function OrderStatusBadge({ status, className = '' }) {
       case 'PENDING':
       case 'CHO_XAC_NHAN':
         return {
-          label: 'Chờ xác nhận',
+          label: awaitingPayment ? 'Chờ thanh toán' : 'Chờ xác nhận',
           colorClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
         };
       case 'CONFIRMED':

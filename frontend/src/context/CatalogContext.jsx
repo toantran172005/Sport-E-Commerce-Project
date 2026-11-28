@@ -12,7 +12,9 @@ export function CatalogProvider({ children }) {
   const [products, setProducts] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [brandsList, setBrandsList] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
+  // Bắt đầu ở trạng thái đang tải để lần render đầu hiện skeleton thay vì trang trống
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState('');
   const [reviews, setReviews] = useState([]);
   const [coupons, setCoupons] = useState([]);
 
@@ -35,17 +37,23 @@ export function CatalogProvider({ children }) {
   const refreshCatalogData = useCallback(async () => {
     try {
       setCatalogLoading(true);
+      // Lỗi từng phần KHÔNG được biến thành danh sách rỗng (người dùng tưởng shop hết hàng): giữ dữ liệu cũ + báo lỗi
+      const FAILED = Symbol('failed');
       const [cats, brs, prodsRes] = await Promise.all([
-        categoryService.getAllFlatCategories().catch(() => []),
-        brandService.getBrands().catch(() => []),
-        productService.getProducts({ size: 1000 }).catch(() => ({ items: [] })),
+        categoryService.getAllFlatCategories().catch(() => FAILED),
+        brandService.getBrands().catch(() => FAILED),
+        productService.getProducts({ size: 1000 }).catch(() => FAILED),
       ]);
 
-      setCategoriesList(cats || []);
-      setBrandsList(brs || []);
-      setProducts(prodsRes.items || prodsRes.content || []);
+      if (cats !== FAILED) setCategoriesList(cats || []);
+      if (brs !== FAILED) setBrandsList(brs || []);
+      if (prodsRes !== FAILED) setProducts(prodsRes.items || prodsRes.content || []);
+
+      const failed = [cats, brs, prodsRes].some((r) => r === FAILED);
+      setCatalogError(failed ? 'Không thể tải đầy đủ dữ liệu cửa hàng. Vui lòng thử lại.' : '');
     } catch (err) {
       console.error('Không thể tải dữ liệu Catalog từ backend:', err);
+      setCatalogError('Không thể tải dữ liệu cửa hàng. Vui lòng thử lại.');
     } finally {
       setCatalogLoading(false);
     }
@@ -306,6 +314,7 @@ export function CatalogProvider({ children }) {
       brandsList,
       setBrandsList,
       catalogLoading,
+      catalogError,
       refreshCatalogData,
       reviews,
       setReviews,
@@ -337,6 +346,7 @@ export function CatalogProvider({ children }) {
       categoriesList,
       brandsList,
       catalogLoading,
+      catalogError,
       refreshCatalogData,
       reviews,
       coupons,

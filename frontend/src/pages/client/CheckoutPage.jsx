@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   MapPin,
@@ -82,6 +82,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
   const [shippingNote, setShippingNote] = useState('Giao giờ hành chính');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Khóa chống đặt trùng: giữ nguyên khi thử lại cùng một lần thanh toán
+  const idempotencyKeyRef = useRef(null);
 
   // Hook-based shipping quotes with caching & debouncing
   const { providers, quotes, loading: shippingLoading } = useShippingQuotes({
@@ -163,7 +165,10 @@ export default function CheckoutPage() {
         };
       }
 
-      const res = await orderService.placeOrder(orderPayload);
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = crypto.randomUUID();
+      }
+      const res = await orderService.placeOrder(orderPayload, idempotencyKeyRef.current);
       const newOrder = res?.data || res;
       const orderId = newOrder?.orderId || newOrder?.id;
       const orderCode = newOrder?.orderCode || newOrder?.code;
@@ -252,6 +257,9 @@ export default function CheckoutPage() {
       }
     } catch (err) {
       console.error('Lỗi khi đặt hàng:', err);
+      // Server đã trả lời lỗi (hết hàng, sai dữ liệu...) → lần bấm sau là một lần đặt mới, cần khóa mới.
+      // Lỗi mạng/timeout (không có status) → giữ khóa để gửi lại không tạo đơn trùng.
+      if (err?.status) idempotencyKeyRef.current = null;
       showErrorModal(err, { title: 'Đặt Hàng Không Thành Công' });
     } finally {
       setIsSubmitting(false);

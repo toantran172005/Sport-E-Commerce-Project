@@ -40,14 +40,23 @@ export default function VnpayQrModal() {
   const handleConfirmPaid = async () => {
     setIsConfirming(true);
     try {
-      await paymentService.confirmPayment(orderId);
+      // Khách KHÔNG tự xác nhận đã trả tiền: chỉ kiểm tra xem VNPay đã báo thanh toán thành công chưa
+      // (backend tự ghi nhận khi VNPay trả kết quả có chữ ký hợp lệ).
+      const payment = await paymentService.getPaymentByOrderId(orderId);
+      if (payment?.status !== 'PAID') {
+        showToast(
+          'Chưa nhận được kết quả thanh toán từ VNPay. Vui lòng hoàn tất thanh toán trên cổng VNPay rồi kiểm tra lại.',
+          'error'
+        );
+        return;
+      }
       if (typeof setAppliedCoupon === 'function') setAppliedCoupon(null);
       if (typeof refreshCoupons === 'function') refreshCoupons();
       closeModal();
-      showToast('Xác nhận thanh toán VNPay QR thành công!', 'success');
+      showToast('Thanh toán VNPay thành công!', 'success');
       navigate(`/payment-result?orderId=${orderId}&orderCode=${orderCode}&method=BANK_TRANSFER`);
     } catch (err) {
-      showToast(err.message || 'Không thể xác nhận thanh toán!', 'error');
+      showToast(err.message || 'Không thể kiểm tra trạng thái thanh toán!', 'error');
     } finally {
       setIsConfirming(false);
     }
@@ -199,7 +208,7 @@ export default function VnpayQrModal() {
           >
             <Check className="w-4 h-4 stroke-[3]" />
             <span>
-              {isConfirming ? 'Đang xác nhận...' : 'Tôi Đã Hoàn Tất Chuyển Khoản'}
+              {isConfirming ? 'Đang kiểm tra...' : 'Kiểm Tra Trạng Thái Thanh Toán'}
             </span>
           </button>
         </div>

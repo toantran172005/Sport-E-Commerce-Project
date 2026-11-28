@@ -14,6 +14,7 @@ import {
 import { useStore } from '../../context/StoreContext.jsx';
 import AdminLayout from '../../layouts/AdminLayout.jsx';
 import { formatCurrency, formatDateTime } from '../../utils/formatters.js';
+import { isAwaitingPayment } from '../../utils/orderPayment.js';
 
 export default function AdminDashboardPage() {
   const { orders, products, reviews, openModal, showToast } = useStore();
@@ -45,7 +46,8 @@ export default function AdminDashboardPage() {
   }, [orders]);
 
   const pendingOrders = useMemo(() => {
-    return orders.filter((o) => o.status === 'PENDING');
+    // Đơn VNPay chưa thanh toán chưa phải việc của nhân viên (không thể tiếp nhận)
+    return orders.filter((o) => o.status === 'PENDING' && !isAwaitingPayment(o));
   }, [orders]);
 
   const lowStockVariantsCount = useMemo(() => {

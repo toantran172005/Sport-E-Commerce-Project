@@ -6,6 +6,7 @@ import com.sportecommerce.enums.PaymentStatus;
 import com.sportecommerce.exception.AppException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -17,7 +18,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service
 public class ShippingIntegrationService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = createRestTemplate();
+
+    /**
+     * RestTemplate mặc định KHÔNG có timeout: hãng vận chuyển treo là request treo mãi, giữ luôn
+     * kết nối DB của transaction đang mở và có thể làm cạn pool. Đặt timeout rõ ràng.
+     */
+    private static RestTemplate createRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3_000);
+        factory.setReadTimeout(10_000);
+        return new RestTemplate(factory);
+    }
 
     private final List<Map<String, Object>> cachedProvinces = new CopyOnWriteArrayList<>();
     private final Map<Integer, List<Map<String, Object>>> cachedDistricts = new ConcurrentHashMap<>();
@@ -70,6 +82,26 @@ public class ShippingIntegrationService {
             case "VTP", "VTPOST" -> createOrderViettelPost(order);
             default -> throw new AppException("Hệ thống chưa hỗ trợ tích hợp API cho hãng: " + providerCode);
         };
+    }
+
+    /**
+     * Hủy vận đơn bên hãng (best-effort, không ném lỗi): dùng khi đơn đã tạo vận đơn rồi bị hủy.
+     */
+    public void cancelShippingOrder(Shipment shipment) {
+        if (shipment == null || shipment.getTrackingNumber() == null || shipment.getTrackingNumber().isBlank()
+                || shipment.getProvider() == null || shipment.getProvider().getCode() == null) {
+            return;
+        }
+        String providerCode = shipment.getProvider().getCode().toUpperCase();
+        try {
+            switch (providerCode) {
+                case "GHN" -> cancelOrderGHN(shipment.getTrackingNumber());
+                case "GHTK" -> cancelOrderGHTK(shipment.getTrackingNumber());
+                default -> { }
+            }
+        } catch (Exception ignored) {
+            // Không làm hỏng việc hủy đơn nội bộ nếu hãng vận chuyển lỗi
+        }
     }
 
     public String createOrderGHN(Order order) {

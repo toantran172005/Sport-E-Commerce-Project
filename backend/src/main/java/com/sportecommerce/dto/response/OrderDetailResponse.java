@@ -32,6 +32,8 @@ public class OrderDetailResponse {
     // Flat convenience fields
     private String paymentMethod;
     private String paymentStatus;
+    /** Hạn thanh toán (chỉ có khi đơn online đang chờ thanh toán). Quá hạn đơn bị tự hủy. */
+    private Instant paymentExpiresAt;
     private String shippingProviderCode;
     private String shippingProviderName;
     private String trackingNumber;

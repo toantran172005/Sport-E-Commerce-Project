@@ -39,6 +39,13 @@ public class Payment {
     @Column(name = "paid_at")
     private Instant paidAt;
 
+    /** Thời điểm nhân viên đã hoàn tiền thật cho khách (chỉ có ý nghĩa khi status = REFUND). */
+    @Column(name = "refunded_at")
+    private Instant refundedAt;
+
+    @Column(name = "refund_note", length = 255)
+    private String refundNote;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;

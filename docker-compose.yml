@@ -1,0 +1,46 @@
+# Chay toan bo ung dung:  docker compose up -d --build
+# Truoc do: tao file backend/.env (copy tu backend/.env.example va dien gia tri that).
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    # Toan bo khoa/bi mat doc tu backend/.env luc chay, KHONG nam trong image
+    env_file: ./backend/.env
+    environment:
+      # Ghi de de tro vao Redis trong compose (localhost trong container khong phai may that)
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+        VITE_CHATBOT_URL: ${VITE_CHATBOT_URL:-}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    # Mo o cong 5173 de trung origin da cau hinh CORS va VNPAY_RETURN_URL mac dinh
+    ports:
+      - "5173:80"
+
+volumes:
+  redis_data:

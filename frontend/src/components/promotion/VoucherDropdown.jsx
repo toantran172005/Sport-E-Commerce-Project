@@ -1,44 +1,60 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Ticket, ChevronRight, X, Check, AlertCircle } from 'lucide-react';
+import { Ticket, ChevronRight, X, Check, AlertCircle, Clock } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { couponService } from '../../services/couponService';
 import { formatCurrency } from '../../utils/formatters';
+
+// Voucher đã quá ngày kết thúc (so với thời điểm `nowMs`)
+const isCouponExpired = (coupon, nowMs) => {
+  if (!coupon?.endDate) return false;
+  const end = new Date(coupon.endDate);
+  return !isNaN(end.getTime()) && nowMs > end.getTime();
+};
 
 export default function VoucherDropdown({
   orderSubtotal = 0,
   direction = 'down',
   className = '',
 }) {
-  const { coupons = [], appliedCoupon, setAppliedCoupon, showToast } = useStore();
+  const { coupons = [], appliedCoupon, setAppliedCoupon, showToast, refreshCoupons } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [inputCode, setInputCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isApplying, setIsApplying] = useState(false);
+  // Mốc thời gian dùng để xét hạn voucher; cập nhật mỗi lần mở panel
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const panelRef = useRef(null);
 
-  // Chỉ hiển thị các mã đang active, đã đến ngày bắt đầu, chưa hết hạn và còn lượt dùng cho khách
-  const availableCoupons = useMemo(() => {
-    const now = new Date();
-    return coupons.filter((c) => {
-      if (c.isActive === false) return false;
+  // Danh sách hiển thị: mã đang bật và đã đến ngày bắt đầu.
+  // - Mã còn hạn + còn lượt: dùng được.
+  // - Mã đã hết hạn: vẫn hiện nhưng gắn nhãn "Hết hạn" và không chọn được (xếp cuối danh sách).
+  const { availableCoupons, voucherList } = useMemo(() => {
+    const usable = [];
+    const expiredList = [];
+    coupons.forEach((c) => {
+      if (c.isActive === false) return;
       if (c.startDate) {
         const start = new Date(c.startDate);
-        if (!isNaN(start.getTime()) && now < start) return false;
+        if (!isNaN(start.getTime()) && nowMs < start.getTime()) return;
       }
-      if (c.endDate) {
-        const end = new Date(c.endDate);
-        if (!isNaN(end.getTime()) && now > end) return false;
+      if (isCouponExpired(c, nowMs)) {
+        expiredList.push({ coupon: c, expired: true });
+        return;
       }
       if (
         c.usageLimit !== null &&
         c.usageLimit !== undefined &&
         (c.usedCount ?? 0) >= c.usageLimit
       ) {
-        return false;
+        return;
       }
-      return true;
+      usable.push({ coupon: c, expired: false });
     });
-  }, [coupons]);
+    return {
+      availableCoupons: usable,
+      voucherList: [...usable, ...expiredList],
+    };
+  }, [coupons, nowMs]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -60,12 +76,27 @@ export default function VoucherDropdown({
 
   useEffect(() => {
     if (appliedCoupon) {
+      const fresh = coupons.find((c) => c.code === appliedCoupon.code);
+      if (fresh && isCouponExpired(fresh, nowMs)) {
+        setAppliedCoupon(null);
+        showToast?.(`Mã ${appliedCoupon.code} đã hết hạn nên được bỏ chọn`, 'error');
+        return;
+      }
       const minReq = appliedCoupon.minOrderAmount || appliedCoupon.minOrder || 0;
       if (orderSubtotal < minReq) {
         setAppliedCoupon(null);
       }
     }
-  }, [orderSubtotal, appliedCoupon, setAppliedCoupon]);
+  }, [orderSubtotal, appliedCoupon, setAppliedCoupon, coupons, nowMs, showToast]);
+
+  const handleTogglePanel = () => {
+    if (!isOpen) {
+      // Mỗi lần mở: cập nhật mốc thời gian + tải lại danh sách để không dùng dữ liệu cũ
+      setNowMs(Date.now());
+      if (typeof refreshCoupons === 'function') refreshCoupons();
+    }
+    setIsOpen(!isOpen);
+  };
 
   const validateAndApplyCode = async (codeToApply) => {
     setErrorMsg('');
@@ -104,6 +135,10 @@ export default function VoucherDropdown({
   };
 
   const handleSelectCoupon = async (coupon) => {
+    if (isCouponExpired(coupon, nowMs)) {
+      showToast('Mã khuyến mãi đã hết hạn', 'error');
+      return;
+    }
     const minReq = coupon.minOrderAmount || coupon.minOrder || 0;
     if (orderSubtotal < minReq) {
       showToast(
@@ -150,7 +185,7 @@ export default function VoucherDropdown({
       {/* Trigger Bar */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleTogglePanel}
         className="w-full flex items-center justify-between gap-3 p-3 rounded-md bg-surface border border-line hover:border-accent text-left transition"
       >
         <div className="flex items-center gap-2.5 min-w-0">
@@ -251,19 +286,25 @@ export default function VoucherDropdown({
               Mã giảm giá khả dụng ({availableCoupons.length})
             </p>
 
-            {availableCoupons.length === 0 ? (
+            {voucherList.length === 0 ? (
               <p className="text-[12px] text-ink-muted py-4 text-center">
                 Hiện chưa có mã giảm giá nào đang hoạt động.
               </p>
             ) : (
-              availableCoupons.map((c) => {
+              voucherList.map(({ coupon: c, expired }) => {
                 const minReq = c.minOrderAmount || c.minOrder || 0;
-                const isEligible = orderSubtotal >= minReq;
-                const isSelected = appliedCoupon?.code === c.code;
+                const isEligible = !expired && orderSubtotal >= minReq;
+                const isSelected = !expired && appliedCoupon?.code === c.code;
 
                 return (
+                  <div key={c.id || c.code}>
+                    {expired && (
+                      <p className="mb-1 flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-danger">
+                        <Clock className="w-3 h-3" />
+                        Hết hạn
+                      </p>
+                    )}
                   <div
-                    key={c.id || c.code}
                     onClick={() => !isApplying && isEligible && handleSelectCoupon(c)}
                     className={`p-3 rounded-md border transition relative flex items-start justify-between gap-3 ${
                       isSelected
@@ -299,7 +340,7 @@ export default function VoucherDropdown({
                         Đơn tối thiểu: {formatCurrency(minReq)}
                       </p>
 
-                      {!isEligible && (
+                      {!expired && !isEligible && (
                         <p className="text-[10.5px] font-medium text-danger flex items-center gap-1">
                           <span>
                             Mua thêm {formatCurrency(minReq - orderSubtotal)} để dùng
@@ -319,6 +360,7 @@ export default function VoucherDropdown({
                         {isSelected && <Check className="w-2.5 h-2.5" />}
                       </div>
                     </div>
+                  </div>
                   </div>
                 );
               })

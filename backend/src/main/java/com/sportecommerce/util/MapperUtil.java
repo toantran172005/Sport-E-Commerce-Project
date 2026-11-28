@@ -20,10 +20,15 @@ import com.sportecommerce.entity.User;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MapperUtil {
+
+    /** Thời gian giữ đơn chờ thanh toán online (phút); phải trùng với job hủy đơn quá hạn. */
+    @Value("${app.order.unpaid-expire-minutes:1440}")
+    private long unpaidExpireMinutes = 1440;
 
     public PlaceOrderResponse mapOrderToPlaceOrderResponse(Order order) {
         return PlaceOrderResponse
@@ -72,6 +77,16 @@ public class MapperUtil {
                     .transactionCode(p.getTransactionCode())
                     .paidAt(p.getPaidAt())
                     .build();
+        }
+
+        // Đơn online còn PENDING mà chưa thanh toán thì có hạn thanh toán = lúc tạo đơn + thời gian giữ đơn
+        java.time.Instant paymentExpiresAt = null;
+        if (order.getStatus() == com.sportecommerce.enums.OrderStatus.PENDING
+                && order.getPayment() != null
+                && order.getPayment().getMethod() != com.sportecommerce.enums.PaymentMethod.COD
+                && order.getPayment().getStatus() != com.sportecommerce.enums.PaymentStatus.PAID
+                && order.getCreatedAt() != null) {
+            paymentExpiresAt = order.getCreatedAt().plus(java.time.Duration.ofMinutes(unpaidExpireMinutes));
         }
 
         com.sportecommerce.dto.response.OrderDetailResponse.UserSummary userSummary = null;
@@ -135,6 +150,7 @@ public class MapperUtil {
                 .updatedAt(order.getUpdatedAt())
                 .paymentMethod(payMethod)
                 .paymentStatus(payStatus)
+                .paymentExpiresAt(paymentExpiresAt)
                 .shippingProviderCode(providerCode)
                 .shippingProviderName(providerName)
                 .trackingNumber(trackingNum)

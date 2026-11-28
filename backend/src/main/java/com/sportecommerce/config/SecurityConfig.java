@@ -5,6 +5,8 @@ import com.sportecommerce.security.JwtAccessDeniedHandler;
 import com.sportecommerce.security.JwtAuthenticationEntryPoint;
 import com.sportecommerce.security.JwtAuthenticationFilter;
 import com.sportecommerce.security.JwtTokenProvider;
+import com.sportecommerce.service.SessionService;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,6 +46,7 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
+    private final SessionService sessionService;
 
     /** Endpoint public hoàn toàn (đăng nhập/đăng ký/OTP/refresh...). logout-all được chặn riêng ở trên. */
     private static final String[] PUBLIC_ENDPOINTS = {
@@ -85,7 +88,7 @@ public class SecurityConfig {
      * tiep va dung noi bo trong securityFilterChain().
      */
     private JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
+        return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService, sessionService);
     }
 
     @Bean
@@ -102,6 +105,13 @@ public class SecurityConfig {
                         // Thứ tự rất quan trọng: rule cụ thể đặt TRƯỚC rule chung (Spring lấy rule khớp đầu tiên).
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // SSE (SseEmitter) hoàn tất bằng ASYNC dispatch không mang JWT; request gốc đã được xác thực ở lượt đầu.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
+
+                        // Actuator: chỉ health công khai (healthcheck của Docker/load balancer); metrics/prometheus cần ADMIN.
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
+
                         // Chỉ ADMIN (AdminUserController còn có @PreAuthorize), STAFF được vào các API quản trị khác.
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
@@ -113,7 +123,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/**", "/api/payments/create").authenticated()
 
                         // Webhook VNPay gọi từ server của VNPay -> không có JWT, được xác thực bằng chữ ký bên trong service.
-                        .requestMatchers("/api/payments/webhook").permitAll()
+                        .requestMatchers("/api/payments/webhook", "/api/payments/vnpay-ipn").permitAll()
                         .requestMatchers("/api/payments/**").authenticated()
 
                         // Coupon: xem + áp mã cho cả khách vãng lai; tạo/sửa/xóa chỉ ADMIN/STAFF.

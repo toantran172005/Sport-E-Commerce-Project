@@ -6,7 +6,7 @@ import { ProductCardSkeleton } from '../../components/common/Skeleton.jsx';
 import { useStore } from '../../context/StoreContext.jsx';
 
 export default function HomePage() {
-  const { products, categoriesList, catalogLoading } = useStore();
+  const { products, categoriesList, catalogLoading, catalogError, refreshCatalogData } = useStore();
   const navigate = useNavigate();
 
   const mainCategories = useMemo(() => {
@@ -23,6 +23,18 @@ export default function HomePage() {
 
   return (
     <div className="max-w-340 w-full mx-auto px-4 md:px-6 py-6 space-y-8">
+        {catalogError && !catalogLoading && (
+          <div className="rounded-lg border border-danger/40 bg-danger-soft px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[13px] font-semibold text-danger">{catalogError}</p>
+            <button
+              type="button"
+              onClick={refreshCatalogData}
+              className="px-3 py-1.5 rounded-md bg-danger text-white text-[12.5px] font-bold hover:opacity-90 transition cursor-pointer"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
         {/* 1. Hero tĩnh đơn giản chuẩn TMĐT quốc tế */}
         <div className="rounded-lg bg-linear-to-r from-[#0a0f20] to-[#1e2950] text-white p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-white/5">
           <div className="space-y-4 max-w-xl z-10">

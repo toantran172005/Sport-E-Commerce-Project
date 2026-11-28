@@ -1,5 +1,7 @@
 package com.sportecommerce.service.impl;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import com.sportecommerce.dto.request.CategoryRequest;
 import com.sportecommerce.dto.response.CategoryResponse;
 import com.sportecommerce.entity.Category;
@@ -26,6 +28,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "categories", allEntries = true)
     public CategoryResponse create(CategoryRequest request) {
         Category parent = resolveParent(request.getParentId(), null);
 
@@ -46,6 +49,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "categories", allEntries = true)
     public CategoryResponse update(Long id, CategoryRequest request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
@@ -74,6 +78,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "categories", allEntries = true)
     public void softDelete(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
@@ -94,6 +99,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable("categories")
     public List<CategoryResponse> getAll() {
         return categoryRepository.findByIsActiveTrue().stream()
                 .map(mapperUtil::mapToCategoryResponse)
@@ -102,6 +108,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "categories", key = "#p0")
     public CategoryResponse getById(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));

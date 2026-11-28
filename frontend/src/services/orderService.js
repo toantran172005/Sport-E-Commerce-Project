@@ -9,7 +9,7 @@ const extractList = (response) => {
 };
 
 export const orderService = {
-  async placeOrder(orderData) {
+  async placeOrder(orderData, idempotencyKey) {
     const payload = {
       // Backend lấy user từ JWT; trường này chỉ để tương thích, không còn mặc định user giả
       userId: orderData.userId ? Number(orderData.userId) : null,
@@ -46,7 +46,10 @@ export const orderService = {
       };
     }
 
-    const response = await axiosClient.post("/orders/place-order", payload);
+    // Idempotency-Key: gửi lại cùng khóa (bấm 2 lần / mạng chậm) chỉ tạo 1 đơn
+    const response = await axiosClient.post("/orders/place-order", payload, {
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+    });
     return response.data || response;
   },
 

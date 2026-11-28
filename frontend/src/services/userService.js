@@ -26,6 +26,16 @@ export const userService = {
     return axiosClient.put(`/admin/users/staff/${id}`, data);
   },
 
+  /** PATCH /api/admin/users/{id}/lock - khóa tài khoản nhân viên (thu hồi mọi phiên đăng nhập) */
+  async lockStaff(id) {
+    return axiosClient.patch(`/admin/users/${id}/lock`);
+  },
+
+  /** PATCH /api/admin/users/{id}/unlock - mở khóa tài khoản nhân viên */
+  async unlockStaff(id) {
+    return axiosClient.patch(`/admin/users/${id}/unlock`);
+  },
+
   async setStaffStatus(id, status) {
     return axiosClient.patch(`/admin/users/staff/${id}/status`, { status });
   },
@@ -126,6 +136,21 @@ export const userService = {
   /** POST /api/users/me/change-password (backend xác minh mật khẩu cũ, không dùng OTP) */
   async changePassword({ oldPassword, newPassword }) {
     return axiosClient.post('/users/me/change-password', { oldPassword, newPassword });
+  },
+
+  /** GET /api/users/me/sessions → danh sách thiết bị đang đăng nhập [{id, deviceName, ipAddress, lastUsedAt, current}] */
+  async getSessions() {
+    return axiosClient.get('/users/me/sessions');
+  },
+
+  /** DELETE /api/users/me/sessions/{id} → đăng xuất 1 thiết bị */
+  async revokeSession(id) {
+    return axiosClient.delete(`/users/me/sessions/${id}`);
+  },
+
+  /** POST /api/users/me/sessions/revoke-others → đăng xuất mọi thiết bị khác, giữ thiết bị này */
+  async revokeOtherSessions() {
+    return axiosClient.post('/users/me/sessions/revoke-others');
   },
 };
 

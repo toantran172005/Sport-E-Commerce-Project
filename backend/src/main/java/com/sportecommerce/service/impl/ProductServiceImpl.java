@@ -1,5 +1,7 @@
 package com.sportecommerce.service.impl;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import com.sportecommerce.dto.request.CreateProductRequest;
 import com.sportecommerce.dto.request.ProductImageRequest;
 import com.sportecommerce.dto.request.ProductVariantRequest;
@@ -38,6 +40,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "products", allEntries = true)
     public ProductResponse createProduct(CreateProductRequest request) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -98,6 +101,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "products", allEntries = true)
     public ProductResponse updateProduct(Long id, UpdateProductRequest request){
         Product product = productRepository.findByIdAndDeletedAtIsNull(id).
                 orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm có id: " + id));
@@ -185,6 +189,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "products", allEntries = true)
     public void deleteProduct(Long id) {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
@@ -195,6 +200,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "products", allEntries = true)
     public ProductResponse updateStatus(Long id, ProductStatus status) {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
@@ -209,6 +215,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "products", key = "'list|' + #p0 + '|' + #p1 + '|' + #p2 + '|' + #p3 + '|' + #p4 + '|' + #p5 + '|' + #p6 + '|' + #p7 + '|' + #p8")
     public PageResponse<ProductSummaryResponse> getAll(
             ProductStatus status, Long categoryId, Long brandId, Long tagId, String keyword, Double minPrice, Double maxPrice, Double rating, Pageable pageable) {
 
@@ -233,6 +240,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "products", key = "'id|' + #p0")
     public ProductResponse getById(Long id) {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));
@@ -241,6 +249,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "products", allEntries = true)
     public void softDelete(Long id) {
         Product product = productRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm id: " + id));

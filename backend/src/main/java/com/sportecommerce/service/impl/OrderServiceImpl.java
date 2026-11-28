@@ -19,6 +19,7 @@ import com.sportecommerce.service.ShipmentService;
 import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -118,8 +119,10 @@ public class OrderServiceImpl implements OrderService {
                     actualPrice = variant.getSalePrice();
                 }
 
-                variant.setStock(variant.getStock() - cartItem.getQuantity());
-                variantRepository.save(variant);
+                // Trừ kho nguyên tử (UPDATE ... WHERE stock >= qty): tránh bán lố khi nhiều người mua cùng lúc
+                if (variantRepository.decreaseStockIfEnough(variant.getId(), cartItem.getQuantity()) == 0) {
+                    throw new BadRequestException("Sản phẩm '" + prodName + "' vừa hết hàng hoặc không đủ số lượng, vui lòng thử lại!");
+                }
 
                 OrderItem orderItem = new OrderItem();
                 orderItem.setOrder(order);
@@ -163,8 +166,10 @@ public class OrderServiceImpl implements OrderService {
                 actualPrice = variant.getSalePrice();
             }
 
-            variant.setStock(variant.getStock() - itemRequest.getQuantity());
-            variantRepository.save(variant);
+            // Trừ kho nguyên tử (UPDATE ... WHERE stock >= qty): tránh bán lố khi nhiều người mua cùng lúc
+            if (variantRepository.decreaseStockIfEnough(variant.getId(), itemRequest.getQuantity()) == 0) {
+                throw new BadRequestException("Sản phẩm '" + prodName + "' vừa hết hàng hoặc không đủ số lượng, vui lòng thử lại!");
+            }
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
@@ -248,6 +253,10 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void confirmOrder(Long orderId) {
         Order order = getOrderById(orderId);
+        // Chỉ xác nhận đơn đang chờ. Tránh "hồi sinh" đơn đã hủy khi webhook thanh toán về muộn.
+        if (order.getStatus() != OrderStatus.PENDING) {
+            return;
+        }
         order.setStatus(OrderStatus.CONFIRMED);
         order.setConfirmedAt(Instant.now());
 
@@ -272,6 +281,7 @@ public class OrderServiceImpl implements OrderService {
         }
         return order;
     }
+    @Transactional
     public ApiResponse<?> updateOrderStatus(Long userId, UpdateOrderStatusRequest request) {
 
         Long orderId = request.getOrderId();
@@ -282,7 +292,9 @@ public class OrderServiceImpl implements OrderService {
         User user = userRepository.findUserById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mã nhân viên: " + userId));
 
-        Order order = orderRepository.findById(orderId)
+        // Khóa ghi dòng đơn hàng: hai thao tác đồng thời (khách hủy + nhân viên xử lý) phải xếp hàng,
+        // thao tác sau sẽ thấy trạng thái mới nên không hoàn kho / hoàn mã 2 lần.
+        Order order = orderRepository.findByIdForUpdate(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng mã: " + orderId));
 
         OrderStatus currentStatus = order.getStatus();
@@ -301,9 +313,15 @@ public class OrderServiceImpl implements OrderService {
         }
 
         if (currentStatus.equals(OrderStatus.PENDING) && newStatus.equals(OrderStatus.CONFIRMED)) {
+            // Đơn thanh toán online chỉ được tiếp nhận SAU KHI khách đã thanh toán (VNPay ghi nhận PAID) trong hạn chờ.
+            // Đơn COD thì nhân viên tiếp nhận ngay.
             Payment payment = order.getPayment();
+            if (payment == null) {
+                throw new BadRequestException("Đơn hàng chưa có thông tin thanh toán, chưa thể tiếp nhận!");
+            }
             if (!payment.getMethod().equals(PaymentMethod.COD) && !payment.getStatus().equals(PaymentStatus.PAID)) {
-                throw new BadRequestException("Vui lòng thanh toán đơn hàng trước khi cập nhật!");
+                throw new BadRequestException(
+                        "Đơn hàng đang chờ khách thanh toán qua VNPay, chưa thể tiếp nhận hay đi đơn cho tới khi khách thanh toán!");
             }
 
             order.setStatus(OrderStatus.CONFIRMED);
@@ -370,10 +388,7 @@ public class OrderServiceImpl implements OrderService {
             if (order.getOrderItems() != null) {
                 for (OrderItem item : order.getOrderItems()) {
                     if (item.getVariant() != null && item.getVariant().getProduct() != null) {
-                        Product product = item.getVariant().getProduct();
-                        int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
-                        product.setSoldCount(currentSold + item.getQuantity());
-                        productRepository.save(product);
+                        productRepository.increaseSoldCount(item.getVariant().getProduct().getId(), item.getQuantity());
                     }
                 }
             }
@@ -394,52 +409,7 @@ public class OrderServiceImpl implements OrderService {
                 currentStatus.equals(OrderStatus.CONFIRMED) ||
                 currentStatus.equals(OrderStatus.PROCESSING)) &&
                 newStatus.equals(OrderStatus.CANCELED)) {
-            List<OrderItem> orderItems = order.getOrderItems();
-
-            if (orderItems != null) {
-                for (OrderItem orderItem : orderItems) {
-                    ProductVariant variant = orderItem.getVariant();
-                    if (variant != null) {
-                        variant.setStock(variant.getStock() + orderItem.getQuantity());
-                        variantRepository.save(variant);
-                    }
-                }
-            }
-
-            Coupon coupon = order.getCoupon();
-            if (coupon != null) {
-                coupon.setUsedCount(Math.max(0, coupon.getUsedCount() - 1));
-                couponRepository.save(coupon);
-                couponUsageRepository.deleteByOrder_Id(order.getId());
-            }
-
-            Payment payment = order.getPayment();
-            if (payment != null) {
-                if (PaymentStatus.PAID.equals(payment.getStatus())) {
-                    payment.setStatus(PaymentStatus.REFUND);
-                } else {
-                    payment.setStatus(PaymentStatus.CANCELLED);
-                }
-            }
-
-            Shipment shipment = order.getShipment();
-            if (shipment != null) {
-                shipment.setStatus(ShipmentStatus.CANCELLED);
-            }
-
-            order.setStatus(OrderStatus.CANCELED);
-            order.setCanceledAt(Instant.now());
-            order.setCancelReason(cancelledReason != null && !cancelledReason.isBlank() ? cancelledReason : note);
-
-            OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
-                    .status(OrderStatus.CANCELED)
-                    .changedBy(user)
-                    .order(order)
-                    .note(cancelledReason)
-                    .build();
-
-            order.getOrderStatusHistories().add(orderStatusHistory);
-            orderRepository.save(order);
+            applyCancellation(order, user, cancelledReason, note);
 
         } else if (currentStatus.equals(OrderStatus.DELIVERED)
                 && newStatus.equals(OrderStatus.RETURNED)) {
@@ -457,13 +427,10 @@ public class OrderServiceImpl implements OrderService {
 
             for (OrderItem orderItem : orderItems) {
                 ProductVariant variant = orderItem.getVariant();
-                variant.setStock(variant.getStock() + orderItem.getQuantity());
-                
+                variantRepository.increaseStock(variant.getId(), orderItem.getQuantity());
+
                 if (variant.getProduct() != null) {
-                    Product product = variant.getProduct();
-                    int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
-                    product.setSoldCount(Math.max(0, currentSold - orderItem.getQuantity()));
-                    productRepository.save(product);
+                    productRepository.decreaseSoldCount(variant.getProduct().getId(), orderItem.getQuantity());
                 }
             }
 
@@ -495,6 +462,101 @@ public class OrderServiceImpl implements OrderService {
                 mapperUtil.mapOrderToOrderDetailResponse(order));
     }
 
+
+    /**
+     * Hủy đơn: trả kho, trả lượt mã giảm giá, cập nhật thanh toán/vận chuyển, ghi lịch sử.
+     * Dùng chung cho hủy thủ công và job tự hủy đơn quá hạn thanh toán.
+     * Phải gọi trong transaction, khi đã khóa dòng đơn (findByIdForUpdate).
+     */
+    private void applyCancellation(Order order, User actor, String cancelledReason, String note) {
+        List<OrderItem> orderItems = order.getOrderItems();
+        if (orderItems != null) {
+            for (OrderItem orderItem : orderItems) {
+                ProductVariant variant = orderItem.getVariant();
+                if (variant != null) {
+                    variantRepository.increaseStock(variant.getId(), orderItem.getQuantity());
+                }
+            }
+        }
+
+        Coupon coupon = order.getCoupon();
+        if (coupon != null) {
+            couponRepository.decreaseUsedCount(coupon.getId());
+            couponUsageRepository.deleteByOrder_Id(order.getId());
+        }
+
+        Payment payment = order.getPayment();
+        if (payment != null) {
+            if (PaymentStatus.PAID.equals(payment.getStatus())) {
+                // Đã thu tiền -> cần hoàn tiền (hiện trong danh sách "chờ hoàn tiền" của nhân viên)
+                payment.setStatus(PaymentStatus.REFUND);
+            } else {
+                payment.setStatus(PaymentStatus.CANCELLED);
+            }
+        }
+
+        Shipment shipment = order.getShipment();
+        if (shipment != null) {
+            // Đơn đã tạo vận đơn bên hãng (PROCESSING) thì phải hủy cả bên hãng (best-effort, không làm hỏng giao dịch)
+            if (order.getStatus() == OrderStatus.PROCESSING) {
+                shippingIntegrationService.cancelShippingOrder(shipment);
+            }
+            shipment.setStatus(ShipmentStatus.CANCELLED);
+        }
+
+        order.setStatus(OrderStatus.CANCELED);
+        order.setCanceledAt(Instant.now());
+        order.setCancelReason(cancelledReason != null && !cancelledReason.isBlank() ? cancelledReason : note);
+
+        OrderStatusHistory orderStatusHistory = OrderStatusHistory.builder()
+                .status(OrderStatus.CANCELED)
+                .changedBy(actor)
+                .order(order)
+                .note(cancelledReason)
+                .build();
+
+        order.getOrderStatusHistories().add(orderStatusHistory);
+        orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findExpiredUnpaidOrderIds(Instant cutoff, int limit) {
+        return orderRepository.findExpiredUnpaidOrders(
+                        OrderStatus.PENDING,
+                        PaymentMethod.COD,
+                        List.of(PaymentStatus.PENDING, PaymentStatus.FAILED),
+                        cutoff,
+                        PageRequest.of(0, Math.max(1, limit)))
+                .stream()
+                .map(Order::getId)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public boolean expireOrderIfUnpaid(Long orderId, Instant cutoff) {
+        Order order = orderRepository.findByIdForUpdate(orderId).orElse(null);
+        if (order == null || order.getStatus() != OrderStatus.PENDING) {
+            return false;
+        }
+        Payment payment = order.getPayment();
+        // Đơn chưa có bản ghi thanh toán (khách bỏ giữa chừng) cũng bị hủy khi quá hạn để trả lại kho
+        if (payment != null && (payment.getMethod() == PaymentMethod.COD
+                || (payment.getStatus() != PaymentStatus.PENDING && payment.getStatus() != PaymentStatus.FAILED))) {
+            return false;
+        }
+        if (order.getCreatedAt() != null && !order.getCreatedAt().isBefore(cutoff)) {
+            return false;
+        }
+
+        String reason = "Tự động hủy do quá hạn thanh toán";
+        applyCancellation(order, order.getUser(), reason, reason);
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getOrderCode(), order.getUser().getId(),
+                OrderStatus.PENDING, OrderStatus.CANCELED));
+        return true;
+    }
 
     @Override
     @Transactional

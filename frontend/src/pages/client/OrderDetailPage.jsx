@@ -6,6 +6,8 @@ import { orderService } from "../../services/orderService.js";
 import { formatCurrency, formatDateTime } from "../../utils/formatters.js";
 import { OrderStatusBadge, OrderTimeline } from "../../components/order";
 import LineNumberBadge from "../../components/common/LineNumberBadge.jsx";
+import { paymentService } from "../../services/paymentService.js";
+import { isAwaitingPayment } from "../../utils/orderPayment.js";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -14,6 +16,7 @@ export default function OrderDetailPage() {
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPaying, setIsPaying] = useState(false);
 
   // Helper to normalize items from either items or orderItems structure
   const normalizeItems = (rawItems) => {
@@ -176,6 +179,19 @@ export default function OrderDetailPage() {
     showToast(`Đã sao chép ${label}: ${text}`, 'success');
   };
 
+  // Tiếp tục thanh toán đơn đang chờ: lấy link VNPay mới rồi chuyển sang cổng VNPay
+  const handleContinuePayment = async () => {
+    if (isPaying) return;
+    setIsPaying(true);
+    try {
+      const url = await paymentService.getVnpayPaymentUrl(order.id);
+      window.location.assign(url);
+    } catch (err) {
+      showErrorModal(err, { title: "Không Thể Chuyển Tới VNPay" });
+      setIsPaying(false);
+    }
+  };
+
   const handleReorder = () => {
     if (order?.items && order.items.length > 0) {
       order.items.forEach((item) => {
@@ -226,6 +242,8 @@ export default function OrderDetailPage() {
     );
   }
 
+  const awaitingPayment = isAwaitingPayment(order);
+
   return (
     <div className="space-y-5">
       {/* Top Navigation */}
@@ -252,7 +270,7 @@ export default function OrderDetailPage() {
               <h2 className="text-[18px] font-extrabold text-ink font-mono">
                 {order.code || order.orderCode}
               </h2>
-              <OrderStatusBadge status={order.status} />
+              <OrderStatusBadge status={order.status} awaitingPayment={awaitingPayment} />
             </div>
             <p className="text-[12px] text-ink-subtle mt-1">
               Thời gian đặt hàng: {order.createdAt}
@@ -275,15 +293,38 @@ export default function OrderDetailPage() {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={handleReorder}
-              className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white text-[12.5px] font-bold shadow-xs transition"
-            >
-              Mua lại đơn này
-            </button>
+            {awaitingPayment ? (
+              <button
+                type="button"
+                onClick={handleContinuePayment}
+                disabled={isPaying}
+                className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover disabled:opacity-60 text-white text-[12.5px] font-bold shadow-xs transition cursor-pointer"
+              >
+                {isPaying ? "Đang chuyển tới VNPay..." : "Tiếp tục thanh toán"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReorder}
+                className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white text-[12.5px] font-bold shadow-xs transition"
+              >
+                Mua lại đơn này
+              </button>
+            )}
           </div>
         </div>
+
+        {awaitingPayment && (
+          <div className="px-6 py-3 border-b border-line bg-amber-500/10 text-[12.5px] text-amber-700 dark:text-amber-300 leading-relaxed">
+            Đơn hàng đang chờ bạn thanh toán qua VNPay.{" "}
+            {order.paymentExpiresAt && (
+              <>
+                Vui lòng thanh toán trước <strong>{formatDateTime(order.paymentExpiresAt)}</strong>, quá hạn đơn sẽ tự động bị hủy.{" "}
+              </>
+            )}
+            Cửa hàng chỉ xử lý và giao hàng sau khi nhận được thanh toán.
+          </div>
+        )}
 
         {/* 2 Info Columns: Receiver & Shipment */}
         <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-line border-b border-line">

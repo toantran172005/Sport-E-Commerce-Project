@@ -3,10 +3,7 @@ package com.sportecommerce.service.impl;
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.response.NotificationResponse;
 import com.sportecommerce.dto.response.PageResponse;
-import com.sportecommerce.entity.Coupon;
-import com.sportecommerce.entity.Notification;
-import com.sportecommerce.entity.Order;
-import com.sportecommerce.entity.User;
+import com.sportecommerce.entity.*;
 import com.sportecommerce.enums.NotificationType;
 import com.sportecommerce.enums.OrderStatus;
 import com.sportecommerce.enums.UserRole;
@@ -15,13 +12,17 @@ import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.NotificationRepository;
 import com.sportecommerce.repository.UserRepository;
 import com.sportecommerce.service.NotificationService;
+import com.sportecommerce.service.NotificationStreamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -34,6 +35,7 @@ public class    NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final NotificationStreamService notificationStreamService;
 
     // ===== Nhom 1: thong bao gan voi luong dat hang / thanh toan (PaymentServiceImpl goi) =====
 
@@ -56,6 +58,7 @@ public class    NotificationServiceImpl implements NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+        pushAfterCommit(order.getUser().getId());
         log.info("Đã tạo thông báo thanh toán thành công cho đơn hàng: {}", order.getOrderCode());
     }
 
@@ -78,6 +81,7 @@ public class    NotificationServiceImpl implements NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+        pushAfterCommit(order.getUser().getId());
         log.warn("Đã tạo thông báo thanh toán thất bại cho đơn hàng: {}", order.getOrderCode());
     }
 
@@ -100,6 +104,7 @@ public class    NotificationServiceImpl implements NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+        pushAfterCommit(order.getUser().getId());
         log.info("Đã tạo thông báo đặt hàng thành công cho đơn hàng: {}", order.getOrderCode());
     }
 
@@ -133,13 +138,16 @@ public class    NotificationServiceImpl implements NotificationService {
                 .toList();
 
         notificationRepository.saveAll(notifications);
+        pushAfterCommit(customers.stream().map(User::getId).toList());
         log.info("Đã gửi thông báo PROMOTION ({}) tới {} khách hàng", coupon.getCode(), notifications.size());
     }
 
     // ===== Nhom 2: thong bao theo kien truc Spring Event (OrderEventListener goi) =====
 
+    // REQUIRES_NEW: ham nay duoc OrderEventListener goi o pha AFTER_COMMIT, luc do transaction cu da commit xong;
+    // neu chi dung @Transactional (REQUIRED) thi ban ghi se tham gia transaction cu va KHONG bao gio duoc commit.
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyStaffNewOrder(Long orderId, String orderCode) {
         List<User> staffUsers = userRepository.findByRoleAndDeletedAtIsNull(UserRole.STAFF);
 
@@ -162,10 +170,12 @@ public class    NotificationServiceImpl implements NotificationService {
 
             notificationRepository.save(notification);
         }
+        pushAfterCommit(staffUsers.stream().map(User::getId).toList());
     }
 
+    // REQUIRES_NEW: xem ghi chu o notifyStaffNewOrder
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyCustomerOrderStatusChanged(Long orderId, String orderCode, Long customerId,
                                                   OrderStatus oldStatus, OrderStatus newStatus) {
         User customer = userRepository.findUserById(customerId)
@@ -185,6 +195,66 @@ public class    NotificationServiceImpl implements NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+        pushAfterCommit(customer.getId());
+    }
+
+    // REQUIRES_NEW: loi khi tao thong bao khong duoc lam transaction luu phan hoi danh gia bi danh dau rollback-only
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void notifyReviewReply(Review review, boolean updated) {
+        if (review == null || review.getUser() == null) {
+            return;
+        }
+
+        String productName = review.getProduct() != null ? review.getProduct().getName() : "sản phẩm";
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("reviewId", review.getId());
+        if (review.getProduct() != null) {
+            payload.put("productId", review.getProduct().getId());
+        }
+
+        Notification notification = Notification.builder()
+                .user(review.getUser())
+                .type(NotificationType.REVIEW_REPLY)
+                .title(updated ? "Phản hồi đánh giá đã được cập nhật" : "Shop đã phản hồi đánh giá của bạn")
+                .content("Ban quản trị đã " + (updated ? "cập nhật phản hồi" : "phản hồi")
+                        + " đánh giá của bạn về sản phẩm \"" + productName + "\".")
+                .referenceId(review.getId())
+                .data(payload)
+                .isRead(false)
+                .build();
+
+        notificationRepository.save(notification);
+        pushAfterCommit(review.getUser().getId());
+        log.info("Đã tạo thông báo phản hồi đánh giá cho reviewId={}", review.getId());
+    }
+
+    // ===== SSE: chi day tin hieu SAU KHI transaction commit (khong day thong bao cua giao dich bi rollback) =====
+
+    private void pushAfterCommit(Long userId) {
+        pushAfterCommit(List.of(userId));
+    }
+
+    private void pushAfterCommit(List<Long> userIds) {
+        Runnable push = () -> {
+            for (Long id : userIds) {
+                try {
+                    notificationStreamService.publish(id);
+                } catch (Exception ex) {
+                    log.debug("Không đẩy được SSE tới user {}: {}", id, ex.getMessage());
+                }
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    push.run();
+                }
+            });
+        } else {
+            push.run();
+        }
     }
 
     // ===== Nhom 3: API cho man hinh thong bao cua user (NotificationController goi) =====

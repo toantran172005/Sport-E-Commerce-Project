@@ -6,8 +6,10 @@ import { useUI } from './UIContext.jsx';
 
 const NotificationContext = createContext(null);
 
-// Chuông thông báo tự cập nhật mỗi 30 giây (backend chưa có WebSocket/SSE)
-const POLL_INTERVAL_MS = 30000;
+// Thông báo được đẩy tức thì qua SSE; polling chỉ còn là lưới an toàn khi kênh SSE bị đứt (proxy/mạng)
+const POLL_INTERVAL_MS = 120000;
+const RECONNECT_BASE_MS = 2000;
+const RECONNECT_MAX_MS = 30000;
 
 export function NotificationProvider({ children }) {
   const { showToast } = useUI();
@@ -34,8 +36,53 @@ export function NotificationProvider({ children }) {
       return undefined;
     }
     refreshNotifications();
-    const timer = setInterval(refreshNotifications, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
+    // Polling thưa, bỏ qua khi tab đang ẩn
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshNotifications();
+    }, POLL_INTERVAL_MS);
+    // Quay lại tab thì tải ngay
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshNotifications();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Kênh SSE: tự nối lại với backoff; token hết hạn (401) thì gọi 1 API thường để axios tự refresh rồi nối lại
+    const controller = new AbortController();
+    let cancelled = false;
+    (async () => {
+      let attempt = 0;
+      while (!cancelled) {
+        try {
+          await notificationService.openStream({
+            signal: controller.signal,
+            onEvent: (name) => {
+              attempt = 0;
+              if (name === 'notification') refreshNotifications();
+            },
+          });
+        } catch (err) {
+          if (cancelled || err?.name === 'AbortError') return;
+          if (err?.status === 401) {
+            try {
+              await notificationService.getUnreadCount();
+            } catch {
+              return; // phiên đã hết hạn hẳn: axiosClient đã đưa về trang đăng nhập
+            }
+          }
+        }
+        if (cancelled) return;
+        attempt += 1;
+        const delay = Math.min(RECONNECT_BASE_MS * 2 ** Math.min(attempt - 1, 4), RECONNECT_MAX_MS);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [userId, locked, refreshNotifications]);
 
   const markAllNotificationsRead = useCallback(async () => {
