@@ -3,6 +3,7 @@ package com.sportecommerce.controller;
 import com.sportecommerce.common.ApiResponse;
 import com.sportecommerce.dto.request.CreatePaymentRequest;
 import com.sportecommerce.dto.response.PaymentResponse;
+import com.sportecommerce.exception.AppException;
 import com.sportecommerce.security.OrderAccessChecker;
 import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.OrderService;
@@ -10,6 +11,7 @@ import com.sportecommerce.service.PaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -42,7 +44,11 @@ public class PaymentController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable Long orderId) {
 
-        orderAccessChecker.assertCanAccess(orderService.getOrderById(orderId), userPrincipal);
+        // Khách KHÔNG được tự xác nhận đã trả tiền. Thanh toán VNPay được ghi nhận tự động qua
+        // return URL / IPN có chữ ký. Endpoint này chỉ là lối thủ công cho nhân viên.
+        if (userPrincipal == null || !userPrincipal.isStaff()) {
+            throw new AppException("Chỉ nhân viên mới được xác nhận thanh toán thủ công", HttpStatus.FORBIDDEN);
+        }
         PaymentResponse response = paymentService.confirmQrPayment(orderId);
         return ResponseEntity.ok(ApiResponse.success("Xác nhận thanh toán thành công", response));
     }
@@ -70,6 +76,22 @@ public class PaymentController {
 
         ApiResponse<Object> response = paymentService.handleWebhook(queryParams);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * IPN của VNPay (server VNPay gọi tới, không có JWT; xác thực bằng chữ ký bên trong service).
+     * Cấu hình URL này trong cổng quản trị sandbox VNPay. Chạy local cần tunnel (ngrok/cloudflared).
+     */
+    @GetMapping("/vnpay-ipn")
+    public ResponseEntity<Map<String, String>> handleVnPayIpn(@RequestParam Map<String, String> queryParams) {
+        try {
+            return ResponseEntity.ok(paymentService.handleIpn(queryParams));
+        } catch (Exception ex) {
+            Map<String, String> error = new HashMap<>();
+            error.put("RspCode", "99");
+            error.put("Message", "Unknown error");
+            return ResponseEntity.ok(error);
+        }
     }
 
     @GetMapping("/order/{orderId}")

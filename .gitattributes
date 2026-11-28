@@ -1,0 +1,4 @@
+# Giu LF cho file Docker de build duoc trong container Linux
+Dockerfile text eol=lf
+*.conf text eol=lf
+docker-compose.yml text eol=lf

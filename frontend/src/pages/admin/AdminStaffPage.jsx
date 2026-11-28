@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { UserCog, Plus, Search, X, RefreshCw, Copy, CheckCircle2, KeyRound } from 'lucide-react';
+import { UserCog, Plus, Search, X, RefreshCw, Copy, CheckCircle2, KeyRound, Lock, LockOpen } from 'lucide-react';
 import AdminLayout from '../../layouts/AdminLayout';
 import Pagination from '../../components/common/Pagination';
 import { useUI } from '../../context/UIContext.jsx';
@@ -153,13 +153,14 @@ function CreateStaffModal({ onClose, onCreated }) {
 }
 
 export default function AdminStaffPage() {
-  const { showToast } = useUI();
+  const { showToast, showConfirmModal } = useUI();
   const [keyword, setKeyword] = useState('');
   const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [data, setData] = useState({ content: [], totalPages: 1, totalElements: 0 });
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -184,6 +185,35 @@ export default function AdminStaffPage() {
   useEffect(() => {
     loadStaff();
   }, [loadStaff]);
+
+  // Khóa / mở khóa tài khoản nhân viên (có hộp thoại xác nhận)
+  const handleToggleLock = (u) => {
+    const willLock = u.status !== 'LOCKED';
+    showConfirmModal({
+      title: willLock ? 'Khóa tài khoản nhân viên' : 'Mở khóa tài khoản nhân viên',
+      message: willLock
+        ? `Khóa tài khoản của "${u.fullName}" (${u.email})? Nhân viên sẽ bị đăng xuất khỏi mọi thiết bị và không thể đăng nhập cho đến khi được mở khóa.`
+        : `Mở khóa tài khoản của "${u.fullName}" (${u.email})? Nhân viên sẽ đăng nhập lại được bình thường.`,
+      confirmText: willLock ? 'Khóa tài khoản' : 'Mở khóa',
+      confirmVariant: willLock ? 'danger' : 'primary',
+      onConfirm: async () => {
+        setBusyId(u.id);
+        try {
+          const updated = willLock ? await userService.lockStaff(u.id) : await userService.unlockStaff(u.id);
+          setData((prev) => ({
+            ...prev,
+            content: prev.content.map((row) => (row.id === u.id ? { ...row, ...updated } : row)),
+          }));
+          showToast(willLock ? 'Đã khóa tài khoản nhân viên' : 'Đã mở khóa tài khoản nhân viên', 'success');
+        } catch (err) {
+          showToast(err.message || 'Không thể cập nhật trạng thái tài khoản', 'error');
+          loadStaff();
+        } finally {
+          setBusyId(null);
+        }
+      },
+    });
+  };
 
   return (
     <AdminLayout searchPlaceholder="Tìm nhân viên theo tên, email, SĐT..." onSearchChange={setKeyword}>
@@ -227,18 +257,19 @@ export default function AdminStaffPage() {
                 <th className="px-4 py-3 font-bold">SĐT</th>
                 <th className="px-4 py-3 font-bold">Trạng thái</th>
                 <th className="px-4 py-3 font-bold">Ngày tạo</th>
+                <th className="px-4 py-3 font-bold text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-ink-muted">
+                  <td colSpan={6} className="px-4 py-10 text-center text-ink-muted">
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : data.content.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-ink-muted">
+                  <td colSpan={6} className="px-4 py-10 text-center text-ink-muted">
                     Chưa có nhân viên nào. Nhấn "Tạo Nhân Viên" để thêm tài khoản mới.
                   </td>
                 </tr>
@@ -261,6 +292,29 @@ export default function AdminStaffPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-ink-muted">{u.createdAt ? formatDate(u.createdAt) : '—'}</td>
+                      <td className="px-4 py-3 text-right">
+                        {u.status === 'LOCKED' ? (
+                          <button
+                            type="button"
+                            disabled={busyId === u.id}
+                            onClick={() => handleToggleLock(u)}
+                            className="px-3 py-1.5 rounded-md border border-line text-[12px] font-bold text-emerald-600 hover:bg-emerald-500/10 inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                          >
+                            <LockOpen className="w-3.5 h-3.5" />
+                            <span>Mở khóa</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busyId === u.id || u.status !== 'ACTIVE'}
+                            onClick={() => handleToggleLock(u)}
+                            className="px-3 py-1.5 rounded-md border border-line text-[12px] font-bold text-danger hover:bg-danger/10 inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Khóa</span>
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })

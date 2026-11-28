@@ -11,8 +11,11 @@ import {
   Search,
   ExternalLink,
   Menu,
+  Bell,
+  Banknote,
 } from 'lucide-react';
-import { useOrder, useAuth, useCatalog } from '../context';
+import { useOrder, useAuth, useCatalog, useNotification, useUI } from '../context';
+import NotificationsDropdown from '../components/layout/NotificationsDropdown.jsx';
 import BrandLogo from '../components/common/BrandLogo.jsx';
 import Avatar from '../components/common/Avatar.jsx';
 import { ADMIN_PERMISSIONS, ROLE_LABELS_VI, getDefaultAdminPath } from '../utils/permissions';
@@ -39,6 +42,14 @@ const ADMIN_NAV_ITEMS = [
     end: false,
     icon: ClipboardList,
     label: 'Quản Lý Đơn Hàng',
+    badge: null,
+    permission: ADMIN_PERMISSIONS.ORDERS,
+  },
+  {
+    to: '/admin/refunds',
+    end: false,
+    icon: Banknote,
+    label: 'Chờ Hoàn Tiền',
     badge: null,
     permission: ADMIN_PERMISSIONS.ORDERS,
   },
@@ -84,11 +95,14 @@ export default function AdminLayout({
   const { orders } = useOrder();
   const { user, can } = useAuth();
   const { reviews } = useCatalog();
+  const { notifications } = useNotification();
+  const { isNotificationsOpen, setIsNotificationsOpen } = useUI();
   const [localSearch, setLocalSearch] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const pendingOrdersCount = orders ? orders.filter((o) => o.status === 'PENDING').length : 0;
+  const unreadNotifCount = notifications ? notifications.filter((n) => !n.isRead).length : 0;
   const pendingReviewsCount = reviews ? reviews.filter((r) => r.status === 'PENDING').length : 0;
 
   const handleSearch = (val) => {
@@ -142,6 +156,29 @@ export default function AdminLayout({
               <ExternalLink className="w-3.5 h-3.5 text-accent" />
               <span>Xem Cửa Hàng</span>
             </Link>
+
+            {/* Chuông thông báo (STAFF nhận thông báo đơn hàng mới, ADMIN nhận thông báo hệ thống) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                title="Thông báo"
+                aria-label="Thông báo"
+                className={`w-10 h-10 rounded-lg flex items-center justify-center relative transition border cursor-pointer ${
+                  isNotificationsOpen
+                    ? 'bg-accent-soft border-accent text-accent'
+                    : 'bg-surface-2 border-line text-ink-muted hover:bg-accent-soft hover:text-accent'
+                }`}
+              >
+                <Bell className="w-4 h-4" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-danger text-white text-[10px] font-bold flex items-center justify-center">
+                    {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                  </span>
+                )}
+              </button>
+              <NotificationsDropdown />
+            </div>
 
             <div
               onClick={() => navigate('/admin/settings')}

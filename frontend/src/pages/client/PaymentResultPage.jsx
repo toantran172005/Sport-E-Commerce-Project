@@ -227,7 +227,7 @@ export default function PaymentResultPage() {
         <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed">
           {isFailed
             ? verifyError ||
-              `Giao dịch qua cổng VNPay đã bị hủy hoặc không thành công (Mã phản hồi: ${vnpResponseCode || 'FAILED'}).`
+              `Giao dịch qua cổng VNPay đã bị hủy hoặc không thành công (Mã phản hồi: ${vnpResponseCode || 'FAILED'}). Đơn hàng vẫn được giữ trong 24 giờ để bạn thanh toán lại; quá hạn đơn sẽ tự động bị hủy.`
             : isOnline
               ? 'Giao dịch qua cổng VNPay đã được xác nhận. Đơn hàng đang được chuẩn bị đóng gói.'
               : 'Đơn hàng COD của bạn đã được ghi nhận. Bạn sẽ thanh toán khi nhận hàng.'}

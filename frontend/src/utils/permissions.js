@@ -64,6 +64,7 @@ export const ADMIN_PATH_PERMISSION = Object.freeze({
   '/admin': ADMIN_PERMISSIONS.DASHBOARD,
   '/admin/products': ADMIN_PERMISSIONS.PRODUCTS,
   '/admin/orders': ADMIN_PERMISSIONS.ORDERS,
+  '/admin/refunds': ADMIN_PERMISSIONS.ORDERS,
   '/admin/coupons': ADMIN_PERMISSIONS.COUPONS,
   '/admin/reviews': ADMIN_PERMISSIONS.REVIEWS,
   '/admin/staff': ADMIN_PERMISSIONS.STAFF,

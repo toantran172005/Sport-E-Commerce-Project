@@ -8,7 +8,6 @@ const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
 const AccountLayout = lazy(() => import('../layouts/AccountLayout'));
 
 const HomePage = lazy(() => import('../pages/client/HomePage'));
-const HomePageAdvance = lazy(() => import('../pages/client/HomePageAdvance'));
 const CatalogPage = lazy(() => import('../pages/client/CatalogPage'));
 const ProductDetailPage = lazy(() => import('../pages/client/ProductDetailPage'));
 const CartPage = lazy(() => import('../pages/client/CartPage'));
@@ -19,6 +18,7 @@ const WishlistPage = lazy(() => import('../pages/client/WishlistPage'));
 const ProfilePage = lazy(() => import('../pages/client/account/ProfilePage'));
 const AddressesPage = lazy(() => import('../pages/client/account/AddressesPage'));
 const ChangePasswordPage = lazy(() => import('../pages/client/account/ChangePasswordPage'));
+const DevicesPage = lazy(() => import('../pages/client/account/DevicesPage'));
 const OrderListPage = lazy(() => import('../pages/client/OrderListPage'));
 const OrderDetailPage = lazy(() => import('../pages/client/OrderDetailPage'));
 
@@ -32,6 +32,7 @@ const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage'
 const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage'));
 const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage'));
 const AdminCouponsPage = lazy(() => import('../pages/admin/AdminCouponsPage'));
+const AdminRefundsPage = lazy(() => import('../pages/admin/AdminRefundsPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
@@ -160,7 +161,7 @@ export default function AppRoutes() {
         {/* Client Storefront Layout Wrapper */}
         <Route element={<ClientLayout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/home-advance" element={<HomePageAdvance />} />
+          <Route path="/home-advance" element={<Navigate to="/" replace />} />
           <Route path="/products" element={<CatalogPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
@@ -196,6 +197,7 @@ export default function AppRoutes() {
             <Route path="addresses" element={<AddressesPage />} />
             <Route path="vouchers" element={<Navigate to="/account/profile" replace />} />
             <Route path="password" element={<ChangePasswordPage />} />
+            <Route path="devices" element={<DevicesPage />} />
             <Route path="orders" element={<OrderListPage />} />
             <Route path="orders/:id" element={<OrderDetailPage />} />
           </Route>
@@ -230,6 +232,14 @@ export default function AppRoutes() {
           element={
             <RoleRoute permission={ADMIN_PERMISSIONS.ORDERS}>
               <AdminOrdersPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/refunds"
+          element={
+            <RoleRoute permission={ADMIN_PERMISSIONS.ORDERS}>
+              <AdminRefundsPage />
             </RoleRoute>
           }
         />

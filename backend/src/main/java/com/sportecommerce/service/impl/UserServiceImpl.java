@@ -13,7 +13,9 @@ import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.UserRepository;
 import com.sportecommerce.service.FileStorageService;
+import com.sportecommerce.security.CustomUserDetailsService;
 import com.sportecommerce.service.OtpService;
+import com.sportecommerce.service.SessionService;
 import com.sportecommerce.service.UserService;
 import com.sportecommerce.util.AvatarImageProcessor;
 import com.sportecommerce.util.MapperUtil;
@@ -36,6 +38,8 @@ public class UserServiceImpl implements UserService {
     private final OtpService otpService;
     private final MapperUtil mapperUtil;
     private final FileStorageService fileStorageService;
+    private final SessionService sessionService;
+    private final CustomUserDetailsService userDetailsService;
 
     @Override
     public UserResponse getProfile(Long userId) {
@@ -118,6 +122,10 @@ public class UserServiceImpl implements UserService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setMustChangePassword(false);
         userRepository.save(user);
+
+        // Đổi mật khẩu: đăng xuất mọi thiết bị khác (giữ phiên hiện tại) để kẻ đang giữ mật khẩu cũ bị đá ra
+        sessionService.revokeAll(user, sessionService.currentSessionId());
+        userDetailsService.evictUser(userId);
     }
 
     @Override

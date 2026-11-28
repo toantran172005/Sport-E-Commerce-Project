@@ -79,6 +79,7 @@ Enum review_status {
 
 Enum notification_type {
   ORDER_UPDATE
+  NEW_ORDER
   PROMOTION
   REVIEW_REPLY
   SYSTEM

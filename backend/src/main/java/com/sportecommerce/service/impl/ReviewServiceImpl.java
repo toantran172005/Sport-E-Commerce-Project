@@ -11,6 +11,7 @@ import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.BadRequestException;
 import com.sportecommerce.exception.ResourceNotFoundException;
 import com.sportecommerce.repository.*;
+import com.sportecommerce.service.NotificationService;
 import com.sportecommerce.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final OrderRepository orderRepository;
     private final ProductVariantRepository productVariantRepository;
     private final UserAddressRepository userAddressRepository;
+    private final NotificationService notificationService;
 
     private ReviewResponse mapToResponse(Review r) {
         Product p = r.getProduct();
@@ -250,6 +252,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản quản trị với ID: " + adminId));
 
         ReviewReply reply = reviewReplyRepository.findByReviewId(reviewId).orElse(null);
+        boolean isUpdate = reply != null;
         if (reply == null) {
             reply = ReviewReply.builder()
                     .review(review)
@@ -267,6 +270,12 @@ public class ReviewServiceImpl implements ReviewService {
         review = reviewRepository.save(review);
 
         recalculateProductStats(review.getProduct().getId());
+
+        try {
+            notificationService.notifyReviewReply(review, isUpdate);
+        } catch (Exception ex) {
+            log.warn("Không thể gửi thông báo phản hồi đánh giá reviewId={}: {}", reviewId, ex.getMessage());
+        }
 
         return mapToResponse(review);
     }

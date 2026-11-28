@@ -34,6 +34,8 @@ public class OrderDetailResponse {
 
     private String paymentMethod;
     private String paymentStatus;
+    /** Hạn thanh toán (chỉ có khi đơn online đang chờ thanh toán). Quá hạn đơn bị tự hủy. */
+    private Instant paymentExpiresAt;
     private String shippingProviderCode;
     private String shippingProviderName;
     private String trackingNumber;
@@ -45,6 +47,18 @@ public class OrderDetailResponse {
     private ShipmentSummary shipment;
     private PaymentSummary payment;
     private List<OrderItemSummary> orderItems;
+    /** Các mốc đổi trạng thái (cũ → mới) để hiển thị lộ trình đơn hàng cho khách; chỉ có ở API chi tiết đơn. */
+    private List<StatusHistoryEntry> statusHistory;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class StatusHistoryEntry {
+        private OrderStatus status;
+        private Instant createdAt;
+    }
 
     @Getter
     @Setter
@@ -68,6 +82,9 @@ public class OrderDetailResponse {
         private String trackingNumber;
         private String status;
         private Double shippingFee;
+        private Instant shippedAt;
+        private Instant deliveredAt;
+        private java.time.LocalDate estimatedDeliveryDate;
 
         @Getter
         @Setter

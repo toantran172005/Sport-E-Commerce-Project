@@ -1,5 +1,6 @@
 package com.sportecommerce.security;
 
+import com.sportecommerce.service.SessionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final SessionService sessionService;
 
     @Override
     protected void doFilterInternal(
@@ -39,6 +41,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token) && jwtTokenProvider.isValid(token)) {
+            // ADMIN/STAFF: phiên đã bị đá/thu hồi thì access token còn hạn cũng không dùng được nữa (check Redis).
+            // CUSTOMER không check để tránh thêm 1 lượt gọi Redis cho mỗi request; token của khách chết tối đa sau thời hạn access token.
+            String tokenRole = jwtTokenProvider.getRole(token);
+            if (("ADMIN".equals(tokenRole) || "STAFF".equals(tokenRole))
+                    && sessionService.isRevoked(jwtTokenProvider.getSessionId(token))) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             Long userId = jwtTokenProvider.getUserId(token);
             UserDetails userDetails;
             try {

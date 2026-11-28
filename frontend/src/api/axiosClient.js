@@ -20,6 +20,9 @@ const AUTH_URLS = [
   "/auth/logout",
 ];
 
+const RETRYABLE_STATUS = [502, 503, 504];
+const MAX_TRANSIENT_RETRIES = 2;
+
 const clearSession = () => {
   removeCookie("token");
   removeCookie("refreshToken");
@@ -118,6 +121,18 @@ axiosClient.interceptors.response.use(
           if (window.location.pathname !== "/login") window.location.href = "/login";
           return Promise.reject(buildError(error));
         },
+      );
+    }
+
+    // GET lỗi mạng / timeout / 502-504 (DB ở xa hoặc vừa "đánh thức", backend vừa khởi động...) → thử lại tối đa 2 lần.
+    // Chỉ GET vì an toàn khi lặp lại (không tạo trùng đơn / thanh toán).
+    const method = (original.method || "get").toLowerCase();
+    const isTransient = !error.response || RETRYABLE_STATUS.includes(status);
+    const retryCount = original._transientRetry || 0;
+    if (method === "get" && isTransient && !axios.isCancel(error) && retryCount < MAX_TRANSIENT_RETRIES) {
+      original._transientRetry = retryCount + 1;
+      return new Promise((resolve) => setTimeout(resolve, 600 * original._transientRetry)).then(() =>
+        axiosClient(original),
       );
     }
 

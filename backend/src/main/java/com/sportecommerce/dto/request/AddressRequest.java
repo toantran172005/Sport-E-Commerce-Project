@@ -1,5 +1,6 @@
 package com.sportecommerce.dto.request;
 
+import com.sportecommerce.enums.AddressScheme;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -36,6 +37,19 @@ public class AddressRequest {
     @NotBlank(message = "Tỉnh/Thành phố không được để trống")
     @Size(max = 100, message = "Tỉnh/Thành phố tối đa 100 ký tự")
     private String city;
+
+    /** OLD (Tỉnh > Quận > Phường) hoặc NEW (Tỉnh > Phường). Null = OLD để tương thích client cũ. */
+    private AddressScheme addressScheme;
+
+    /** ID Tỉnh/Thành theo danh mục GHN (bắt buộc với địa chỉ NEW). */
+    private Integer ghnProvinceId;
+
+    /** ID Quận/Huyện theo danh mục GHN cũ (chỉ OLD). */
+    private Integer ghnDistrictId;
+
+    /** Mã Phường/Xã theo danh mục GHN (bắt buộc với địa chỉ NEW). */
+    @Size(max = 20, message = "Mã Phường/Xã không hợp lệ")
+    private String ghnWardCode;
 
     /** null = giữ nguyên (khi cập nhật) / false (khi tạo, trừ địa chỉ đầu tiên luôn là mặc định). */
     private Boolean isDefault;

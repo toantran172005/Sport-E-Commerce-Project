@@ -1,6 +1,7 @@
 package com.sportecommerce.dto.response;
 
 import com.sportecommerce.entity.UserAddress;
+import com.sportecommerce.enums.AddressScheme;
 import com.sportecommerce.enums.AddressType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,6 +25,11 @@ public class AddressResponse {
     private String ward;
     private String district;
     private String city;
+    private AddressScheme addressScheme;
+    private Integer ghnProvinceId;
+    private Integer ghnDistrictId;
+    private String ghnWardCode;
+    private String fullAddress;
     private String country;
     private AddressType type;
     private Boolean isDefault;
@@ -38,6 +44,11 @@ public class AddressResponse {
                 .ward(a.getWard())
                 .district(a.getDistrict())
                 .city(a.getCity())
+                .addressScheme(a.getAddressScheme() != null ? a.getAddressScheme() : AddressScheme.OLD)
+                .ghnProvinceId(a.getGhnProvinceId())
+                .ghnDistrictId(a.getGhnDistrictId())
+                .ghnWardCode(a.getGhnWardCode())
+                .fullAddress(a.fullAddress())
                 .country(a.getCountry())
                 .type(a.getType())
                 .isDefault(Boolean.TRUE.equals(a.getIsDefault()))

@@ -6,6 +6,7 @@ import {
   Package,
   Heart,
   ChevronRight,
+  MonitorSmartphone,
 } from 'lucide-react';
 import { useAuth } from '@/context';
 import Avatar from '../components/common/Avatar.jsx';
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/account/orders', label: 'Đơn mua / Lịch sử', icon: Package },
   { to: '/account/addresses', label: 'Sổ địa chỉ', icon: MapPin },
   { to: '/account/password', label: 'Đổi mật khẩu', icon: Lock },
+  { to: '/account/devices', label: 'Thiết bị đăng nhập', icon: MonitorSmartphone },
   { to: '/wishlist', label: 'Sản phẩm yêu thích', icon: Heart },
 ];
 

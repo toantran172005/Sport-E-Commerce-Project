@@ -15,7 +15,21 @@ export const paymentService = {
   },
 
   /**
-   * Xác nhận đã hoàn tất thanh toán QR cho đơn hàng
+   * Thanh toán lại đơn đang chờ thanh toán: backend tạo link VNPay mới (mỗi link sống 15 phút,
+   * còn đơn được giữ 24 giờ). Trả về URL cổng VNPay để chuyển hướng.
+   */
+  async getVnpayPaymentUrl(orderId) {
+    const res = await this.createPayment({ orderId, method: 'BANK_TRANSFER', bankCode: 'NCB' });
+    const url = res?.paymentUrl || res?.data?.paymentUrl;
+    if (!url) {
+      throw new Error('Không nhận được liên kết cổng thanh toán VNPay.');
+    }
+    return url;
+  },
+
+  /**
+   * Xác nhận thanh toán THỦ CÔNG cho đơn hàng — chỉ STAFF/ADMIN được gọi (backend trả 403 với khách).
+   * Thanh toán VNPay được ghi nhận TỰ ĐỘNG khi VNPay trả kết quả (return URL / IPN).
    * POST /api/payments/confirm/{orderId}
    */
   async confirmPayment(orderId) {

@@ -1,5 +1,7 @@
 package com.sportecommerce.service.impl;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import com.sportecommerce.dto.request.CouponRequest;
 import com.sportecommerce.dto.response.CouponResponse;
 import com.sportecommerce.dto.response.DiscountResultDTO;
@@ -20,6 +22,7 @@ import com.sportecommerce.service.NotificationService;
 import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -129,6 +132,7 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "coupons", allEntries = true)
     public void recordUsage(String couponCode, Long userId, Long orderId, Double discountAmount) {
         Coupon coupon = couponRepository.findByCode(couponCode)
                 .orElseThrow(() -> new AppException("Mã không tồn tại hoặc ngưng áp dụng"));
@@ -138,6 +142,11 @@ public class CouponServiceImpl implements CouponService {
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin đơn hàng!"));
+
+        // Tăng lượt dùng nguyên tử: chỉ thành công khi chưa chạm giới hạn (chống vượt lượt khi nhiều người dùng cùng lúc)
+        if (couponRepository.increaseUsedCountIfAvailable(coupon.getId()) == 0) {
+            throw new AppException("Mã đã hết lượt sử dụng");
+        }
 
         Optional<CouponUsage> existingUsage = couponUsageRepository.findByOrderId(orderId);
         if (existingUsage.isPresent()) {
@@ -153,17 +162,23 @@ public class CouponServiceImpl implements CouponService {
                     .order(order)
                     .discountAmount(discountAmount != null ? discountAmount : 0.0)
                     .build();
-            couponUsageRepository.save(couponUsage);
+            try {
+                couponUsageRepository.save(couponUsage);
+            } catch (DataIntegrityViolationException ex) {
+                // Chỉ mục duy nhất (coupon_id, user_id): cùng một khách dùng 1 mã ở 2 đơn đồng thời
+                throw new AppException("Bạn đã sử dụng mã giảm giá này rồi!");
+            }
         }
-
-        coupon.setUsedCount((coupon.getUsedCount() != null ? coupon.getUsedCount() : 0) + 1);
-        couponRepository.save(coupon);
     }
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable("coupons")
     public List<CouponResponse> getAvailableCoupons() {
+        Instant now = Instant.now();
         return couponRepository.findByIsActiveTrue().stream()
+                .filter(c -> c.getStartDate() == null || !now.isBefore(c.getStartDate()))
+                .filter(c -> c.getEndDate() == null || !now.isAfter(c.getEndDate()))
                 .map(this::enrichCouponResponse)
                 .toList();
     }
@@ -189,6 +204,7 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "coupons", allEntries = true)
     public CouponResponse createCoupon(CouponRequest request) {
         String cleanCode = request.getCode().trim().toUpperCase();
         if (couponRepository.existsByCode(cleanCode)) {
@@ -243,6 +259,7 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "coupons", allEntries = true)
     public CouponResponse updateCoupon(Long id, CouponRequest request) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mã giảm giá với ID: " + id));
@@ -336,9 +353,13 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "coupons", allEntries = true)
     public CouponResponse toggleCouponStatus(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mã giảm giá với ID: " + id));
+        if (coupon.getEndDate() != null && Instant.now().isAfter(coupon.getEndDate())) {
+            throw new BadRequestException("Mã khuyến mãi đã hết hạn, không thể thay đổi trạng thái!");
+        }
         coupon.setIsActive(!Boolean.TRUE.equals(coupon.getIsActive()));
         Coupon saved = couponRepository.save(coupon);
         return enrichCouponResponse(saved);
@@ -346,6 +367,7 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "coupons", allEntries = true)
     public void deleteCoupon(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mã giảm giá với ID: " + id));

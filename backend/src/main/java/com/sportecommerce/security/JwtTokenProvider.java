@@ -35,18 +35,40 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(Long userId, String email, String role, String fullName) {
+        return generateAccessToken(userId, email, role, fullName, null);
+    }
+
+    /**
+     * @param sessionId id phiên đăng nhập (id của refresh token) -> claim "sid", dùng để đá phiên ngay lập tức.
+     */
+    public String generateAccessToken(Long userId, String email, String role, String fullName, Long sessionId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessTokenExpirationMs);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("role", role)
-                .claim("full_name", fullName)
+                .claim("full_name", fullName);
+        if (sessionId != null) {
+            builder.claim("sid", sessionId);
+        }
+        return builder
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
                 .compact();
+    }
+
+    /** Session id trong token, null nếu token không có claim sid (token cũ). */
+    public Long getSessionId(String token) {
+        Object sid = parseClaims(token).get("sid");
+        return sid instanceof Number number ? number.longValue() : null;
+    }
+
+    public String getRole(String token) {
+        Object role = parseClaims(token).get("role");
+        return role != null ? role.toString() : null;
     }
 
     public Claims parseClaims(String token) {

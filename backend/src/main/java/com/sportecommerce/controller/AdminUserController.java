@@ -6,13 +6,17 @@ import com.sportecommerce.dto.response.PageResponse;
 import com.sportecommerce.dto.response.StaffAccountResponse;
 import com.sportecommerce.dto.response.UserResponse;
 import com.sportecommerce.enums.UserRole;
+import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.AdminUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,6 +40,21 @@ public class AdminUserController {
         StaffAccountResponse response = adminUserService.createStaff(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo tài khoản nhân viên thành công", response));
+    }
+
+    // Khoa tai khoan nhan vien (TC-M4-20)
+    @PatchMapping("/{id}/lock")
+    public ApiResponse<UserResponse> lockStaff(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        return ApiResponse.success("Đã khóa tài khoản nhân viên",
+                adminUserService.lockStaff(principal.getId(), id));
+    }
+
+    // Mo khoa tai khoan nhan vien
+    @PatchMapping("/{id}/unlock")
+    public ApiResponse<UserResponse> unlockStaff(@PathVariable Long id) {
+        return ApiResponse.success("Đã mở khóa tài khoản nhân viên", adminUserService.unlockStaff(id));
     }
 
     @GetMapping

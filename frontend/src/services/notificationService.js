@@ -1,4 +1,5 @@
 import axiosClient from '../api/axiosClient.js';
+import { getCookie } from '../utils/cookie.js';
 
 export const notificationService = {
   /** GET /api/notifications?page&size → backend trả PageResponse, hàm này trả mảng content (mới nhất trước) */
@@ -16,6 +17,48 @@ export const notificationService = {
   async markAsRead(id) {
     await axiosClient.patch(`/notifications/${id}/read`);
     return { success: true };
+  },
+
+  /**
+   * Mở kênh SSE GET /api/notifications/stream (EventSource không gửi được header Authorization nên dùng fetch + đọc stream).
+   * Chạy tới khi bị đóng/ngắt; gọi onEvent(tenSuKien, duLieu) mỗi khi server báo: "notification" (có thông báo mới)
+   * hoặc "refresh" (duLieu = nhóm dữ liệu vừa đổi, vd "orders"). Ném lỗi (có .status) khi lỗi kết nối.
+   */
+  async openStream({ signal, onEvent }) {
+    // Cùng nguồn token với axiosClient: cookie trước, localStorage sau (token được lưu trong cookie)
+    const token = getCookie('token') || localStorage.getItem('token');
+    if (!token) {
+      const err = new Error('SSE 401');
+      err.status = 401;
+      throw err;
+    }
+    const base = axiosClient.defaults.baseURL || '/api';
+    const res = await fetch(`${base}/notifications/stream`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      const err = new Error(`SSE ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      buffer += decoder.decode(value, { stream: true });
+      let sep;
+      while ((sep = buffer.search(/\r?\n\r?\n/)) !== -1) {
+        const rawEvent = buffer.slice(0, sep);
+        buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
+        const lines = rawEvent.split(/\r?\n/);
+        const nameLine = lines.find((l) => l.startsWith('event:'));
+        const dataLine = lines.find((l) => l.startsWith('data:'));
+        if (nameLine) onEvent(nameLine.slice(6).trim(), dataLine ? dataLine.slice(5).trim() : '');
+      }
+    }
   },
 
   /** PATCH /api/notifications/read-all */

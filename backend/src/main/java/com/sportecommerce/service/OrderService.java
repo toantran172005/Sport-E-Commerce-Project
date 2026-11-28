@@ -15,6 +15,15 @@ public interface OrderService {
 
     void confirmOrder(Long orderId);
 
+    /** ID các đơn thanh toán online còn PENDING, chưa thanh toán, tạo trước mốc {@code cutoff}. */
+    java.util.List<Long> findExpiredUnpaidOrderIds(java.time.Instant cutoff, int limit);
+
+    /**
+     * Hủy 1 đơn quá hạn thanh toán (trả kho + mã giảm giá). Trả true nếu thực sự hủy.
+     * Chạy trong transaction riêng cho từng đơn, có khóa dòng nên an toàn khi webhook về cùng lúc.
+     */
+    boolean expireOrderIfUnpaid(Long orderId, java.time.Instant cutoff);
+
     Order getOrderById(Long orderId);
 
     ApiResponse<?> updateOrderStatus(Long userId, @Valid UpdateOrderStatusRequest request);

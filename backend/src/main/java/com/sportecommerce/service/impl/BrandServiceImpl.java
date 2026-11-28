@@ -1,5 +1,7 @@
 package com.sportecommerce.service.impl;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import com.sportecommerce.dto.request.BrandRequest;
 import com.sportecommerce.dto.response.BrandResponse;
 import com.sportecommerce.entity.Brand;
@@ -24,6 +26,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "brands", allEntries = true)
     public BrandResponse create(BrandRequest request) {
         if (brandRepository.existsByName(request.getName())) {
             throw new AppException("Tên thương hiệu đã tồn tại: " + request.getName());
@@ -44,6 +47,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "brands", allEntries = true)
     public BrandResponse update(Long id, BrandRequest request) {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy brand_id: " + id));
@@ -64,6 +68,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "brands", allEntries = true)
     public void softDelete(Long id) {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy brand_id: " + id));
@@ -78,6 +83,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable("brands")
     public List<BrandResponse> getAll() {
         return brandRepository.findByIsActiveTrue().stream()
                 .map(this::toResponse)
@@ -86,6 +92,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "brands", key = "#p0")
     public BrandResponse getById(Long id) {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy brand_id: " + id));

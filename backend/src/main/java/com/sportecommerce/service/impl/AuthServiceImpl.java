@@ -17,7 +17,10 @@ import com.sportecommerce.repository.RefreshTokenRepository;
 import com.sportecommerce.repository.UserRepository;
 import com.sportecommerce.security.JwtTokenProvider;
 import com.sportecommerce.service.AuthService;
+import com.sportecommerce.security.ClientInfo;
+import com.sportecommerce.security.CustomUserDetailsService;
 import com.sportecommerce.service.OtpService;
+import com.sportecommerce.service.SessionService;
 import com.sportecommerce.util.HashUtil;
 import com.sportecommerce.util.MapperUtil;
 import com.sportecommerce.util.OtpGenerator;
@@ -42,6 +45,8 @@ public class AuthServiceImpl implements AuthService {
     private final OtpService otpService;
     private final JwtTokenProvider jwtTokenProvider;
     private final MapperUtil mapperUtil;
+    private final SessionService sessionService;
+    private final CustomUserDetailsService userDetailsService;
 
     @Value("${app.jwt.refresh-token-expiration-ms}")
     private long refreshTokenExpirationMs;
@@ -86,7 +91,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmailVerifiedAt(OffsetDateTime.now());
         userRepository.save(user);
 
-        return buildAuthResponse(user);
+        return buildAuthResponse(user, true);
     }
 
     @Override
@@ -125,7 +130,7 @@ public class AuthServiceImpl implements AuthService {
         user.setLastLoginAt(OffsetDateTime.now());
         userRepository.save(user);
 
-        return buildAuthResponse(user);
+        return buildAuthResponse(user, true);
     }
 
     @Override
@@ -155,17 +160,15 @@ public class AuthServiceImpl implements AuthService {
         storedToken.setRevokedAt(OffsetDateTime.now());
         refreshTokenRepository.save(storedToken);
 
-        return buildAuthResponse(user);
+        return buildAuthResponse(user, false);
     }
 
     @Override
     @Transactional
     public void logout(String rawRefreshToken) {
         String tokenHash = HashUtil.sha256(rawRefreshToken);
-        refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
-            token.setRevokedAt(OffsetDateTime.now());
-            refreshTokenRepository.save(token);
-        });
+        // Thu hồi qua SessionService để access token của phiên này cũng mất hiệu lực ngay (ADMIN/STAFF)
+        refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(sessionService::revoke);
     }
 
     @Override
@@ -174,10 +177,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
-        List<RefreshToken> activeTokens = refreshTokenRepository.findAllByUserAndRevokedAtIsNull(user);
-        OffsetDateTime now = OffsetDateTime.now();
-        activeTokens.forEach(token -> token.setRevokedAt(now));
-        refreshTokenRepository.saveAll(activeTokens);
+        sessionService.revokeAll(user, null);
     }
 
     @Override
@@ -207,6 +207,7 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         logoutAll(user.getId());
+        userDetailsService.evictUser(user.getId());
     }
 
     private User findActivatableUserByEmail(String email) {
@@ -219,16 +220,35 @@ public class AuthServiceImpl implements AuthService {
         return user;
     }
 
-    private AuthResponse buildAuthResponse(User user) {
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name(), user.getFullName());
+    /**
+     * Phát cặp token mới cho 1 phiên. Trước khi tạo, áp chính sách số phiên theo vai trò
+     * (CUSTOMER 5 / STAFF 2 / ADMIN 1): phiên cũ nhất bị đá nếu đã đầy.
+     *
+     * @param newLogin true khi đăng nhập/xác thực mới; false khi chỉ xoay vòng refresh token
+     */
+    private AuthResponse buildAuthResponse(User user, boolean newLogin) {
+        ClientInfo client = ClientInfo.current();
+        List<RefreshToken> displaced = sessionService.enforceSessionLimit(user);
+
         String rawRefreshToken = OtpGenerator.generateOpaqueToken();
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
                 .tokenHash(HashUtil.sha256(rawRefreshToken))
                 .expiresAt(OffsetDateTime.now().plus(Duration.ofMillis(refreshTokenExpirationMs)))
+                .ipAddress(client.ipAddress())
+                .userAgent(client.userAgent())
+                .lastUsedAt(OffsetDateTime.now())
                 .build();
         refreshTokenRepository.save(refreshToken);
+
+        // sid = id phiên (refresh token) -> cho phép đá phiên ngay lập tức
+        String accessToken = jwtTokenProvider.generateAccessToken(
+                user.getId(), user.getEmail(), user.getRole().name(), user.getFullName(), refreshToken.getId());
+
+        if (newLogin && user.getRole() == UserRole.ADMIN) {
+            sessionService.alertAdminLogin(user, client, !displaced.isEmpty());
+        }
 
         return AuthResponse.builder()
                 .accessToken(accessToken)

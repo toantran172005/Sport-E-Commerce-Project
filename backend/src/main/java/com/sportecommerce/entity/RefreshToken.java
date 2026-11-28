@@ -59,4 +59,15 @@ public class RefreshToken {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    /** IP của thiết bị lúc phát token (để hiện trong danh sách thiết bị đăng nhập / cảnh báo). */
+    @Column(name = "ip_address", length = 64)
+    private String ipAddress;
+
+    @Column(name = "user_agent", length = 255)
+    private String userAgent;
+
+    /** Lần cuối phiên này hoạt động (phát token / xoay vòng refresh token). */
+    @Column(name = "last_used_at")
+    private OffsetDateTime lastUsedAt;
 }

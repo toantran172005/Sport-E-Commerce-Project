@@ -1,11 +1,13 @@
 package com.sportecommerce.service.impl;
 
 import com.sportecommerce.entity.*;
+import com.sportecommerce.enums.AddressScheme;
 import com.sportecommerce.enums.PaymentMethod;
 import com.sportecommerce.enums.PaymentStatus;
 import com.sportecommerce.exception.AppException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -17,7 +19,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service
 public class ShippingIntegrationService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = createRestTemplate();
+
+    /**
+     * RestTemplate mặc định KHÔNG có timeout: hãng vận chuyển treo là request treo mãi, giữ luôn
+     * kết nối DB của transaction đang mở và có thể làm cạn pool. Đặt timeout rõ ràng.
+     */
+    private static RestTemplate createRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3_000);
+        factory.setReadTimeout(10_000);
+        return new RestTemplate(factory);
+    }
 
     private final List<Map<String, Object>> cachedProvinces = new CopyOnWriteArrayList<>();
     private final Map<Integer, List<Map<String, Object>>> cachedDistricts = new ConcurrentHashMap<>();
@@ -70,6 +83,26 @@ public class ShippingIntegrationService {
         };
     }
 
+    /**
+     * Hủy vận đơn bên hãng (best-effort, không ném lỗi): dùng khi đơn đã tạo vận đơn rồi bị hủy.
+     */
+    public void cancelShippingOrder(Shipment shipment) {
+        if (shipment == null || shipment.getTrackingNumber() == null || shipment.getTrackingNumber().isBlank()
+                || shipment.getProvider() == null || shipment.getProvider().getCode() == null) {
+            return;
+        }
+        String providerCode = shipment.getProvider().getCode().toUpperCase();
+        try {
+            switch (providerCode) {
+                case "GHN" -> cancelOrderGHN(shipment.getTrackingNumber());
+                case "GHTK" -> cancelOrderGHTK(shipment.getTrackingNumber());
+                default -> { }
+            }
+        } catch (Exception ignored) {
+            // Không làm hỏng việc hủy đơn nội bộ nếu hãng vận chuyển lỗi
+        }
+    }
+
     public String createOrderGHN(Order order) {
         String url = ghnBaseUrl + "/v2/shipping-order/create";
         UserAddress address = order.getShippingAddress();
@@ -98,14 +131,18 @@ public class ShippingIntegrationService {
         body.put("from_district_id", ghnFromDistrictId);
         body.put("to_name", address.getRecipientName());
         body.put("to_phone", address.getPhoneNumber());
-        body.put("to_address", address.getAddressLine() + 
-        ", " + address.getWard() + 
-        ", " + address.getDistrict() + 
-        ", " + address.getCity());
+        body.put("to_address", address.fullAddress());
 
-        GhnLocation ghnLocation = resolveGhnLocation(address);
-        body.put("to_ward_code", ghnLocation.wardCode());     
-        body.put("to_district_id", ghnLocation.districtId());
+        if (address.getAddressScheme() == AddressScheme.NEW) {
+            // Địa chỉ mới (2 cấp): gửi tên chuẩn của GHN, không có Quận/Huyện
+            body.put("is_new_to_address", true);
+            body.put("to_province_name", address.getCity());
+            body.put("to_ward_name", address.getWard());
+        } else {
+            GhnLocation ghnLocation = resolveGhnLocation(address);
+            body.put("to_ward_code", ghnLocation.wardCode());
+            body.put("to_district_id", ghnLocation.districtId());
+        }
         body.put("cod_amount", Math.min(codAmount, 300000));
         body.put("weight", totalWeight);
 
@@ -328,6 +365,12 @@ public class ShippingIntegrationService {
     public GhnLocation resolveGhnLocation(UserAddress address) {
         if (address == null) {
             throw new AppException("Địa chỉ nhận hàng không tồn tại!");
+        }
+
+        // Địa chỉ đã chọn từ danh mục GHN: dùng thẳng ID đã lưu, không phải đoán theo tên
+        if (address.getGhnDistrictId() != null && address.getGhnWardCode() != null
+                && !address.getGhnWardCode().isBlank()) {
+            return new GhnLocation(address.getGhnDistrictId(), address.getGhnWardCode());
         }
 
         Integer provinceId = null;

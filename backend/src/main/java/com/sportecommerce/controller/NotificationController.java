@@ -5,10 +5,13 @@ import com.sportecommerce.dto.response.NotificationResponse;
 import com.sportecommerce.dto.response.PageResponse;
 import com.sportecommerce.security.UserPrincipal;
 import com.sportecommerce.service.NotificationService;
+import com.sportecommerce.service.NotificationStreamService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequiredArgsConstructor
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final NotificationStreamService notificationStreamService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<NotificationResponse>>> getMyNotifications(
@@ -30,6 +34,13 @@ public class NotificationController {
         return ResponseEntity.ok(response);
     }
 
+    // Kenh SSE: server day tin hieu "co thong bao moi" tuc thi (thay cho polling). Can Authorization header.
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return notificationStreamService.subscribe(userPrincipal.getId(), userPrincipal.isStaff());
+    }
+
+    // So luong thong bao chua doc, dung de hien badge tren giao dien
     @GetMapping("/unread-count")
     public ResponseEntity<ApiResponse<Long>> countUnread(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         Long userId = userPrincipal.getId();

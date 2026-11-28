@@ -21,10 +21,15 @@ import com.sportecommerce.entity.User;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MapperUtil {
+
+    /** Thời gian giữ đơn chờ thanh toán online (phút); phải trùng với job hủy đơn quá hạn. */
+    @Value("${app.order.unpaid-expire-minutes:1440}")
+    private long unpaidExpireMinutes = 1440;
 
     public PlaceOrderResponse mapOrderToPlaceOrderResponse(Order order) {
         return PlaceOrderResponse
@@ -36,10 +41,20 @@ public class MapperUtil {
     }
 
     public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(Order order) {
-        return mapOrderToOrderDetailResponse(order, null);
+        return mapOrderToOrderDetailResponse(order, null, false);
     }
 
     public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(Order order, List<OrderItem> items) {
+        return mapOrderToOrderDetailResponse(order, items, false);
+    }
+
+    /** Dùng cho API chi tiết 1 đơn: kèm các mốc trạng thái để dựng lộ trình giao hàng. */
+    public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponseWithHistory(Order order) {
+        return mapOrderToOrderDetailResponse(order, null, true);
+    }
+
+    private com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(
+            Order order, List<OrderItem> items, boolean includeHistory) {
         String providerCode = null;
         String providerName = null;
         String trackingNum = null;
@@ -60,7 +75,23 @@ public class MapperUtil {
                     .trackingNumber(trackingNum)
                     .status(s.getStatus() != null ? s.getStatus().name() : null)
                     .shippingFee(s.getShippingFee())
+                    .shippedAt(s.getShippedAt())
+                    .deliveredAt(s.getDeliveredAt())
+                    .estimatedDeliveryDate(s.getEstimatedDeliveryDate())
                     .build();
+        }
+
+        List<com.sportecommerce.dto.response.OrderDetailResponse.StatusHistoryEntry> historyEntries = null;
+        if (includeHistory && order.getOrderStatusHistories() != null) {
+            // Chỉ trả trạng thái + thời điểm; không lộ ghi chú nội bộ hay tên nhân viên cho khách
+            historyEntries = order.getOrderStatusHistories().stream()
+                    .filter(h -> h.getStatus() != null && h.getCreatedAt() != null)
+                    .sorted(java.util.Comparator.comparing(com.sportecommerce.entity.OrderStatusHistory::getCreatedAt))
+                    .map(h -> com.sportecommerce.dto.response.OrderDetailResponse.StatusHistoryEntry.builder()
+                            .status(h.getStatus())
+                            .createdAt(h.getCreatedAt())
+                            .build())
+                    .collect(Collectors.toList());
         }
 
         String payMethod = null;
@@ -77,6 +108,16 @@ public class MapperUtil {
                     .transactionCode(p.getTransactionCode())
                     .paidAt(p.getPaidAt())
                     .build();
+        }
+
+        // Đơn online còn PENDING mà chưa thanh toán thì có hạn thanh toán = lúc tạo đơn + thời gian giữ đơn
+        java.time.Instant paymentExpiresAt = null;
+        if (order.getStatus() == com.sportecommerce.enums.OrderStatus.PENDING
+                && order.getPayment() != null
+                && order.getPayment().getMethod() != com.sportecommerce.enums.PaymentMethod.COD
+                && order.getPayment().getStatus() != com.sportecommerce.enums.PaymentStatus.PAID
+                && order.getCreatedAt() != null) {
+            paymentExpiresAt = order.getCreatedAt().plus(java.time.Duration.ofMinutes(unpaidExpireMinutes));
         }
 
         com.sportecommerce.dto.response.OrderDetailResponse.UserSummary userSummary = null;
@@ -102,10 +143,7 @@ public class MapperUtil {
         if (order.getShippingAddress() != null) {
             recipientName = order.getShippingAddress().getRecipientName();
             recipientPhone = order.getShippingAddress().getPhoneNumber();
-            recipientAddress = order.getShippingAddress().getAddressLine() + ", "
-                    + order.getShippingAddress().getWard() + ", "
-                    + order.getShippingAddress().getDistrict() + ", "
-                    + order.getShippingAddress().getCity();
+            recipientAddress = order.getShippingAddress().fullAddress();
         } else if (order.getShippingAddressSnapshot() != null) {
             String snap = order.getShippingAddressSnapshot();
             String[] parts = snap.split(" - ");
@@ -162,6 +200,7 @@ public class MapperUtil {
                 .updatedAt(order.getUpdatedAt())
                 .paymentMethod(payMethod)
                 .paymentStatus(payStatus)
+                .paymentExpiresAt(paymentExpiresAt)
                 .shippingProviderCode(providerCode)
                 .shippingProviderName(providerName)
                 .trackingNumber(trackingNum)
@@ -172,6 +211,7 @@ public class MapperUtil {
                 .shipment(shipmentSummary)
                 .payment(paymentSummary)
                 .orderItems(itemSummaries)
+                .statusHistory(historyEntries)
                 .build();
     }
 

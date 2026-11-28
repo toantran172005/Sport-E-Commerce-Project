@@ -48,6 +48,53 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    @Override
+    @Async
+    public void sendLoginAlertEmail(String toEmail, String fullName, String ipAddress, String deviceName,
+                                    String time, boolean displacedOtherSession) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+
+            helper.setFrom(fromAddress, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Cảnh báo: đăng nhập mới vào tài khoản quản trị - Delta Sport");
+            helper.setText(buildLoginAlertBody(fullName, ipAddress, deviceName, time, displacedOtherSession), true);
+
+            mailSender.send(message);
+        } catch (Exception e) {
+            // Cảnh báo chỉ là phụ trợ: không để lỗi gửi mail làm hỏng việc đăng nhập
+            log.warn("Gui email canh bao dang nhap that bai toi {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildLoginAlertBody(String fullName, String ip, String device, String time, boolean displaced) {
+        String displacedNote = displaced
+                ? "<p><b>Một phiên đăng nhập cũ của tài khoản đã bị đăng xuất</b> (tài khoản quản trị chỉ được đăng nhập trên 1 thiết bị).</p>"
+                : "";
+        return """
+                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+                    <h2 style="color:#1a73e8;">Delta Sport</h2>
+                    <p>Xin chào %s,</p>
+                    <p>Tài khoản quản trị của bạn vừa được đăng nhập:</p>
+                    <ul>
+                        <li>Thời gian: %s</li>
+                        <li>Thiết bị: %s</li>
+                        <li>Địa chỉ IP: %s</li>
+                    </ul>
+                    %s
+                    <p style="color:#c0392b;">Nếu không phải bạn, hãy đổi mật khẩu ngay lập tức.</p>
+                </div>
+                """.formatted(escape(fullName), escape(time), escape(device), escape(ip), displacedNote);
+    }
+
+    private static String escape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
     private String subjectFor(OtpPurpose purpose) {
         return switch (purpose) {
             case REGISTER -> "Xác nhận đăng ký tài khoản - Delta Sport";
