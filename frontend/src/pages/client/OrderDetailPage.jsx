@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Package, Truck, MapPin, Copy, ArrowLeft } from "lucide-react";
-import { useStore } from "../../context/StoreContext.jsx";
+import { useOrder, useCart, useUI } from '@/context';
 import { orderService } from "../../services/orderService.js";
 import { formatCurrency, formatDateTime } from "../../utils/formatters.js";
 import { OrderStatusBadge, OrderTimeline } from "../../components/order";
@@ -9,13 +9,14 @@ import LineNumberBadge from "../../components/common/LineNumberBadge.jsx";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
-  const { orders, openModal, showToast, addToCart, showErrorModal } = useStore();
+  const { orders } = useOrder();
+  const { addToCart } = useCart();
+  const { openModal, showToast, showErrorModal } = useUI();
   const navigate = useNavigate();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper to normalize items from either items or orderItems structure
   const normalizeItems = (rawItems) => {
     if (!Array.isArray(rawItems)) return [];
     return rawItems.map((it, idx) => ({
@@ -43,7 +44,6 @@ export default function OrderDetailPage() {
         if (!isMounted) return;
         const backendData = res?.data || res;
 
-        // Parse recipientSnapshot: "Name - Phone - Address"
         let parsedReceiver = {};
         if (backendData?.recipientSnapshot) {
           const parts = backendData.recipientSnapshot.split(" - ");
@@ -159,7 +159,6 @@ export default function OrderDetailPage() {
     };
   }, [id, orders, showErrorModal]);
 
-  // Keep order status synchronized with store updates (e.g. after cancellation)
   useEffect(() => {
     if (order && orders) {
       const liveOrder = orders.find(

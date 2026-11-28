@@ -7,11 +7,12 @@ import {
   ShieldCheck,
   Package,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI, useCatalog } from '@/context';
 import { formatCurrency } from '../../utils/formatters.js';
 
 export default function CategoriesDropdown() {
-  const { isCategoriesOpen, setIsCategoriesOpen, categoriesList, products, catalogLoading } = useStore();
+  const { isCategoriesOpen, setIsCategoriesOpen } = useUI();
+  const { categoriesList, products, catalogLoading } = useCatalog();
   const [activeCatId, setActiveCatId] = useState(categoriesList[0]?.id || 1);
   const navigate = useNavigate();
   const containerRef = useRef(null);

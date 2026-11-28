@@ -23,7 +23,6 @@ public class ShippingIntegrationService {
     private final Map<Integer, List<Map<String, Object>>> cachedDistricts = new ConcurrentHashMap<>();
     private final Map<Integer, List<Map<String, Object>>> cachedWards = new ConcurrentHashMap<>();
 
-    // GHN Config
     @Value("${shipping.ghn.base-url}")
     private String ghnBaseUrl;
 
@@ -36,7 +35,6 @@ public class ShippingIntegrationService {
     @Value("${shipping.ghn.from-district-id}")
     private Integer ghnFromDistrictId;
 
-    // GHTK Config
     @Value("${shipping.ghtk.base-url}")
     private String ghtkBaseUrl;
 
@@ -108,10 +106,6 @@ public class ShippingIntegrationService {
         GhnLocation ghnLocation = resolveGhnLocation(address);
         body.put("to_ward_code", ghnLocation.wardCode());     
         body.put("to_district_id", ghnLocation.districtId());
-        // Tài khoản GHN thử nghiệm giới hạn COD tối đa (cod_amount) 300.000 VNĐ 
-        // và khai giá tối đa (insurance_value) 500.000 VNĐ.
-        // Tự động khống chế trần để luôn tạo vận đơn và lấy tracking_number thành công,
-        // không ảnh hưởng đến số tiền thực tế của đơn hàng trong CSDL.
         body.put("cod_amount", Math.min(codAmount, 300000));
         body.put("weight", totalWeight);
 
@@ -253,8 +247,6 @@ public class ShippingIntegrationService {
                     if (orderResult != null && orderResult.get("label") != null) {
                         String label = orderResult.get("label").toString();
 
-                        // Nếu bật chế độ test tự động hủy: gửi yêu cầu hủy ngay lập tức
-                        // Giúp đơn vẫn xuất hiện trên web GHTK nhưng bưu tá không đến lấy thật
                         if (cancelOrder) {
                             cancelOrderGHTK(label);
                         }
@@ -324,7 +316,6 @@ public class ShippingIntegrationService {
                                 height = Integer.parseInt(attr.getAttributeValue().trim());
                     }
                 } catch (NumberFormatException e) {
-                    // Bỏ qua lỗi parse và dùng giá trị mặc định
                 }
             }
         }
@@ -339,7 +330,6 @@ public class ShippingIntegrationService {
             throw new AppException("Địa chỉ nhận hàng không tồn tại!");
         }
 
-        // 1. Tìm Tỉnh/Thành phố nếu có
         Integer provinceId = null;
         if (address.getCity() != null && !address.getCity().isBlank()) {
             List<Map<String, Object>> provinces = fetchGhnProvinces();
@@ -356,7 +346,6 @@ public class ShippingIntegrationService {
             }
         }
 
-        // 2. Tìm Quận/Huyện
         List<Map<String, Object>> districts = fetchGhnDistricts(provinceId);
         Map<String, Object> matchedDistrict = null;
         for (Map<String, Object> dist : districts) {
@@ -375,7 +364,6 @@ public class ShippingIntegrationService {
 
         Integer districtId = ((Number) matchedDistrict.get("DistrictID")).intValue();
 
-        // 3. Tìm Phường/Xã
         List<Map<String, Object>> wards = fetchGhnWards(districtId);
         Map<String, Object> matchedWard = null;
         for (Map<String, Object> ward : wards) {
@@ -502,7 +490,6 @@ public class ShippingIntegrationService {
         if (input == null || input.isBlank()) return false;
         String rawInput = input.trim().toLowerCase();
 
-        // 1. So sánh chính xác không phân biệt hoa thường
         if (name != null && name.trim().equalsIgnoreCase(rawInput)) return true;
 
         List<String> extensions = null;
@@ -513,7 +500,6 @@ public class ShippingIntegrationService {
             }
         }
 
-        // 2. So sánh sau khi đã chuẩn hóa (bỏ dấu, bỏ tiền tố hành chính)
         String normInput = normalizeLocationName(input);
         if (normInput.isEmpty()) return false;
 
@@ -525,7 +511,6 @@ public class ShippingIntegrationService {
             }
         }
 
-        // 3. So sánh tương đối (contains) cho các tên không phải dạng số (để tránh 1 khớp với 17)
         if (!normInput.matches("\\d+")) {
             String normName = normalizeLocationName(name);
             if (normName.contains(normInput) || normInput.contains(normName)) return true;

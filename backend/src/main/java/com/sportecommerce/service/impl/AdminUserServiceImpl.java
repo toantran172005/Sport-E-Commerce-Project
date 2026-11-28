@@ -33,7 +33,6 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final MapperUtil mapperUtil;
 
-    // Mat khau mac dinh cho nhan vien moi; co the doi bang thuoc tinh app.staff.default-password
     @Value("${app.staff.default-password:11111}")
     private String defaultStaffPassword;
 

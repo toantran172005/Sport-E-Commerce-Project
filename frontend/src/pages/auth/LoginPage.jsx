@@ -9,14 +9,15 @@ import {
   User,
   Sparkles,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth, useUI } from '@/context';
 import { authService } from '../../services/authService.js';
 import { ROLES, getDefaultAdminPath, isAdminPathAllowed } from '../../utils/permissions.js';
 import AuthBanner from '../../components/auth/AuthBanner.jsx';
 import BrandLogo from '../../components/common/BrandLogo.jsx';
 
 export default function LoginPage() {
-  const { setUser, showToast } = useStore();
+  const { setUser } = useAuth();
+  const { showToast } = useUI();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
@@ -36,10 +37,8 @@ export default function LoginPage() {
       showToast(`Đăng nhập thành công! Xin chào ${res.user.fullName || res.user.name}`, 'success');
       
       if (res.user.mustChangePassword) {
-        // Tài khoản do Admin tạo, còn mật khẩu mặc định → bắt buộc đổi trước khi dùng
         navigate('/force-change-password', { replace: true });
       } else if (res.user.role === ROLES.ADMIN || res.user.role === ROLES.STAFF) {
-        // Admin/Staff: vào đúng trang CMS mà vai trò được phép (STAFF không có quyền một số trang)
         const role = res.user.role;
         if (redirectUrl.startsWith('/admin')) {
           navigate(isAdminPathAllowed(role, redirectUrl) ? redirectUrl : getDefaultAdminPath(role));
@@ -54,7 +53,6 @@ export default function LoginPage() {
         navigate(redirectUrl);
       }
     } catch (err) {
-      // Backend trả 403 khi tài khoản đăng ký xong nhưng chưa nhập OTP (trạng thái PENDING)
       if (err.status === 403 && /xác thực/i.test(err.message || '')) {
         showToast('Tài khoản chưa xác thực email. Vui lòng nhập mã OTP đã gửi tới email của bạn.', 'warning');
         navigate(`/verify-otp?email=${encodeURIComponent(loginEmail.trim())}&purpose=REGISTER&resend=1`);

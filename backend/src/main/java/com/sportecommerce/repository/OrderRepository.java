@@ -20,16 +20,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
 
-    @Query("SELECT o FROM Order o " +
+    @Query("SELECT DISTINCT o FROM Order o " +
             "LEFT JOIN FETCH o.user " +
+            "LEFT JOIN FETCH o.shippingAddress " +
             "LEFT JOIN FETCH o.shipment s " +
             "LEFT JOIN FETCH s.provider " +
             "LEFT JOIN FETCH o.payment " +
             "ORDER BY o.createdAt DESC")
     List<Order> findAllWithDetails();
 
-    @Query("SELECT o FROM Order o " +
+    @Query("SELECT DISTINCT o FROM Order o " +
             "LEFT JOIN FETCH o.user " +
+            "LEFT JOIN FETCH o.shippingAddress " +
             "LEFT JOIN FETCH o.shipment s " +
             "LEFT JOIN FETCH s.provider " +
             "LEFT JOIN FETCH o.payment " +

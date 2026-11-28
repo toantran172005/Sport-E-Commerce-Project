@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getCookie, setCookie, removeCookie } from "../utils/cookie.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
@@ -8,7 +9,6 @@ const axiosClient = axios.create({
   timeout: 30000,
 });
 
-// Các API này trả 4xx khi sai mật khẩu/OTP/token → không được tự refresh hay đá về /login
 const AUTH_URLS = [
   "/auth/login",
   "/auth/register",
@@ -21,28 +21,30 @@ const AUTH_URLS = [
 ];
 
 const clearSession = () => {
+  removeCookie("token");
+  removeCookie("refreshToken");
   localStorage.removeItem("token");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("sport_user");
+  localStorage.removeItem("isLogin");
 };
 
-// Nhiều request cùng hết hạn một lúc → chỉ gọi refresh MỘT lần, các request còn lại chờ kết quả
 let refreshPromise = null;
 
 function refreshAccessToken() {
   if (!refreshPromise) {
-    const refreshToken = localStorage.getItem("refreshToken");
+    const refreshToken = getCookie("refreshToken") || localStorage.getItem("refreshToken");
     if (!refreshToken) return Promise.reject(new Error("Không có refresh token"));
 
-    // Dùng axios thường (không dùng axiosClient) để không bị interceptor lặp vô hạn
     refreshPromise = axios
       .post(`${API_URL}/auth/refresh-token`, { refreshToken })
       .then((res) => {
         const data = res.data?.data ?? res.data;
         if (!data?.accessToken) throw new Error("Phản hồi refresh token không hợp lệ");
-        localStorage.setItem("token", data.accessToken);
-        // Backend xoay vòng refresh token: token cũ bị thu hồi, phải lưu token mới
-        if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+        setCookie("token", data.accessToken, 1);
+        if (data.refreshToken) setCookie("refreshToken", data.refreshToken, 7);
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
         if (data.user) localStorage.setItem("sport_user", JSON.stringify(data.user));
         return data.accessToken;
       })
@@ -64,7 +66,6 @@ function buildError(error) {
     else message = error.message;
   }
 
-  // Lỗi validate (@Valid): backend trả errors = { tenField: "thông báo" } → hiện thông báo cụ thể đầu tiên
   const fieldErrors = body?.errors;
   if (fieldErrors && typeof fieldErrors === "object") {
     const first = Object.values(fieldErrors)[0];
@@ -80,7 +81,7 @@ function buildError(error) {
 
 axiosClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = getCookie("token") || localStorage.getItem("token");
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
@@ -94,7 +95,7 @@ axiosClient.interceptors.response.use(
       if (body.success === false) {
         return Promise.reject(new Error(body.message || "Có lỗi xảy ra"));
       }
-      return body.data; // bóc envelope { success, message, data }
+      return body.data;
     }
     return body;
   },
@@ -104,7 +105,6 @@ axiosClient.interceptors.response.use(
     const url = original.url || "";
     const isAuthUrl = AUTH_URLS.some((u) => url.includes(u));
 
-    // Access token hết hạn (15 phút) → thử đổi bằng refresh token rồi gọi lại request cũ đúng 1 lần
     if (status === 401 && !isAuthUrl && !original._retry) {
       original._retry = true;
       return refreshAccessToken().then(

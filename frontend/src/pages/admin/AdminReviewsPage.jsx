@@ -15,19 +15,17 @@ import {
   Check,
   Trash2,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useCatalog, useUI } from '@/context';
 import AdminLayout from '../../layouts/AdminLayout';
 import { reviewService } from '../../services/reviewService.js';
 
 export default function AdminReviewsPage() {
   const {
-    reviews: contextReviews = [],
     updateReviewStatus: contextUpdateReviewStatus,
     replyToReview: contextReplyToReview,
     removeReviewReply: contextRemoveReviewReply,
-    openModal,
-    showToast,
-  } = useStore();
+  } = useCatalog();
+  const { openModal, showToast } = useUI();
 
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);

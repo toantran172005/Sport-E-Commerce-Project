@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Package,
   Layers,
@@ -9,25 +9,28 @@ import {
   CheckCircle2,
   FileQuestion,
 } from "lucide-react";
-import { useStore } from "../../context/StoreContext";
+import { useCatalog, useUI } from '@/context';
 import AdminLayout from "../../layouts/AdminLayout";
 import { formatCurrency } from "../../utils/formatters";
 import { Pagination } from "../../components/common";
+import { productService } from "../../services/productService.js";
 
 export default function AdminProductsPage() {
   const {
     products,
     categoriesList,
     brandsList,
-    openModal,
     setProductStatus,
     toggleProductStatus,
     deleteProductById,
     deleteCategory,
     deleteBrand,
+  } = useCatalog();
+  const {
+    openModal,
     showConfirmModal,
     showToast,
-  } = useStore();
+  } = useUI();
 
   const [activeTab, setActiveTab] = useState("products");
   const [search, setSearch] = useState("");
@@ -37,64 +40,43 @@ export default function AdminProductsPage() {
 
   const ITEMS_PER_PAGE = 10;
   const [currentPage, setCurrentPage] = useState(0);
+  const [adminProducts, setAdminProducts] = useState([]);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
-  // Tự động reset về trang đầu khi thay đổi tìm kiếm hoặc bộ lọc
+  const fetchAdminProducts = useCallback(async () => {
+    setIsLoadingProducts(true);
+    try {
+      const res = await productService.getProducts({
+        page: currentPage,
+        size: ITEMS_PER_PAGE,
+        q: search.trim() || undefined,
+        categoryId: categoryFilter !== "ALL" ? categoryFilter : undefined,
+        brandId: brandFilter !== "ALL" ? brandFilter : undefined,
+        status: statusFilter !== "ALL" ? statusFilter : undefined,
+      });
+      setAdminProducts(res.items || res.content || []);
+      setTotalProducts(res.totalElements || 0);
+      setServerTotalPages(Math.max(1, res.totalPages || 1));
+    } catch (err) {
+      console.warn("Lỗi tải sản phẩm quản trị:", err);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, [currentPage, search, categoryFilter, brandFilter, statusFilter]);
+
+  useEffect(() => {
+    fetchAdminProducts();
+  }, [fetchAdminProducts]);
+
   useEffect(() => {
     setCurrentPage(0);
   }, [search, categoryFilter, brandFilter, statusFilter]);
 
-  const filteredProducts = products.filter((p) => {
-    // LỌC THEO DANH MỤC
-    if (categoryFilter !== "ALL") {
-      const selectedCat = categoriesList.find(
-        (c) => String(c.id) === String(categoryFilter),
-      );
-      const pCatId = p.categoryId || p.category?.id;
-      const pCatName = p.categoryName || p.category?.name || p.category;
-      const matchId = pCatId && String(pCatId) === String(categoryFilter);
-      const matchName = selectedCat && pCatName === selectedCat.name;
-      if (!matchId && !matchName) return false;
-    }
-    // LỌC THEO THƯƠNG HIỆU
-    if (brandFilter !== "ALL") {
-      const selectedBrand = brandsList.find(
-        (b) => String(b.id) === String(brandFilter),
-      );
-      const pBrandId = p.brandId || p.brand?.id;
-      const pBrandName = p.brandName || p.brand?.name || p.brand;
-      const matchId = pBrandId && String(pBrandId) === String(brandFilter);
-      const matchName = selectedBrand && pBrandName === selectedBrand.name;
-      if (!matchId && !matchName) return false;
-    }
-    // LỌC THEO TRẠNG THÁI
-    const currentStatus = p.status || (p.isActive ? "ACTIVE" : "DRAFT");
-    if (statusFilter !== "ALL") {
-      if (statusFilter !== currentStatus) return false;
-    }
-    // LỌC THEO TỪ KHOÁ
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const pBrandName = (
-        p.brandName ||
-        p.brand?.name ||
-        p.brand ||
-        ""
-      ).toLowerCase();
-      return (
-        p.name.toLowerCase().includes(q) ||
-        (p.sku && p.sku.toLowerCase().includes(q)) ||
-        pBrandName.includes(q)
-      );
-    }
-    return true;
-  });
-
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
-  const safePage = Math.min(currentPage, totalPages - 1);
-  const paginatedProducts = filteredProducts.slice(
-    safePage * ITEMS_PER_PAGE,
-    (safePage + 1) * ITEMS_PER_PAGE,
-  );
+  const totalPages = serverTotalPages;
+  const safePage = Math.min(currentPage, Math.max(0, totalPages - 1));
+  const paginatedProducts = adminProducts;
 
   const totalVariants = products.reduce(
     (sum, p) => sum + (p.variants?.length || 1),
@@ -143,9 +125,10 @@ export default function AdminProductsPage() {
       message: `Bạn có chắc chắn muốn xóa sản phẩm "${product.name}"? Thao tác này không thể hoàn tác.`,
       confirmText: "Xóa vĩnh viễn",
       confirmVariant: "danger",
-      onConfirm: () => {
-        deleteProductById(product.id);
+      onConfirm: async () => {
+        await deleteProductById(product.id);
         showToast(`Đã xóa sản phẩm "${product.name}" thành công`);
+        fetchAdminProducts();
       },
     });
   };
@@ -159,7 +142,10 @@ export default function AdminProductsPage() {
         return (
           <button
             type="button"
-            onClick={() => setProductStatus(product.id, "ACTIVE")}
+            onClick={async () => {
+              await setProductStatus(product.id, "ACTIVE");
+              fetchAdminProducts();
+            }}
             title="Nhấp để chuyển sang Đang bán"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 cursor-pointer transition hover:bg-amber-500/20"
           >
@@ -171,7 +157,10 @@ export default function AdminProductsPage() {
         return (
           <button
             type="button"
-            onClick={() => setProductStatus(product.id, "DRAFT")}
+            onClick={async () => {
+              await setProductStatus(product.id, "DRAFT");
+              fetchAdminProducts();
+            }}
             title="Nhấp để chuyển về Mới tạo"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 cursor-pointer transition hover:bg-emerald-500/20"
           >
@@ -196,7 +185,10 @@ export default function AdminProductsPage() {
         return (
           <button
             type="button"
-            onClick={() => setProductStatus(product.id, "ACTIVE")}
+            onClick={async () => {
+              await setProductStatus(product.id, "ACTIVE");
+              fetchAdminProducts();
+            }}
             title="Nhấp để kích hoạt lại sản phẩm"
             className="px-2.5 py-1 rounded text-[11px] font-bold bg-surface-2 text-ink-muted border border-line flex items-center gap-1 cursor-pointer transition hover:bg-surface"
           >
@@ -207,7 +199,6 @@ export default function AdminProductsPage() {
   };
 
   const handleEditProduct = (product) => {
-    // Mở modal ngay lập tức với dữ liệu sản phẩm có sẵn để loại bỏ độ trễ (0ms delay)
     openModal("admin_product_modal", { product });
   };
 
@@ -308,7 +299,7 @@ export default function AdminProductsPage() {
                 : "border-transparent text-ink-muted hover:text-ink"
             }`}
           >
-            Danh Sách Sản Phẩm &amp; Biến Thể ({filteredProducts.length})
+            Danh Sách Sản Phẩm &amp; Biến Thể ({totalProducts})
           </button>
           <button
             type="button"
@@ -381,7 +372,7 @@ export default function AdminProductsPage() {
 
               <span className="text-[12.5px] text-ink-muted">
                 Hiển thị{" "}
-                <strong className="text-ink">{filteredProducts.length}</strong>{" "}
+                <strong className="text-ink">{totalProducts}</strong>{" "}
                 sản phẩm
               </span>
             </div>
@@ -402,7 +393,22 @@ export default function AdminProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {paginatedProducts.map((product) => {
+                  {isLoadingProducts ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-ink-muted">
+                        <div className="inline-flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                          <span>Đang tải danh sách sản phẩm...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : paginatedProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-ink-muted">
+                        Không tìm thấy sản phẩm nào phù hợp.
+                      </td>
+                    </tr>
+                  ) : paginatedProducts.map((product) => {
                     const primaryImg =
                       product.primaryImageUrl ||
                       product.images?.[0]?.imageUrl ||
@@ -580,7 +586,7 @@ export default function AdminProductsPage() {
               <div>
                 Hiển thị{" "}
                 <strong>
-                  {filteredProducts.length === 0
+                  {totalProducts === 0
                     ? 0
                     : safePage * ITEMS_PER_PAGE + 1}
                 </strong>{" "}
@@ -588,10 +594,10 @@ export default function AdminProductsPage() {
                 <strong>
                   {Math.min(
                     (safePage + 1) * ITEMS_PER_PAGE,
-                    filteredProducts.length,
+                    totalProducts,
                   )}
                 </strong>{" "}
-                trên tổng số <strong>{filteredProducts.length}</strong> sản phẩm
+                trên tổng số <strong>{totalProducts}</strong> sản phẩm
               </div>
               <Pagination
                 page={safePage}

@@ -1,4 +1,4 @@
-export { useStore, StoreProvider, default } from './StoreContext.jsx';
+export { StoreProvider, default } from './StoreContext.jsx';
 export { AppProviders } from './AppProviders.jsx';
 
 export { useTheme, ThemeProvider } from './ThemeContext.jsx';

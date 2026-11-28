@@ -1,7 +1,6 @@
 import axiosClient from '../api/axiosClient.js';
 
 export const userService = {
-  // ---- Quản trị người dùng & Nhân viên (gọi API thật qua JWT) ----
   async getCustomers({ keyword = '', page = 0, size = 10 } = {}) {
     return axiosClient.get('/admin/users', { params: { role: 'CUSTOMER', keyword, page, size } });
   },
@@ -34,7 +33,6 @@ export const userService = {
     return axiosClient.delete(`/admin/users/staff/${id}`);
   },
 
-  // Alias tương thích
   async createAdminStaff(data) {
     return this.createStaff(data);
   },
@@ -43,8 +41,6 @@ export const userService = {
     return this.getStaffMembers(params);
   },
 
-  // ===== ADDRESS MANAGEMENT =====
-  // ---- Sổ địa chỉ của chính người dùng đang đăng nhập (user lấy từ JWT, không truyền userId) ----
   /** GET /api/users/me/addresses → mặc định lên đầu */
   async getMyAddresses() {
     return axiosClient.get('/users/me/addresses');
@@ -91,7 +87,6 @@ export const userService = {
     return { success: true };
   },
 
-  // ---- Hồ sơ cá nhân ----
   /** GET /api/users/me */
   async getProfile() {
     return axiosClient.get('/users/me');
@@ -100,7 +95,6 @@ export const userService = {
   /** PUT /api/users/me - chỉ sửa họ tên, giới tính, ngày sinh (đổi email/SĐT phải qua OTP, đổi ảnh dùng uploadAvatar) */
   async updateProfile({ fullName, gender, dateOfBirth }) {
     const updated = await axiosClient.put('/users/me', { fullName, gender, dateOfBirth });
-    // Giữ bản lưu cục bộ khớp với server để F5 không hiện dữ liệu cũ
     localStorage.setItem('sport_user', JSON.stringify(updated));
     return updated;
   },

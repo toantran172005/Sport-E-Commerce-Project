@@ -96,7 +96,6 @@ public final class AvatarImageProcessor {
             if (e instanceof IllegalArgumentException iae) {
                 throw iae;
             }
-            // Ví dụ: JPEG hệ màu CMYK, file bị cắt cụt/hỏng
             throw new IllegalArgumentException("Không đọc được ảnh, vui lòng chọn ảnh JPG hoặc PNG khác");
         }
     }
@@ -112,7 +111,6 @@ public final class AvatarImageProcessor {
         BufferedImage output = new BufferedImage(target, target, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = output.createGraphics();
         try {
-            // Nền trắng cho PNG trong suốt (JPEG không có kênh alpha)
             g.setColor(Color.WHITE);
             g.fillRect(0, 0, target, target);
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);

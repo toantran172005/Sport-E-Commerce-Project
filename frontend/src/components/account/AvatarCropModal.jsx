@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, ZoomIn, ZoomOut, Loader2 } from 'lucide-react';
 
-const BOX = 280; // cạnh khung cắt hiển thị (px)
-const OUTPUT = 512; // cạnh ảnh vuông xuất ra (px)
+const BOX = 280;
+const OUTPUT = 512;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
@@ -16,11 +16,10 @@ export default function AvatarCropModal({ file, saving = false, onCancel, onConf
   const [url, setUrl] = useState('');
   const [img, setImg] = useState(null);
   const [zoom, setZoom] = useState(MIN_ZOOM);
-  const [offset, setOffset] = useState({ x: 0, y: 0 }); // vị trí góc trên-trái của ảnh so với khung
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [error, setError] = useState('');
   const drag = useRef(null);
 
-  // Đọc ảnh, đặt vừa khung (phủ kín cạnh ngắn) và căn giữa
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
     const image = new Image();
@@ -46,7 +45,6 @@ export default function AvatarCropModal({ file, saving = false, onCancel, onConf
     };
   }, [file]);
 
-  // Khóa cuộn trang nền khi mở khung; Esc để đóng
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -67,14 +65,12 @@ export default function AvatarCropModal({ file, saving = false, onCancel, onConf
   const dispW = natW * scale;
   const dispH = natH * scale;
 
-  // Ảnh luôn phải phủ kín khung (không để lộ khoảng trống)
   const clampOffset = (o, w, h) => ({ x: clamp(o.x, BOX - w, 0), y: clamp(o.y, BOX - h, 0) });
 
   const changeZoom = (next) => {
     const z = clamp(next, MIN_ZOOM, MAX_ZOOM);
     if (!img || z === zoom) return;
     const newScale = baseScale * z;
-    // Giữ nguyên điểm đang nằm ở tâm khung khi phóng to/thu nhỏ
     const cx = (BOX / 2 - offset.x) / scale;
     const cy = (BOX / 2 - offset.y) / scale;
     setZoom(z);
@@ -107,7 +103,6 @@ export default function AvatarCropModal({ file, saving = false, onCancel, onConf
     ctx.fillRect(0, 0, OUTPUT, OUTPUT);
     ctx.imageSmoothingQuality = 'high';
 
-    // Vùng của ảnh gốc đang nằm trong khung cắt
     const size = BOX / scale;
     const sx = clamp(-offset.x / scale, 0, natW - size);
     const sy = clamp(-offset.y / scale, 0, natH - size);

@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react';
 import { MapPin, X, Plus } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI, useAddress } from '@/context';
 
 export default function AddressModal() {
+  const { activeModal, modalPayload, closeModal, showToast } = useUI();
   const {
-    activeModal,
-    modalPayload,
-    closeModal,
     addresses,
     selectedAddressId,
     setSelectedAddressId,
     addAddress,
     updateAddress,
-    showToast,
-  } = useStore();
+  } = useAddress();
 
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [recipientName, setRecipientName] = useState('');

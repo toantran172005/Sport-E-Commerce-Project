@@ -78,7 +78,6 @@ public class AddressServiceImpl implements AddressService {
         address.setDistrict(trimToNull(request.getDistrict()));
         address.setCity(request.getCity().trim());
 
-        // Chỉ cho phép "bật" mặc định; bỏ mặc định của địa chỉ hiện hành phải làm bằng cách chọn địa chỉ khác.
         if (Boolean.TRUE.equals(request.getIsDefault()) && !Boolean.TRUE.equals(address.getIsDefault())) {
             clearDefault(addressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId));
             address.setIsDefault(true);
@@ -103,7 +102,6 @@ public class AddressServiceImpl implements AddressService {
     public void delete(Long userId, Long addressId) {
         UserAddress address = getOwnedAddress(userId, addressId);
 
-        // orders.shipping_address_id là khóa ngoại bắt buộc → địa chỉ đã gắn với đơn hàng thì không xóa được.
         if (orderRepository.existsByShippingAddress_Id(addressId)) {
             throw new AppException("Địa chỉ này đã được dùng cho đơn hàng nên không thể xóa", HttpStatus.CONFLICT);
         }
@@ -113,7 +111,6 @@ public class AddressServiceImpl implements AddressService {
         addressRepository.flush();
 
         if (wasDefault) {
-            // Địa chỉ mặc định bị xóa → chuyển mặc định sang địa chỉ mới nhất còn lại (nếu có).
             addressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId).stream()
                     .findFirst()
                     .ifPresent(next -> {

@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
 import { ProductCard } from '../../components/product';
 import { ProductCardSkeleton } from '../../components/common/Skeleton.jsx';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useCatalog } from '@/context';
 
 export default function HomePage() {
-  const { products, categoriesList, catalogLoading } = useStore();
+  const { products, categoriesList, catalogLoading } = useCatalog();
   const navigate = useNavigate();
 
   const mainCategories = useMemo(() => {
@@ -23,6 +23,19 @@ export default function HomePage() {
 
   return (
     <div className="max-w-340 w-full mx-auto px-4 md:px-6 py-6 space-y-8">
+      <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px]">
+        <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400 font-semibold">
+          <Sparkles className="w-4 h-4 shrink-0" />
+          <span>Giao diện mới <strong>HomePageAdvance</strong> đã sẵn sàng để trải nghiệm!</span>
+        </div>
+        <Link
+          to="/home-advance"
+          className="px-3 py-1 rounded bg-accent hover:bg-accent-hover text-white font-bold transition shrink-0 flex items-center gap-1.5"
+        >
+          <span>Xem Demo HomePageAdvance</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
         {/* 1. Hero tĩnh đơn giản chuẩn TMĐT quốc tế */}
         <div className="rounded-lg bg-linear-to-r from-[#0a0f20] to-[#1e2950] text-white p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-white/5">
           <div className="space-y-4 max-w-xl z-10">

@@ -8,7 +8,7 @@ import {
   Plus,
   ArrowLeft,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth, useCart, useAddress, useCatalog, useOrder, useUI } from '@/context';
 import { formatCurrency } from '../../utils/formatters.js';
 import { calculateDiscount } from '../../utils/pricing.js';
 import { orderService } from '../../services/orderService.js';
@@ -19,19 +19,12 @@ import { VoucherDropdown } from '../../components/promotion';
 import { PaymentMethodSelector } from '../../components/payment';
 
 export default function CheckoutPage() {
-  const {
-    user,
-    cart,
-    selectedCartItems,
-    removeFromCart,
-    selectedAddress,
-    appliedCoupon,
-    setAppliedCoupon,
-    openModal,
-    showToast,
-    showErrorModal,
-    addOrder,
-  } = useStore();
+  const { user } = useAuth();
+  const { cart, selectedCartItems, removeFromCart } = useCart();
+  const { selectedAddress } = useAddress();
+  const { appliedCoupon } = useCatalog();
+  const { addOrder } = useOrder();
+  const { openModal, showToast, showErrorModal } = useUI();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,7 +38,6 @@ export default function CheckoutPage() {
   const buyNowItem = location.state?.buyNowItem || null;
   const isBuyNow = Boolean(buyNowItem);
 
-  // Cố định (freeze) danh sách sản phẩm trong phiên checkout hiện tại
   const [frozenCheckoutItems] = useState(() => {
     if (buyNowItem) {
       return [{
@@ -77,20 +69,17 @@ export default function CheckoutPage() {
     [checkoutItems]
   );
 
-  // Selected carrier: synchronous selection without mirrored state
   const [selectedProviderCode, setSelectedProviderCode] = useState('GHN');
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
   const [shippingNote, setShippingNote] = useState('Giao giờ hành chính');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Hook-based shipping quotes with caching & debouncing
   const { providers, quotes, loading: shippingLoading } = useShippingQuotes({
     addressId: selectedAddress?.id,
     city: selectedAddress?.city,
     subTotal: checkoutSubtotal,
   });
 
-  // Derive fee and delivery date directly from quote (0ms carrier toggle)
   const currentQuote = quotes[selectedProviderCode];
   const shippingFee =
     currentQuote?.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000);

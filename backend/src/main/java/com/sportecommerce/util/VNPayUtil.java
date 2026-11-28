@@ -66,12 +66,10 @@ public class VNPayUtil {
             String fieldName = itr.next();
             String fieldValue = vnpParams.get(fieldName);
             if (fieldValue != null && !fieldValue.isEmpty()) {
-                // Build hash data
                 hashData.append(fieldName);
                 hashData.append('=');
                 hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
 
-                // Build query
                 query.append(URLEncoder.encode(fieldName, StandardCharsets.UTF_8));
                 query.append('=');
                 query.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));

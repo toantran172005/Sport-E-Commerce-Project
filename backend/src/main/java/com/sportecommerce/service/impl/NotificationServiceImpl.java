@@ -35,8 +35,6 @@ public class    NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
-    // ===== Nhom 1: thong bao gan voi luong dat hang / thanh toan (PaymentServiceImpl goi) =====
-
     @Override
     @Transactional
     public void notifyPaymentSuccess(Order order) {
@@ -136,8 +134,6 @@ public class    NotificationServiceImpl implements NotificationService {
         log.info("Đã gửi thông báo PROMOTION ({}) tới {} khách hàng", coupon.getCode(), notifications.size());
     }
 
-    // ===== Nhom 2: thong bao theo kien truc Spring Event (OrderEventListener goi) =====
-
     @Override
     @Transactional
     public void notifyStaffNewOrder(Long orderId, String orderCode) {
@@ -186,8 +182,6 @@ public class    NotificationServiceImpl implements NotificationService {
 
         notificationRepository.save(notification);
     }
-
-    // ===== Nhom 3: API cho man hinh thong bao cua user (NotificationController goi) =====
 
     @Override
     public ApiResponse<PageResponse<NotificationResponse>> getMyNotifications(Long userId, int page, int size) {

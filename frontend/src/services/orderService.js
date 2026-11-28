@@ -11,7 +11,6 @@ const extractList = (response) => {
 export const orderService = {
   async placeOrder(orderData) {
     const payload = {
-      // Backend lấy user từ JWT; trường này chỉ để tương thích, không còn mặc định user giả
       userId: orderData.userId ? Number(orderData.userId) : null,
       shippingAddressId: Number(orderData.shippingAddressId),
       paymentMethod: orderData.paymentMethod || "COD",

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Ticket } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useUI, useCatalog } from '@/context';
 
 function toInputDate(dateVal, fallback = '2026-01-01') {
   if (!dateVal) return fallback;
@@ -16,7 +16,8 @@ function toInputDate(dateVal, fallback = '2026-01-01') {
 }
 
 export default function AdminCouponModal() {
-  const { activeModal, modalPayload, closeModal, addCoupon, updateCoupon, showToast } = useStore();
+  const { activeModal, modalPayload, closeModal, showToast } = useUI();
+  const { addCoupon, updateCoupon } = useCatalog();
 
   const editCoupon = modalPayload?.coupon;
 

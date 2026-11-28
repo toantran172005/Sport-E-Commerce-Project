@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
-import { orderService } from '../../services/orderService.js';
+import { useUI, useOrder } from '@/context';
 
 const CANCEL_REASONS = [
   'Thay đổi ý định mua hàng',
@@ -13,14 +12,8 @@ const CANCEL_REASONS = [
 ];
 
 export default function CancelOrderModal() {
-  const {
-    activeModal,
-    modalPayload,
-    closeModal,
-    cancelOrderById,
-    showToast,
-    showErrorModal,
-  } = useStore();
+  const { activeModal, modalPayload, closeModal, showToast, showErrorModal } = useUI();
+  const { cancelOrderById } = useOrder();
   const [selectedReason, setSelectedReason] = useState(CANCEL_REASONS[0]);
   const [customReason, setCustomReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

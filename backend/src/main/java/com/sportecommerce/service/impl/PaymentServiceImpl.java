@@ -56,7 +56,6 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BadRequestException("Đơn hàng này đã được thanh toán thành công!");
         }
 
-        // 1. Thêm/cập nhật bản ghi payments với trạng thái PENDING
         Payment payment = paymentRepository.findByOrderId(order.getId())
                 .orElseGet(() -> {
                     Payment newPayment = new Payment();
@@ -69,16 +68,13 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.PENDING);
         Payment savedPayment = paymentRepository.save(payment);
 
-        // 2. Rẽ nhánh theo phương thức thanh toán
         if (request.getMethod() == PaymentMethod.COD) {
-            // Giữ payments ở trạng thái PENDING, đơn hàng giữ PENDING để chờ Admin/Staff duyệt
             notificationService.notifyOrderPlaced(order);
 
             return mapperUtil.mapToPaymentResponse(savedPayment, null,
                     "Đặt hàng thành công với hình thức thanh toán khi nhận hàng (COD).");
         }
 
-        // Thanh toán online qua cổng thanh toán VNPay
         String paymentUrl = buildVNPayPaymentUrl(order, request.getBankCode(), httpRequest);
         return mapperUtil.mapToPaymentResponse(savedPayment, paymentUrl,
                 "Tạo thông tin thanh toán thành công, vui lòng chuyển hướng đến URL thanh toán.");
@@ -119,7 +115,6 @@ public class PaymentServiceImpl implements PaymentService {
     public ApiResponse<Object> handleWebhook(Map<String, String> params) {
         log.info("Nhận Webhook từ cổng thanh toán VNPay: {}", params);
 
-        // 1. Kiểm tra chữ ký bảo mật
         boolean isSignatureValid = VNPayUtil.verifySignature(params, vnPayConfig.getHashSecret());
         if (!isSignatureValid) {
             log.warn("Cảnh báo: Webhook chữ ký không hợp lệ! Bỏ qua yêu cầu.");
@@ -130,20 +125,17 @@ public class PaymentServiceImpl implements PaymentService {
         String responseCode = params.get("vnp_ResponseCode");
         String transactionNo = params.get("vnp_TransactionNo");
 
-        // 2. Tìm kiếm Payment & Order tương ứng qua txnRef
         Order order = orderRepository.findByOrderCode(txnRef)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với mã: " + txnRef));
 
         Payment payment = paymentRepository.findByOrderId(order.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin thanh toán cho đơn hàng!"));
 
-        // 3. Tính Idempotency: nếu đơn đã được xác nhận thanh toán rồi thì trả về thành công ngay
         if (payment.getStatus() == PaymentStatus.PAID) {
             log.info("Đơn hàng {} đã được thanh toán trước đó. Bỏ qua xử lý lặp.", txnRef);
             return ApiResponse.success("Đã ghi nhận", buildWebhookResult(order, payment, responseCode, "Order already confirmed"));
         }
 
-        // Kiểm tra kết quả giao dịch
         if ("00".equals(responseCode)) {
             payment.setStatus(PaymentStatus.PAID);
             payment.setTransactionCode(transactionNo);
@@ -156,7 +148,6 @@ public class PaymentServiceImpl implements PaymentService {
             log.info("Thanh toán thành công cho đơn hàng: {}", txnRef);
             return ApiResponse.success("Thanh toán thành công", buildWebhookResult(order, payment, responseCode, "Confirm Success"));
         } else {
-            // Giao dịch thất bại
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
 

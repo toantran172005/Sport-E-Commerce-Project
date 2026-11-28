@@ -29,7 +29,6 @@ public class OrderController {
     public ResponseEntity<ApiResponse<PlaceOrderResponse>> placeOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody PlaceOrderRequest request) {
-        // Luôn lấy user từ JWT; request.userId (nếu FE còn gửi) bị bỏ qua để không đặt hộ người khác.
         ApiResponse<PlaceOrderResponse> response = orderService.placeOrder(userPrincipal.getId(), request);
 
         return ResponseEntity.ok(response);

@@ -7,14 +7,12 @@ import { useUI } from './UIContext.jsx';
 
 const AddressContext = createContext(null);
 
-// Sổ địa chỉ cũ (mock) từng lưu ở localStorage → bỏ đi để không lẫn với dữ liệu thật
 const LEGACY_STORAGE_KEY = 'sport_user_addresses';
 
 export function AddressProvider({ children }) {
   const { user } = useAuth();
   const { showToast } = useUI();
   const userId = user?.id;
-  // Đang bị khóa đổi mật khẩu → backend từ chối mọi API khác
   const locked = Boolean(user?.mustChangePassword);
 
   const [addresses, setAddresses] = useState([]);
@@ -25,7 +23,7 @@ export function AddressProvider({ children }) {
     try {
       localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch {
-      // bỏ qua
+      /* ignore */
     }
   }, []);
 
@@ -42,14 +40,12 @@ export function AddressProvider({ children }) {
       });
       return list;
     } catch {
-      // lỗi mạng/401 đã được axiosClient xử lý; giữ nguyên danh sách hiện tại
       return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Tải khi đăng nhập, xóa sạch khi đăng xuất (không để địa chỉ của user trước lộ sang user sau)
   useEffect(() => {
     if (!userId || locked) {
       setAddresses([]);

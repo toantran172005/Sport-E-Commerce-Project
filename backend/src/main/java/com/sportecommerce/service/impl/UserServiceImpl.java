@@ -116,7 +116,6 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        // Da doi mat khau -> go co bat buoc doi mat khau mac dinh (tai khoan do Admin tao)
         user.setMustChangePassword(false);
         userRepository.save(user);
     }
@@ -132,7 +131,6 @@ public class UserServiceImpl implements UserService {
             throw new AppException("Email này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
-        // Gui OTP toi email MOI de xac nhan quyen so huu hop thu do truoc khi doi.
         otpService.generateAndSend(request.getNewEmail(), OtpPurpose.CHANGE_EMAIL);
     }
 
@@ -164,7 +162,6 @@ public class UserServiceImpl implements UserService {
             throw new AppException("Số điện thoại này đã được sử dụng bởi tài khoản khác", HttpStatus.CONFLICT);
         }
 
-        // Chua tich hop SMS gateway: OTP xac nhan doi SDT duoc gui qua email da xac thuc cua chinh user.
         otpService.generateAndSend(user.getEmail(), OtpPurpose.CHANGE_PHONE);
     }
 

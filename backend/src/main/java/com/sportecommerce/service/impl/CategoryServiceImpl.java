@@ -50,13 +50,11 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
 
-        // Không cho phép tự làm parent của chính mình
         if (request.getParentId() != null && request.getParentId().equals(id)) {
             throw new AppException("Category không thể là parent của chính nó");
         }
         Category parent = resolveParent(request.getParentId(), id);
 
-        // Chỉ generate lại slug nếu tên thay đổi, tránh đổi URL không cần thiết
         if (!category.getName().equals(request.getName())) {
             category.setSlug(generateUniqueSlug(SlugUtil.toSlug(request.getName())));
         }
@@ -78,7 +76,6 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy category_id: " + id));
 
-        // Không cho xóa nếu vẫn còn Product gắn với Category này
         if (productRepository.existsByCategory_IdAndDeletedAtIsNull(id)) {
             throw new AppException(
                     "Không thể xóa: vẫn còn sản phẩm thuộc category này");

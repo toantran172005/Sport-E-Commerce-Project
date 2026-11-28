@@ -8,12 +8,12 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class CartItemResponse {
-    private Long id; // CartItem ID in DB
+    private Long id;
     private Long productId;
     private String productName;
     private String productSlug;
     private Long variantId;
-    private String variant; // e.g. "Size 42 • Xanh Dương"
+    private String variant;
     private String sku;
     private Double price;
     private Double originalPrice;

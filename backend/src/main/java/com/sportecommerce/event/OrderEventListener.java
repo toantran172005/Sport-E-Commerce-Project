@@ -30,8 +30,6 @@ public class OrderEventListener {
         try {
             notificationService.notifyStaffNewOrder(event.orderId(), event.orderCode());
         } catch (Exception e) {
-            // Khong duoc de loi gui thong bao lam anh huong nguoc lai luong dat hang
-            // (transaction dat hang da commit xong truoc khi listener nay chay).
             log.error("Loi khi gui thong bao don hang moi cho staff, orderId={}", event.orderId(), e);
         }
     }

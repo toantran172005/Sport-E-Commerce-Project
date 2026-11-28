@@ -31,14 +31,13 @@ export function CatalogProvider({ children }) {
     refreshCoupons();
   }, [refreshCoupons]);
 
-
   const refreshCatalogData = useCallback(async () => {
     try {
       setCatalogLoading(true);
       const [cats, brs, prodsRes] = await Promise.all([
         categoryService.getAllFlatCategories().catch(() => []),
         brandService.getBrands().catch(() => []),
-        productService.getProducts({ size: 1000 }).catch(() => ({ items: [] })),
+        productService.getProducts({ size: 20 }).catch(() => ({ items: [] })),
       ]);
 
       setCategoriesList(cats || []);
@@ -54,7 +53,6 @@ export function CatalogProvider({ children }) {
   useEffect(() => {
     refreshCatalogData();
   }, [refreshCatalogData]);
-
 
   const addCategory = useCallback(async (catData) => {
     try {
@@ -125,7 +123,6 @@ export function CatalogProvider({ children }) {
       throw err;
     }
   }, [showToast]);
-
 
   const addProduct = useCallback(async (productData) => {
     try {
@@ -210,7 +207,6 @@ export function CatalogProvider({ children }) {
       showToast(err.message || 'Không thể xóa sản phẩm', 'error');
     }
   }, [showToast]);
-
 
   const addCoupon = useCallback(async (couponData) => {
     const created = await couponService.createCoupon(couponData);

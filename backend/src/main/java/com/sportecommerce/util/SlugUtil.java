@@ -12,13 +12,11 @@ public class SlugUtil {
     private SlugUtil() {
     }
 
-    // Chuyển tên sản phẩm thành slug URL-safe để lưu vào db
     public static String toSlug(String input) {
         if (input == null || input.isBlank()) {
             throw new IllegalArgumentException("Không thể tạo slug từ chuỗi rỗng");
         }
 
-        // Xử lý riêng ký tự đ hoặc Đ vì Unicode NFD không tách được ký tự này thành base + dấu
         String noDConsonant = input.replace('đ', 'd').replace('Đ', 'D');
 
         String normalized = Normalizer.normalize(noDConsonant, Normalizer.Form.NFD);

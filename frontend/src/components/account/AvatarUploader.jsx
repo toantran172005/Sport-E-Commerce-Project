@@ -1,19 +1,20 @@
 import { useRef, useState } from 'react';
 import { Camera, Trash2 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth, useUI } from '@/context';
 import { userService } from '../../services/userService.js';
 import Avatar from '../common/Avatar.jsx';
 import AvatarCropModal from './AvatarCropModal.jsx';
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_PICK_BYTES = 10 * 1024 * 1024; // ảnh gốc chọn từ máy; ảnh gửi lên server đã được thu nhỏ còn vài chục KB
+const MAX_PICK_BYTES = 10 * 1024 * 1024;
 
 /**
  * Khối đổi ảnh đại diện ở trang hồ sơ: chọn ảnh → cắt/zoom → tải lên → cập nhật phiên đăng nhập
  * (header, menu tài khoản... đổi ảnh ngay và đồng bộ sang các tab khác).
  */
 export default function AvatarUploader() {
-  const { user, setUser, showToast } = useStore();
+  const { user, setUser } = useAuth();
+  const { showToast } = useUI();
   const inputRef = useRef(null);
   const [pendingFile, setPendingFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -21,7 +22,7 @@ export default function AvatarUploader() {
 
   const handlePick = (e) => {
     const file = e.target.files?.[0];
-    e.target.value = ''; // cho phép chọn lại đúng file vừa chọn
+    e.target.value = '';
     if (!file) return;
     if (!ACCEPTED_TYPES.includes(file.type)) {
       showToast('Ảnh phải có định dạng JPG, PNG hoặc WebP', 'error');

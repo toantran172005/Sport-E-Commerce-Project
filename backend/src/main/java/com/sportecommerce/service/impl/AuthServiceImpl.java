@@ -91,8 +91,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void resendOtp(ResendOtpRequest request) {
-        // Endpoint công khai: chỉ cho gửi lại OTP đăng ký / quên mật khẩu và chỉ tới tài khoản có thật,
-        // tránh bị lợi dụng để gửi mail OTP rác tới email bất kỳ. OTP đổi email/SĐT chỉ gửi qua API đã đăng nhập.
         if (request.getPurpose() == OtpPurpose.REGISTER) {
             User user = findActivatableUserByEmail(request.getEmail());
             otpService.generateAndSend(user.getEmail(), OtpPurpose.REGISTER);
@@ -149,13 +147,11 @@ public class AuthServiceImpl implements AuthService {
         if (user.getDeletedAt() != null
                 || user.getStatus() == UserStatus.LOCKED
                 || user.getStatus() == UserStatus.DELETED) {
-            // Tài khoản bị khóa/xóa: thu hồi luôn token để không dùng lại được.
             storedToken.setRevokedAt(OffsetDateTime.now());
             refreshTokenRepository.save(storedToken);
             throw new AppException("Tài khoản đã bị khóa hoặc không còn tồn tại", HttpStatus.UNAUTHORIZED);
         }
 
-        // Xoay vong: thu hoi token cu, phat token moi (phat hien duoc neu token bi danh cap va tai su dung).
         storedToken.setRevokedAt(OffsetDateTime.now());
         refreshTokenRepository.save(storedToken);
 
@@ -186,8 +182,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
-        // Khong tiet lo email co ton tai hay khong de tranh do tham do (user enumeration).
-        // Bỏ qua lỗi "đợi cooldown" (429) để phản hồi luôn giống nhau dù email có tồn tại hay không.
         userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.getEmail())
                 .ifPresent(user -> {
                     try {

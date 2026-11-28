@@ -6,14 +6,12 @@ import { useUI } from './UIContext.jsx';
 
 const NotificationContext = createContext(null);
 
-// Chuông thông báo tự cập nhật mỗi 30 giây (backend chưa có WebSocket/SSE)
 const POLL_INTERVAL_MS = 30000;
 
 export function NotificationProvider({ children }) {
   const { showToast } = useUI();
   const { user } = useAuth();
   const userId = user?.id;
-  // Đang bị khóa đổi mật khẩu → backend từ chối mọi API khác, nên chưa tải thông báo
   const locked = Boolean(user?.mustChangePassword);
 
   const [notifications, setNotifications] = useState([]);
@@ -23,11 +21,10 @@ export function NotificationProvider({ children }) {
       const list = await notificationService.getNotifications();
       setNotifications(list);
     } catch {
-      // lỗi mạng/401 đã được axiosClient xử lý; giữ nguyên danh sách hiện tại
+      /* ignore */
     }
   }, []);
 
-  // Tải khi đăng nhập, xóa khi đăng xuất, và làm mới định kỳ
   useEffect(() => {
     if (!userId || locked) {
       setNotifications([]);

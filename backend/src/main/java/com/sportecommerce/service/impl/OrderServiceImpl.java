@@ -18,6 +18,7 @@ import com.sportecommerce.service.OrderService;
 import com.sportecommerce.service.ShipmentService;
 import com.sportecommerce.util.MapperUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -79,7 +81,6 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         double subTotal = 0.0;
 
-        // Đặt hàng thông qua giỏ hàng
         if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
             List<CartItem> cartItems = cartItemRepository
                     .findAllById(request.getCartItemIds());
@@ -97,7 +98,9 @@ public class OrderServiceImpl implements OrderService {
                     throw new BadRequestException("Sản phẩm trong giỏ không hợp lệ!");
                 }
 
-                ProductVariant variant = cartItem.getVariant();
+                ProductVariant variant = variantRepository
+                        .findByIdWithLock(cartItem.getVariant().getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Variant không tồn tại!"));
 
                 String prodName = variant.getProduct() != null ? variant.getProduct().getName() : variant.getSku();
                 if (variant.getStock() < cartItem.getQuantity()) {
@@ -136,12 +139,11 @@ public class OrderServiceImpl implements OrderService {
             }
 
             cartItemRepository.deleteAll(cartItems);
-            // Đặt hàng bằng nút "Mua ngay"
         } else if (request.getItems() != null) {
             OrderItemRequest itemRequest = request.getItems();
 
             ProductVariant variant = variantRepository
-                    .findById(itemRequest.getVariantId())
+                    .findByIdWithLock(itemRequest.getVariantId())
                     .orElseThrow(() -> new ResourceNotFoundException("Variant không tồn tại!"));
 
             String prodName = variant.getProduct() != null ? variant.getProduct().getName() : variant.getSku();
@@ -182,14 +184,12 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("Đơn hàng không có sản phẩm nào để thanh toán!");
         }
 
-        // PAYMENT
         Payment payment = new Payment();
         payment.setMethod(request.getPaymentMethod());
         payment.setOrder(order);
 
         order.setPayment(payment);
 
-        // ORDER STATUS HISTORY
         OrderStatusHistory orderStatusHistory = new OrderStatusHistory();
         orderStatusHistory.setNote(request.getNote());
         orderStatusHistory.setStatus(OrderStatus.PENDING);
@@ -198,13 +198,11 @@ public class OrderServiceImpl implements OrderService {
 
         order.getOrderStatusHistories().add(orderStatusHistory);
 
-        // SHIPMENT
         Shipment shipment = shipmentService
                 .createShipmentForOrder(order, address, subTotal, request.getShippingProviderCode());
 
         order.setShipment(shipment);
 
-        // COUPON
         double discountAmount = 0.0;
         Coupon coupon = null;
 
@@ -320,10 +318,22 @@ public class OrderServiceImpl implements OrderService {
             orderRepository.save(order);
 
         } else if (currentStatus.equals(OrderStatus.CONFIRMED) && newStatus.equals(OrderStatus.PROCESSING)) {
-            String trackingNumber = shippingIntegrationService.createShippingOrder(order);
+            String trackingNumber = null;
+            try {
+                trackingNumber = shippingIntegrationService.createShippingOrder(order);
+            } catch (Exception e) {
+                log.warn("Không thể tạo đơn hàng tự động qua hãng vận chuyển ({}) cho đơn {}: {}. Tiếp tục chuyển trạng thái đóng gói đơn hàng.",
+                        order.getShipment() != null && order.getShipment().getProvider() != null ? order.getShipment().getProvider().getCode() : "UNKNOWN",
+                        order.getOrderCode(), e.getMessage());
+                String provCode = order.getShipment() != null && order.getShipment().getProvider() != null 
+                        ? order.getShipment().getProvider().getCode().toUpperCase() : "SHIP";
+                trackingNumber = "PENDING_" + provCode + "_" + order.getOrderCode();
+            }
 
             Shipment shipment = order.getShipment();
-            shipment.setTrackingNumber(trackingNumber);
+            if (shipment != null) {
+                shipment.setTrackingNumber(trackingNumber);
+            }
 
             order.setStatus(OrderStatus.PROCESSING);
 
@@ -495,7 +505,6 @@ public class OrderServiceImpl implements OrderService {
                 mapperUtil.mapOrderToOrderDetailResponse(order));
     }
 
-
     @Override
     @Transactional
     public ApiResponse<?> cancelOrder(Long userId, Long orderId, String reason) {
@@ -512,11 +521,16 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public ApiResponse<List<com.sportecommerce.dto.response.OrderDetailResponse>> getAllOrders() {
         List<Order> orders = orderRepository.findAllWithDetails();
+        java.util.Map<Long, List<OrderItem>> itemsByOrderId = new java.util.HashMap<>();
         if (!orders.isEmpty()) {
-            orderItemRepository.findByOrderInWithVariant(orders);
+            List<OrderItem> allItems = orderItemRepository.findByOrderInWithVariant(orders);
+            itemsByOrderId = allItems.stream()
+                    .filter(oi -> oi.getOrder() != null && oi.getOrder().getId() != null)
+                    .collect(java.util.stream.Collectors.groupingBy(oi -> oi.getOrder().getId()));
         }
+        final java.util.Map<Long, List<OrderItem>> finalItemsMap = itemsByOrderId;
         List<com.sportecommerce.dto.response.OrderDetailResponse> payload = orders.stream()
-                .map(mapperUtil::mapOrderToOrderDetailResponse)
+                .map(o -> mapperUtil.mapOrderToOrderDetailResponse(o, finalItemsMap.getOrDefault(o.getId(), java.util.Collections.emptyList())))
                 .collect(java.util.stream.Collectors.toList());
         return ApiResponse.success("Lấy danh sách đơn hàng thành công", payload);
     }
@@ -528,11 +542,16 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("User ID không được để trống!");
         }
         List<Order> orders = orderRepository.findMyOrdersWithDetails(userId);
+        java.util.Map<Long, List<OrderItem>> itemsByOrderId = new java.util.HashMap<>();
         if (!orders.isEmpty()) {
-            orderItemRepository.findByOrderInWithVariant(orders);
+            List<OrderItem> allItems = orderItemRepository.findByOrderInWithVariant(orders);
+            itemsByOrderId = allItems.stream()
+                    .filter(oi -> oi.getOrder() != null && oi.getOrder().getId() != null)
+                    .collect(java.util.stream.Collectors.groupingBy(oi -> oi.getOrder().getId()));
         }
+        final java.util.Map<Long, List<OrderItem>> finalItemsMap = itemsByOrderId;
         List<com.sportecommerce.dto.response.OrderDetailResponse> payload = orders.stream()
-                .map(mapperUtil::mapOrderToOrderDetailResponse)
+                .map(o -> mapperUtil.mapOrderToOrderDetailResponse(o, finalItemsMap.getOrDefault(o.getId(), java.util.Collections.emptyList())))
                 .collect(java.util.stream.Collectors.toList());
         return ApiResponse.success("Lấy danh sách đơn hàng thành công", payload);
     }

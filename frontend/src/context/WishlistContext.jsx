@@ -14,16 +14,14 @@ export function WishlistProvider({ children }) {
   const wishlistKey = useScopedKey('sport_wishlist');
   const [wishlistIds, setWishlistIds] = usePersistentState(wishlistKey, []);
 
-  // Xóa sạch key cũ nếu từng lưu [1, 3] trong localStorage
   useEffect(() => {
     try {
       localStorage.removeItem('sport_wishlist');
     } catch {
-      // ignore
+      /* ignore */
     }
   }, []);
 
-  // Khi đã đăng nhập: tải danh sách ID yêu thích trực tiếp từ database server
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -46,7 +44,6 @@ export function WishlistProvider({ children }) {
       const exists = wishlistIds.includes(numId);
       const nextAdded = !exists;
 
-      // Optimistic update: phản hồi tức thì 0ms trên giao diện
       setWishlistIds((prev) =>
         nextAdded ? (prev.includes(numId) ? prev : [...prev, numId]) : prev.filter((id) => id !== numId)
       );
@@ -56,7 +53,6 @@ export function WishlistProvider({ children }) {
         try {
           await wishlistService.toggleWishlist(numId);
         } catch (err) {
-          // Rollback nếu gọi API thất bại
           setWishlistIds((prev) =>
             exists ? (prev.includes(numId) ? prev : [...prev, numId]) : prev.filter((id) => id !== numId)
           );

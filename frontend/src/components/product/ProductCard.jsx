@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useCart } from '../../context/CartContext.jsx';
+import { useWishlist } from '../../context/WishlistContext.jsx';
 import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 import { formatCurrency } from '../../utils/formatters.js';
 import { productService } from '../../services/productService.js';
 
 export default function ProductCard({ product }) {
   const navigate = useNavigate();
-  const { addToCart, isInWishlist, toggleWishlist } = useStore();
+  const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const requireLogin = useRequireLogin();
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -36,7 +38,6 @@ export default function ProductCard({ product }) {
   };
 
   const handleMouseEnter = () => {
-    // Prefetch chi tiết trước khi click để khi chuyển trang có ngay tức thì (0ms)
     productService.getProductById(product.id).catch(() => {});
   };
 
