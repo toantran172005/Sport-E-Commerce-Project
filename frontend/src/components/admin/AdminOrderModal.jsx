@@ -9,8 +9,9 @@ import {
   User,
   Phone,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useUI, useOrder } from '@/context';
 import { formatCurrency } from '../../utils/formatters';
+import { formatFullAddress } from '../../utils/address';
 import LineNumberBadge from '../common/LineNumberBadge';
 import { isAwaitingPayment } from '../../utils/orderPayment';
 
@@ -41,12 +42,14 @@ export default function AdminOrderModal() {
     activeModal,
     modalPayload,
     closeModal,
+    showToast,
+    showErrorModal,
+  } = useUI();
+  const {
     orders,
     adminOrders,
     updateOrderStatus,
-    showToast,
-    showErrorModal,
-  } = useStore();
+  } = useOrder();
 
   const [selectedStatus, setSelectedStatus] = useState('PENDING');
   const [adminNote, setAdminNote] = useState('');
@@ -143,9 +146,9 @@ export default function AdminOrderModal() {
   }
 
   const receiverName =
-    snapshotName ||
     order.recipientName ||
     order.receiverName ||
+    snapshotName ||
     order.customerName ||
     order.user?.fullName ||
     order.adminCustomerName ||
@@ -153,6 +156,7 @@ export default function AdminOrderModal() {
     'Khách hàng';
 
   const receiverPhone =
+    order.recipientPhone ||
     snapshotPhone ||
     order.customerPhone ||
     order.receiverPhone ||
@@ -164,12 +168,13 @@ export default function AdminOrderModal() {
     '—';
 
   const receiverAddress =
+    order.recipientAddress ||
     order.shippingAddress ||
     snapshotAddress ||
     rawSnapshot ||
     order.recipientSnapshot ||
     (order.userAddress?.streetAddress
-      ? `${order.userAddress.streetAddress}, ${order.userAddress.ward}, ${order.userAddress.district}, ${order.userAddress.province || order.userAddress.city}`
+      ? formatFullAddress(order.userAddress)
       : order.address) ||
     'Địa chỉ nhận hàng';
 
@@ -388,7 +393,7 @@ export default function AdminOrderModal() {
             {awaitingPayment && (
               <div className="p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[12px] leading-relaxed">
                 ⏳ Đơn đang <strong>chờ khách thanh toán VNPay</strong> nên chưa thể tiếp nhận hay đi đơn. Hệ thống tự ghi nhận khi khách thanh toán
-                {order.paymentExpiresAt ? ' trước hạn ' + new Date(order.paymentExpiresAt).toLocaleString('vi-VN') : ''}; quá hạn đơn tự bị hủy. Bạn vẫn có thể hủy đơn.
+                {order.paymentExpiresAt ? ' trước hạn ' + new Date(order.paymentExpiresAt).toLocaleString('vi-VN') : ''}; quá hạn đơn tự bị hủy.
               </div>
             )}
 

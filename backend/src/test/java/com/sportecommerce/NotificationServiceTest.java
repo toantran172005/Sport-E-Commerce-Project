@@ -86,7 +86,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    @DisplayName("Doi trang thai don: khach hang nhan thong bao ORDER_UPDATE ghi ro trang thai cu va moi")
+    @DisplayName("Doi trang thai don: khach hang nhan thong bao ORDER_UPDATE bang loi de hieu, khong lo ten trang thai ky thuat")
     void notifyCustomerOrderStatusChangedShouldNotifyCustomer() {
         when(userRepository.findUserById(5L)).thenReturn(Optional.of(user(5, UserRole.CUSTOMER)));
 
@@ -99,7 +99,24 @@ class NotificationServiceTest {
         assertEquals(NotificationType.ORDER_UPDATE, n.getType());
         assertEquals(5L, n.getUser().getId());
         assertEquals(100L, n.getReferenceId());
-        assertTrue(n.getContent().contains("PENDING") && n.getContent().contains("CONFIRMED"));
+        assertEquals("Đơn hàng đã được xác nhận", n.getTitle());
+        assertTrue(n.getContent().contains("DH100"));
+        assertFalse(n.getContent().contains("PENDING") || n.getContent().contains("CONFIRMED"));
+        assertEquals("CONFIRMED", n.getData().get("status"));
+    }
+
+    @Test
+    @DisplayName("Moi trang thai don deu co noi dung thong bao rieng, de hieu cho khach")
+    void everyOrderStatusShouldHaveCustomerFriendlyText() {
+        java.util.Set<String> titles = new java.util.HashSet<>();
+        for (OrderStatus status : OrderStatus.values()) {
+            String[] text = NotificationServiceImpl.describeOrderStatus("DH100", status);
+            assertTrue(text[1].contains("DH100"), "Noi dung phai co ma don: " + status);
+            assertFalse(text[0].contains(status.name()) || text[1].contains(status.name()),
+                    "Khong duoc lo ten trang thai ky thuat: " + status);
+            titles.add(text[0]);
+        }
+        assertEquals(OrderStatus.values().length, titles.size());
     }
 
     @Test

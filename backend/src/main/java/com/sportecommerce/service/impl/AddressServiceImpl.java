@@ -4,6 +4,7 @@ import com.sportecommerce.dto.request.AddressRequest;
 import com.sportecommerce.dto.response.AddressResponse;
 import com.sportecommerce.entity.User;
 import com.sportecommerce.entity.UserAddress;
+import com.sportecommerce.enums.AddressScheme;
 import com.sportecommerce.enums.AddressType;
 import com.sportecommerce.exception.AppException;
 import com.sportecommerce.exception.ResourceNotFoundException;
@@ -56,13 +57,12 @@ public class AddressServiceImpl implements AddressService {
                 .recipientName(request.getRecipientName().trim())
                 .phoneNumber(request.getPhoneNumber().trim())
                 .addressLine(request.getAddressLine().trim())
-                .ward(trimToNull(request.getWard()))
-                .district(trimToNull(request.getDistrict()))
                 .city(request.getCity().trim())
                 .country("Vietnam")
                 .type(AddressType.SHIPPING)
                 .isDefault(makeDefault)
                 .build();
+        applyLocation(address, request);
         return AddressResponse.fromEntity(addressRepository.save(address));
     }
 
@@ -74,16 +74,37 @@ public class AddressServiceImpl implements AddressService {
         address.setRecipientName(request.getRecipientName().trim());
         address.setPhoneNumber(request.getPhoneNumber().trim());
         address.setAddressLine(request.getAddressLine().trim());
-        address.setWard(trimToNull(request.getWard()));
-        address.setDistrict(trimToNull(request.getDistrict()));
         address.setCity(request.getCity().trim());
+        applyLocation(address, request);
 
-        // Chỉ cho phép "bật" mặc định; bỏ mặc định của địa chỉ hiện hành phải làm bằng cách chọn địa chỉ khác.
         if (Boolean.TRUE.equals(request.getIsDefault()) && !Boolean.TRUE.equals(address.getIsDefault())) {
             clearDefault(addressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId));
             address.setIsDefault(true);
         }
         return AddressResponse.fromEntity(addressRepository.save(address));
+    }
+
+    /**
+     * Ghi Tỉnh/Quận/Phường và mã GHN theo mô hình địa chỉ. Địa chỉ mới (2 cấp) không có Quận/Huyện
+     * và bắt buộc chọn từ danh mục GHN để vận đơn không bị lệch tên.
+     */
+    private void applyLocation(UserAddress address, AddressRequest request) {
+        AddressScheme scheme = request.getAddressScheme() != null ? request.getAddressScheme() : AddressScheme.OLD;
+        address.setAddressScheme(scheme);
+        address.setWard(trimToNull(request.getWard()));
+        address.setGhnProvinceId(request.getGhnProvinceId());
+        address.setGhnWardCode(trimToNull(request.getGhnWardCode()));
+
+        if (scheme == AddressScheme.NEW) {
+            if (request.getGhnProvinceId() == null || address.getWard() == null || address.getGhnWardCode() == null) {
+                throw new AppException("Vui lòng chọn Tỉnh/Thành và Phường/Xã từ danh sách gợi ý", HttpStatus.BAD_REQUEST);
+            }
+            address.setDistrict(null);
+            address.setGhnDistrictId(null);
+        } else {
+            address.setDistrict(trimToNull(request.getDistrict()));
+            address.setGhnDistrictId(request.getGhnDistrictId());
+        }
     }
 
     @Override
@@ -103,7 +124,6 @@ public class AddressServiceImpl implements AddressService {
     public void delete(Long userId, Long addressId) {
         UserAddress address = getOwnedAddress(userId, addressId);
 
-        // orders.shipping_address_id là khóa ngoại bắt buộc → địa chỉ đã gắn với đơn hàng thì không xóa được.
         if (orderRepository.existsByShippingAddress_Id(addressId)) {
             throw new AppException("Địa chỉ này đã được dùng cho đơn hàng nên không thể xóa", HttpStatus.CONFLICT);
         }
@@ -113,7 +133,6 @@ public class AddressServiceImpl implements AddressService {
         addressRepository.flush();
 
         if (wasDefault) {
-            // Địa chỉ mặc định bị xóa → chuyển mặc định sang địa chỉ mới nhất còn lại (nếu có).
             addressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId).stream()
                     .findFirst()
                     .ifPresent(next -> {

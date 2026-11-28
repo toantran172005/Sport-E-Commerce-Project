@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, MapPin, Trash2, AlertTriangle } from 'lucide-react';
 import { useAddress, useUI } from '../../../context';
+import { formatFullAddress } from '../../../utils/address.js';
 
 export default function AddressesPage() {
   const { addresses: userAddresses, setDefaultAddress, deleteAddress } = useAddress();
@@ -15,7 +16,7 @@ export default function AddressesPage() {
       await deleteAddress(deleteTarget.id);
       setDeleteTarget(null);
     } catch {
-      // error handled in context
+      /* ignore */
     } finally {
       setIsDeleting(false);
     }
@@ -50,9 +51,7 @@ export default function AddressesPage() {
           userAddresses.map((addr) => {
             const name = addr.recipientName || addr.name || addr.receiverName;
             const phone = addr.phoneNumber || addr.phone;
-            const full =
-              addr.fullAddress ||
-              `${addr.streetAddress || addr.addressLine || ''}, ${addr.ward || ''}, ${addr.district || ''}, ${addr.province || addr.city || ''}`;
+            const full = addr.fullAddress || formatFullAddress(addr);
 
             return (
               <div
@@ -128,7 +127,7 @@ export default function AddressesPage() {
             </div>
 
             <p className="text-[12px] text-ink-muted bg-surface-2 p-3 rounded-lg border border-line">
-              📍 {deleteTarget.fullAddress || `${deleteTarget.addressLine || ''}, ${deleteTarget.ward || ''}, ${deleteTarget.district || ''}, ${deleteTarget.city || ''}`}
+              📍 {deleteTarget.fullAddress || formatFullAddress(deleteTarget)}
             </p>
 
             <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-line">

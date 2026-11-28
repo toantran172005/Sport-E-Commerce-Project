@@ -1,4 +1,4 @@
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Filter,
@@ -10,7 +10,8 @@ import {
 import { ProductCard } from '../../components/product';
 import { EmptyState, Pagination } from '../../components/common';
 import { ProductCardSkeleton } from '../../components/common/Skeleton.jsx';
-import { useStore } from '../../context/StoreContext.jsx';
+import { productService } from '../../services/productService.js';
+import { useCatalog } from '@/context';
 
 const PAGE_SIZE = 12;
 
@@ -31,52 +32,8 @@ const SORT_OPTIONS = [
   { value: 'rating', label: 'Đánh giá cao nhất' },
 ];
 
-function normalizeVn(str = '') {
-  return String(str)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase()
-    .trim();
-}
-
-function effectivePrice(p) {
-  const sale = Number(p.salePrice ?? 0);
-  const base = Number(p.basePrice ?? 0);
-  return sale > 0 && sale < base ? sale : base;
-}
-
-function collectCategoryIds(categoryId, categoriesList = []) {
-  if (!categoryId) return new Set();
-  const targetId = Number(categoryId);
-  const ids = new Set([targetId]);
-  const queue = [targetId];
-  while (queue.length > 0) {
-    const parentId = queue.shift();
-    for (const cat of categoriesList) {
-      const pId = cat.parentId ?? cat.parent?.id ?? null;
-      if (pId !== null && Number(pId) === parentId && !ids.has(Number(cat.id))) {
-        ids.add(Number(cat.id));
-        queue.push(Number(cat.id));
-      }
-    }
-  }
-  return ids;
-}
-
-function collectCategoryNames(validIds, categoriesList = []) {
-  const names = new Set();
-  for (const cat of categoriesList) {
-    if (validIds.has(Number(cat.id)) && cat.name) {
-      names.add(normalizeVn(cat.name));
-    }
-  }
-  return names;
-}
-
 export default function CatalogPage() {
-  const { categoriesList, brandsList, products, catalogLoading } = useStore();
+  const { categoriesList, brandsList } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [, startTransition] = useTransition();
 
@@ -90,125 +47,63 @@ export default function CatalogPage() {
   const pageParam = Math.max(0, Number(searchParams.get('page')) || 0);
 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [serverProducts, setServerProducts] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Context-First: Lọc và sắp xếp trực tiếp từ products trong StoreContext (0ms phản hồi)
-  const filteredProducts = useMemo(() => {
-    if (!Array.isArray(products) || products.length === 0) return [];
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
 
-    let list = [...products];
-
-    // 1. Lọc theo Danh mục (hỗ trợ gom cây danh mục cha - con và so khớp cả ID lẫn tên)
-    if (categoryIdParam) {
-      const validCatIds = collectCategoryIds(categoryIdParam, categoriesList);
-      const validCatNames = collectCategoryNames(validCatIds, categoriesList);
-
-      list = list.filter((p) => {
-        const pCatId = Number(p.categoryId || p.category?.id || 0);
-        if (pCatId && validCatIds.has(pCatId)) return true;
-
-        const pCatName = normalizeVn(
-          p.categoryName || p.category?.name || (typeof p.category === 'string' ? p.category : '')
-        );
-        if (pCatName && validCatNames.has(pCatName)) return true;
-
-        return false;
+    productService
+      .getProducts({
+        page: pageParam,
+        size: PAGE_SIZE,
+        q: query,
+        categoryId: categoryIdParam,
+        brandId: brandIdParam,
+        minPrice: minPriceParam,
+        maxPrice: maxPriceParam,
+        rating: ratingParam,
+        sort: sortParam,
+        status: 'ACTIVE',
+      })
+      .then((res) => {
+        if (!cancelled) {
+          setServerProducts(res.items || res.content || []);
+          setTotalElements(res.totalElements ?? 0);
+          setTotalPages(Math.max(1, res.totalPages ?? 1));
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải sản phẩm phân trang:', err);
+        if (!cancelled) {
+          setServerProducts([]);
+          setTotalElements(0);
+          setTotalPages(1);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
       });
-    }
 
-    // 2. Lọc theo Thương hiệu
-    if (brandIdParam) {
-      list = list.filter((p) => {
-        const pBrandId = String(p.brandId || p.brand?.id || '');
-        return pBrandId === String(brandIdParam);
-      });
-    }
-
-    // 3. Lọc theo Khoảng giá
-    if (minPriceParam !== '' || maxPriceParam !== '') {
-      const min = minPriceParam !== '' ? Number(minPriceParam) : 0;
-      const max = maxPriceParam !== '' ? Number(maxPriceParam) : Infinity;
-      list = list.filter((p) => {
-        const price = effectivePrice(p);
-        return price >= min && price <= max;
-      });
-    }
-
-    // 4. Lọc theo Đánh giá sao
-    if (ratingParam !== '') {
-      const minRating = Number(ratingParam);
-      list = list.filter((p) => (Number(p.avgRating) || 0) >= minRating);
-    }
-
-    // 5. Lọc theo Từ khóa tìm kiếm q
-    if (query.trim()) {
-      const kw = normalizeVn(query);
-      list = list.filter((p) => {
-        const name = normalizeVn(p.name);
-        const desc = normalizeVn(p.description);
-        const catName = normalizeVn(p.categoryName || p.category?.name);
-        const brandName = normalizeVn(p.brandName || p.brand?.name);
-        return (
-          name.includes(kw) ||
-          desc.includes(kw) ||
-          catName.includes(kw) ||
-          brandName.includes(kw)
-        );
-      });
-    }
-
-    // 6. Sắp xếp danh sách
-    switch (sortParam) {
-      case 'price_asc':
-        list.sort((a, b) => effectivePrice(a) - effectivePrice(b));
-        break;
-      case 'price_desc':
-        list.sort((a, b) => effectivePrice(b) - effectivePrice(a));
-        break;
-      case 'newest':
-        list.sort((a, b) => {
-          const timeB = new Date(b.createdAt || 0).getTime() || Number(b.id || 0);
-          const timeA = new Date(a.createdAt || 0).getTime() || Number(a.id || 0);
-          return timeB - timeA;
-        });
-        break;
-      case 'best_seller':
-        list.sort((a, b) => (Number(b.soldCount) || 0) - (Number(a.soldCount) || 0));
-        break;
-      case 'rating':
-        list.sort((a, b) => (Number(b.avgRating) || 0) - (Number(a.avgRating) || 0));
-        break;
-      case 'popular':
-      default:
-        list.sort((a, b) => {
-          const soldDiff = (Number(b.soldCount) || 0) - (Number(a.soldCount) || 0);
-          if (soldDiff !== 0) return soldDiff;
-          return Number(b.id || 0) - Number(a.id || 0);
-        });
-        break;
-    }
-
-    return list;
+    return () => {
+      cancelled = true;
+    };
   }, [
-    products,
-    categoriesList,
+    pageParam,
+    query,
     categoryIdParam,
     brandIdParam,
     minPriceParam,
     maxPriceParam,
     ratingParam,
-    query,
     sortParam,
   ]);
 
-  // Phân trang 12 sản phẩm / trang
-  const totalElements = filteredProducts.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
+  const pagedProducts = serverProducts;
   const currentPage = Math.max(0, Math.min(pageParam, totalPages - 1));
-
-  const pagedProducts = useMemo(() => {
-    const start = currentPage * PAGE_SIZE;
-    return filteredProducts.slice(start, start + PAGE_SIZE);
-  }, [filteredProducts, currentPage]);
 
   const updateParam = (key, value) => {
     startTransition(() => {
@@ -482,7 +377,7 @@ export default function CatalogPage() {
           </div>
 
           {/* Product Grid */}
-          {catalogLoading && products.length === 0 ? (
+          {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {Array.from({ length: 12 }).map((_, i) => (
                 <ProductCardSkeleton key={i} />

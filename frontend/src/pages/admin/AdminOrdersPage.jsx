@@ -9,7 +9,7 @@ import {
   Filter,
   RotateCcw,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useOrder, useUI } from '@/context';
 import AdminLayout from '../../layouts/AdminLayout';
 import { formatCurrency } from '../../utils/formatters';
 import { isAwaitingPayment } from '../../utils/orderPayment';
@@ -37,9 +37,9 @@ function resolveAdminOrderCustomerName(order) {
   }
 
   return (
-    snapshotName ||
     order.recipientName ||
     order.receiverName ||
+    snapshotName ||
     order.customerName ||
     order.adminCustomerName ||
     order.userFullName ||
@@ -89,7 +89,8 @@ function resolveShippingProviderDisplay(order) {
 }
 
 export default function AdminOrdersPage() {
-  const { orders: storeOrders, adminOrders, fetchAdminOrders, openModal } = useStore();
+  const { orders: storeOrders, adminOrders, fetchAdminOrders } = useOrder();
+  const { openModal } = useUI();
   const orders = (adminOrders && adminOrders.length > 0) ? adminOrders : storeOrders;
   const [statusTab, setStatusTab] = useState('ALL');
   const [providerFilter, setProviderFilter] = useState('ALL');
@@ -333,8 +334,13 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <p className="font-bold text-ink">
-                            {resolveAdminOrderCustomerName(order)}
+                          <p className="font-bold text-ink flex items-center gap-1.5 flex-wrap">
+                            <span>{resolveAdminOrderCustomerName(order)}</span>
+                            {order.user?.fullName && order.user.fullName !== resolveAdminOrderCustomerName(order) && (
+                              <span className="text-[10px] text-ink-subtle font-normal">
+                                (TK: {order.user.fullName})
+                              </span>
+                            )}
                           </p>
                           <p className="text-[11.5px] text-ink-muted line-clamp-1 max-w-[200px]">
                             {resolveAdminOrderShippingAddress(order)}

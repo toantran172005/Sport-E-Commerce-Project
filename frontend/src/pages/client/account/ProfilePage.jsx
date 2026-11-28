@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useStore } from '../../../context/StoreContext';
+import { useAuth, useUI } from '@/context';
 import { userService } from '../../../services/userService';
 import AvatarUploader from '../../../components/account/AvatarUploader.jsx';
 
 export default function ProfilePage() {
-  const { user, setUser, showToast } = useStore();
+  const { user, setUser } = useAuth();
+  const { showToast } = useUI();
 
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [gender, setGender] = useState(user?.gender || 'MALE');
   const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth || '');
   const [saving, setSaving] = useState(false);
 
-  // Mở trang → lấy hồ sơ mới nhất từ backend (GET /api/users/me)
   useEffect(() => {
     let cancelled = false;
     userService
@@ -43,7 +43,6 @@ export default function ProfilePage() {
       const updated = await userService.updateProfile({
         fullName: fullName.trim(),
         gender,
-        // Ngày sinh rỗng phải gửi undefined (chuỗi rỗng làm backend lỗi định dạng LocalDate)
         dateOfBirth: dateOfBirth || undefined,
       });
       setUser(updated);

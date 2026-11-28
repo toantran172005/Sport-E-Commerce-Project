@@ -126,6 +126,6 @@ public class OrderController {
             @PathVariable Long id) {
         Order order = orderService.getOrderById(id);
         orderAccessChecker.assertCanAccess(order, userPrincipal);
-        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin đơn hàng thành công", mapperUtil.mapOrderToOrderDetailResponse(order)));
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin đơn hàng thành công", mapperUtil.mapOrderToOrderDetailResponseWithHistory(order)));
     }
 }

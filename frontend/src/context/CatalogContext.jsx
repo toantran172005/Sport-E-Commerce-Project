@@ -1,10 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useUI } from './UIContext.jsx';
 import { couponService } from '../services/couponService.js';
 import { productService } from '../services/productService.js';
 import { categoryService } from '../services/categoryService.js';
 import { brandService } from '../services/brandService.js';
+import { useLiveRefresh } from '../hooks/useLiveRefresh.js';
 const CatalogContext = createContext(null);
 
 export function CatalogProvider({ children }) {
@@ -32,7 +33,6 @@ export function CatalogProvider({ children }) {
   useEffect(() => {
     refreshCoupons();
   }, [refreshCoupons]);
-
 
   const refreshCatalogData = useCallback(async () => {
     try {
@@ -63,6 +63,35 @@ export function CatalogProvider({ children }) {
     refreshCatalogData();
   }, [refreshCatalogData]);
 
+  // Tồn kho đổi khi có đơn đặt/hủy: tải lại danh sách sản phẩm im lặng, tối đa 1 lần / 30 giây để không gây tải dồn
+  const lastProductsRefreshRef = useRef(0);
+  const refreshProductsQuiet = useCallback(async () => {
+    if (Date.now() - lastProductsRefreshRef.current < 30000) return;
+    lastProductsRefreshRef.current = Date.now();
+    try {
+      const res = await productService.getProducts({ size: 1000 });
+      const list = res?.items || res?.content;
+      if (Array.isArray(list)) setProducts(list);
+    } catch {
+      /* giữ dữ liệu cũ */
+    }
+  }, []);
+  useLiveRefresh('orders', refreshProductsQuiet, 1500);
+
+  // Lưới an toàn: quay lại tab sau hơn 2 phút thì làm mới sản phẩm (tồn kho có thể đã đổi do người khác mua)
+  useEffect(() => {
+    let hiddenAt = 0;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (hiddenAt && Date.now() - hiddenAt > 120000) {
+        hiddenAt = 0;
+        refreshProductsQuiet();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [refreshProductsQuiet]);
 
   const addCategory = useCallback(async (catData) => {
     try {
@@ -133,7 +162,6 @@ export function CatalogProvider({ children }) {
       throw err;
     }
   }, [showToast]);
-
 
   const addProduct = useCallback(async (productData) => {
     try {
@@ -218,7 +246,6 @@ export function CatalogProvider({ children }) {
       showToast(err.message || 'Không thể xóa sản phẩm', 'error');
     }
   }, [showToast]);
-
 
   const addCoupon = useCallback(async (couponData) => {
     const created = await couponService.createCoupon(couponData);

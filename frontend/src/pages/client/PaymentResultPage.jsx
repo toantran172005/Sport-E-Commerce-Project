@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle, Package, Home, Loader2, RefreshCw } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useOrder, useCatalog, useUI } from '@/context';
 import { orderService } from '../../services/orderService.js';
 import { paymentService } from '../../services/paymentService.js';
 import { formatCurrency, formatDateTime } from '../../utils/formatters.js';
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
-  const { orders, setAppliedCoupon, refreshCoupons, showToast, fetchOrders, fetchAdminOrders } = useStore();
+  const { orders, fetchOrders, fetchAdminOrders, markOrderPaid } = useOrder();
+  const { setAppliedCoupon, refreshCoupons } = useCatalog();
+  const { showToast } = useUI();
 
-  // Tham số từ VNPay Sandbox Return URL (nếu có)
   const vnpResponseCode = searchParams.get('vnp_ResponseCode');
   const vnpTxnRef = searchParams.get('vnp_TxnRef');
   const vnpAmount = searchParams.get('vnp_Amount');
   const vnpTransactionNo = searchParams.get('vnp_TransactionNo');
   const isVnPayCallback = Boolean(vnpResponseCode && vnpTxnRef);
 
-  // Tham số nội bộ khi điều hướng từ Checkout / QR Modal
   const queryOrderId = searchParams.get('orderId');
   const queryOrderCode = searchParams.get('orderCode') || vnpTxnRef;
   const queryMethod =
@@ -39,7 +39,6 @@ export default function PaymentResultPage() {
     }
   }, [setAppliedCoupon, refreshCoupons]);
 
-  // 1. Nếu có tham số trả về từ cổng VNPay Sandbox -> gọi /api/payments/webhook để xác thực chữ ký & cập nhật DB
   useEffect(() => {
     if (!isVnPayCallback) return;
 
@@ -57,7 +56,9 @@ export default function PaymentResultPage() {
         const data = res?.data ?? res;
         setWebhookResult(data);
 
-        // Ngay lập tức đồng bộ lại OrderContext để UI lập tức chuyển sang PAID mà không cần chờ F5
+        if (typeof markOrderPaid === 'function') {
+          markOrderPaid(data?.orderId || vnpTxnRef, data?.transactionCode || vnpTransactionNo);
+        }
         if (typeof fetchOrders === 'function') fetchOrders(true);
         if (typeof fetchAdminOrders === 'function') fetchAdminOrders(true);
 
@@ -81,9 +82,16 @@ export default function PaymentResultPage() {
       .finally(() => {
         setVerifying(false);
       });
-  }, [isVnPayCallback, searchParams]);
+  }, [
+    isVnPayCallback,
+    searchParams,
+    fetchAdminOrders,
+    fetchOrders,
+    markOrderPaid,
+    vnpTransactionNo,
+    vnpTxnRef,
+  ]);
 
-  // 2. Nếu điều hướng nội bộ có orderId -> lấy thông tin đơn hàng & thanh toán từ Backend
   useEffect(() => {
     if (isVnPayCallback || !queryOrderId) return;
 

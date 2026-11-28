@@ -5,6 +5,7 @@ import com.sportecommerce.dto.response.PaymentResponse;
 import com.sportecommerce.dto.response.PlaceOrderResponse;
 import com.sportecommerce.entity.Coupon;
 import com.sportecommerce.entity.Order;
+import com.sportecommerce.entity.OrderItem;
 import com.sportecommerce.entity.Payment;
 import com.sportecommerce.dto.response.CategoryResponse;
 import com.sportecommerce.dto.response.ProductImageResponse;
@@ -40,6 +41,20 @@ public class MapperUtil {
     }
 
     public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(Order order) {
+        return mapOrderToOrderDetailResponse(order, null, false);
+    }
+
+    public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(Order order, List<OrderItem> items) {
+        return mapOrderToOrderDetailResponse(order, items, false);
+    }
+
+    /** Dùng cho API chi tiết 1 đơn: kèm các mốc trạng thái để dựng lộ trình giao hàng. */
+    public com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponseWithHistory(Order order) {
+        return mapOrderToOrderDetailResponse(order, null, true);
+    }
+
+    private com.sportecommerce.dto.response.OrderDetailResponse mapOrderToOrderDetailResponse(
+            Order order, List<OrderItem> items, boolean includeHistory) {
         String providerCode = null;
         String providerName = null;
         String trackingNum = null;
@@ -60,7 +75,23 @@ public class MapperUtil {
                     .trackingNumber(trackingNum)
                     .status(s.getStatus() != null ? s.getStatus().name() : null)
                     .shippingFee(s.getShippingFee())
+                    .shippedAt(s.getShippedAt())
+                    .deliveredAt(s.getDeliveredAt())
+                    .estimatedDeliveryDate(s.getEstimatedDeliveryDate())
                     .build();
+        }
+
+        List<com.sportecommerce.dto.response.OrderDetailResponse.StatusHistoryEntry> historyEntries = null;
+        if (includeHistory && order.getOrderStatusHistories() != null) {
+            // Chỉ trả trạng thái + thời điểm; không lộ ghi chú nội bộ hay tên nhân viên cho khách
+            historyEntries = order.getOrderStatusHistories().stream()
+                    .filter(h -> h.getStatus() != null && h.getCreatedAt() != null)
+                    .sorted(java.util.Comparator.comparing(com.sportecommerce.entity.OrderStatusHistory::getCreatedAt))
+                    .map(h -> com.sportecommerce.dto.response.OrderDetailResponse.StatusHistoryEntry.builder()
+                            .status(h.getStatus())
+                            .createdAt(h.getCreatedAt())
+                            .build())
+                    .collect(Collectors.toList());
         }
 
         String payMethod = null;
@@ -106,9 +137,25 @@ public class MapperUtil {
                     .build();
         }
 
+        String recipientName = null;
+        String recipientPhone = null;
+        String recipientAddress = null;
+        if (order.getShippingAddress() != null) {
+            recipientName = order.getShippingAddress().getRecipientName();
+            recipientPhone = order.getShippingAddress().getPhoneNumber();
+            recipientAddress = order.getShippingAddress().fullAddress();
+        } else if (order.getShippingAddressSnapshot() != null) {
+            String snap = order.getShippingAddressSnapshot();
+            String[] parts = snap.split(" - ");
+            if (parts.length >= 1) recipientName = parts[0].trim();
+            if (parts.length >= 2) recipientPhone = parts[1].trim();
+            if (parts.length >= 3) recipientAddress = parts[2].trim();
+        }
+
         List<com.sportecommerce.dto.response.OrderDetailResponse.OrderItemSummary> itemSummaries = null;
-        if (order.getOrderItems() != null) {
-            itemSummaries = order.getOrderItems().stream().map(oi -> {
+        List<OrderItem> orderItemsList = items != null ? items : order.getOrderItems();
+        if (orderItemsList != null) {
+            itemSummaries = orderItemsList.stream().map(oi -> {
                 String img = null;
                 Long vId = null;
                 if (oi.getVariant() != null) {
@@ -141,6 +188,9 @@ public class MapperUtil {
                 .totalAmount(order.getTotalAmount())
                 .recipientSnapshot(order.getShippingAddressSnapshot())
                 .shippingAddressSnapshot(order.getShippingAddressSnapshot())
+                .recipientName(recipientName)
+                .recipientPhone(recipientPhone)
+                .recipientAddress(recipientAddress)
                 .note(order.getNote())
                 .cancelReason(order.getCancelReason())
                 .placedAt(order.getPlacedAt())
@@ -161,6 +211,7 @@ public class MapperUtil {
                 .shipment(shipmentSummary)
                 .payment(paymentSummary)
                 .orderItems(itemSummaries)
+                .statusHistory(historyEntries)
                 .build();
     }
 

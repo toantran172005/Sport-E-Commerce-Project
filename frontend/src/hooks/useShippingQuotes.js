@@ -10,7 +10,6 @@ import { calculateShippingFee, calculateEstimatedDeliveryDate } from '../utils/s
 export function useShippingQuotes({ city, subTotal } = {}) {
   const [providers, setProviders] = useState(DEFAULT_SHIPPING_PROVIDERS);
 
-  // 1. Tải danh sách đơn vị vận chuyển ngầm nếu backend có thay đổi
   useEffect(() => {
     let isMounted = true;
     shippingService.getShippingProviders().then((res) => {
@@ -24,7 +23,6 @@ export function useShippingQuotes({ city, subTotal } = {}) {
     };
   }, []);
 
-  // 2. Tính toán báo giá tức thì (0ms) trên client cho tất cả đơn vị vận chuyển
   const quotes = useMemo(() => {
     const quotesMap = {};
     for (const p of providers) {

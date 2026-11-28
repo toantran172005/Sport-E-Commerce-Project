@@ -94,16 +94,13 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.PENDING);
         Payment savedPayment = paymentRepository.save(payment);
 
-        // 2. Rẽ nhánh theo phương thức thanh toán
         if (request.getMethod() == PaymentMethod.COD) {
-            // Giữ payments ở trạng thái PENDING, đơn hàng giữ PENDING để chờ Admin/Staff duyệt
             notificationService.notifyOrderPlaced(order);
 
             return mapperUtil.mapToPaymentResponse(savedPayment, null,
                     "Đặt hàng thành công với hình thức thanh toán khi nhận hàng (COD).");
         }
 
-        // Thanh toán online qua cổng thanh toán VNPay
         String paymentUrl = buildVNPayPaymentUrl(order, request.getBankCode(), httpRequest);
         return mapperUtil.mapToPaymentResponse(savedPayment, paymentUrl,
                 "Tạo thông tin thanh toán thành công, vui lòng chuyển hướng đến URL thanh toán.");

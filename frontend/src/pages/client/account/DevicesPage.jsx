@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MonitorSmartphone, Smartphone, Monitor, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
-import { useStore } from '../../../context/StoreContext';
+import { useAuth, useUI } from '@/context';
 import { userService } from '../../../services/userService';
 import { formatDateTime } from '../../../utils/formatters';
 
@@ -13,7 +13,8 @@ function DeviceIcon({ name = '' }) {
 }
 
 export default function DevicesPage() {
-  const { user, showToast, showConfirmModal } = useStore();
+  const { user } = useAuth();
+  const { showToast, showConfirmModal } = useUI();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);

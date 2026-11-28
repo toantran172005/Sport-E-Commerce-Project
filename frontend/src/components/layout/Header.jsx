@@ -9,7 +9,11 @@ import {
   ChevronDown,
   X,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useCart } from '../../context/CartContext.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
+import { useCatalog } from '../../context/CatalogContext.jsx';
+import { useUI } from '../../context/UIContext.jsx';
 import { formatCurrency } from '../../utils/formatters.js';
 import CategoriesDropdown from './CategoriesDropdown.jsx';
 import NotificationsDropdown from './NotificationsDropdown.jsx';
@@ -18,19 +22,18 @@ import BrandLogo from '../common/BrandLogo.jsx';
 import Avatar from '../common/Avatar.jsx';
 
 export default function Header() {
+  const { user } = useAuth();
+  const { cart } = useCart();
+  const { notifications } = useNotification();
+  const { products } = useCatalog();
   const {
-    user,
-    cart,
-    cartTotalUnits,
-    notifications,
-    products,
     isCategoriesOpen,
     setIsCategoriesOpen,
     isNotificationsOpen,
     setIsNotificationsOpen,
     isUserMenuOpen,
     setIsUserMenuOpen,
-  } = useStore();
+  } = useUI();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);

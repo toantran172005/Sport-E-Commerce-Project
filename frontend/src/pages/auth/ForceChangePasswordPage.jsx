@@ -55,7 +55,6 @@ export default function ForceChangePasswordPage() {
   const [loading, setLoading] = useState(false);
 
   if (!user) return <Navigate to="/login" replace />;
-  // Đã đổi mật khẩu xong (hoặc không cần đổi) → về đúng nơi theo vai trò: nhân viên/quản trị vào CMS, khách về trang chủ
   if (!user.mustChangePassword) return <Navigate to={getDefaultAdminPath(user.role)} replace />;
 
   const handleSubmit = async (e) => {

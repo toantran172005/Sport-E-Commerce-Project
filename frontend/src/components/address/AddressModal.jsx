@@ -1,28 +1,156 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { MapPin, X, Plus } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI, useAddress } from '@/context';
+import { locationService } from '../../services/locationService.js';
+import { formatFullAddress, stripAdminPrefix } from '../../utils/address.js';
+import LocationSelect from './LocationSelect.jsx';
+
+/** Tìm mục có tên khớp (bỏ tiền tố Tỉnh/Quận/Phường, không dấu) để điền sẵn địa chỉ cũ chưa có mã GHN. */
+function findByName(options, name) {
+  const target = stripAdminPrefix(name);
+  if (!target) return null;
+  return options.find((o) => [o.name, ...(o.aliases || [])].some((n) => stripAdminPrefix(n) === target)) || null;
+}
 
 export default function AddressModal() {
+  const { activeModal, modalPayload, closeModal, showToast } = useUI();
   const {
-    activeModal,
-    modalPayload,
-    closeModal,
     addresses,
     selectedAddressId,
     setSelectedAddressId,
     addAddress,
     updateAddress,
-    showToast,
-  } = useStore();
+  } = useAddress();
 
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [recipientName, setRecipientName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [city, setCity] = useState('TP. Hồ Chí Minh');
-  const [district, setDistrict] = useState('Quận Gò Vấp');
-  const [ward, setWard] = useState('Phường 4');
+  // Mô hình địa chỉ: NEW = Tỉnh > Phường/Xã (từ 01/07/2025), OLD = Tỉnh > Quận/Huyện > Phường/Xã
+  const [scheme, setScheme] = useState('NEW');
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [province, setProvince] = useState(null);
+  const [district, setDistrict] = useState(null);
+  const [ward, setWard] = useState(null);
+  const [loadingLoc, setLoadingLoc] = useState({ province: false, district: false, ward: false });
+  const [locError, setLocError] = useState('');
   const [addressLine, setAddressLine] = useState('');
   const [isDefault, setIsDefault] = useState(false);
+
+  const setLoading = (key, value) => setLoadingLoc((prev) => ({ ...prev, [key]: value }));
+
+  const resetLocation = useCallback(() => {
+    setProvince(null);
+    setDistrict(null);
+    setWard(null);
+    setProvinces([]);
+    setDistricts([]);
+    setWards([]);
+  }, []);
+
+  const loadProvinces = useCallback(async (sch) => {
+    setLoading('province', true);
+    setLocError('');
+    try {
+      const list = await locationService.getProvinces(sch);
+      setProvinces(list);
+      return list;
+    } catch (err) {
+      setProvinces([]);
+      setLocError(err?.message || 'Không tải được danh sách Tỉnh/Thành');
+      return [];
+    } finally {
+      setLoading('province', false);
+    }
+  }, []);
+
+  const loadDistricts = useCallback(async (provinceId) => {
+    setLoading('district', true);
+    try {
+      const list = await locationService.getDistricts(provinceId);
+      setDistricts(list);
+      return list;
+    } catch (err) {
+      setDistricts([]);
+      setLocError(err?.message || 'Không tải được danh sách Quận/Huyện');
+      return [];
+    } finally {
+      setLoading('district', false);
+    }
+  }, []);
+
+  const loadWards = useCallback(async (sch, provinceId, districtId) => {
+    setLoading('ward', true);
+    try {
+      const list = await locationService.getWards({ scheme: sch, provinceId, districtId });
+      setWards(list);
+      return list;
+    } catch (err) {
+      setWards([]);
+      setLocError(err?.message || 'Không tải được danh sách Phường/Xã');
+      return [];
+    } finally {
+      setLoading('ward', false);
+    }
+  }, []);
+
+  const handleSchemeChange = (next) => {
+    if (next === scheme) return;
+    setScheme(next);
+    resetLocation();
+    loadProvinces(next);
+  };
+
+  const handleProvinceChange = (option) => {
+    setProvince(option);
+    setDistrict(null);
+    setWard(null);
+    setDistricts([]);
+    setWards([]);
+    if (!option) return;
+    if (scheme === 'OLD') loadDistricts(option.id);
+    else loadWards('NEW', option.id);
+  };
+
+  const handleDistrictChange = (option) => {
+    setDistrict(option);
+    setWard(null);
+    setWards([]);
+    if (option) loadWards('OLD', province?.id, option.id);
+  };
+
+  /** Điền sẵn Tỉnh/Quận/Phường khi sửa địa chỉ: ưu tiên mã GHN đã lưu, nếu chưa có thì khớp theo tên. */
+  const prefillLocation = useCallback(
+    async (a) => {
+      const sch = a.addressScheme === 'NEW' ? 'NEW' : 'OLD';
+      setScheme(sch);
+      resetLocation();
+      const provList = await loadProvinces(sch);
+      const prov =
+        (a.ghnProvinceId != null && provList.find((o) => String(o.id) === String(a.ghnProvinceId))) ||
+        findByName(provList, a.city || a.province);
+      if (!prov) return;
+      setProvince(prov);
+
+      let distId = null;
+      if (sch === 'OLD') {
+        const distList = await loadDistricts(prov.id);
+        const dist =
+          (a.ghnDistrictId != null && distList.find((o) => String(o.id) === String(a.ghnDistrictId))) ||
+          findByName(distList, a.district);
+        if (!dist) return;
+        setDistrict(dist);
+        distId = dist.id;
+      }
+      const wardList = await loadWards(sch, prov.id, distId);
+      const w =
+        (a.ghnWardCode && wardList.find((o) => String(o.id) === String(a.ghnWardCode))) ||
+        findByName(wardList, a.ward);
+      if (w) setWard(w);
+    },
+    [loadProvinces, loadDistricts, loadWards, resetLocation]
+  );
 
   useEffect(() => {
     if (activeModal === 'address_modal' && modalPayload?.address) {
@@ -30,18 +158,25 @@ export default function AddressModal() {
       setRecipientName(a.recipientName || a.name || '');
       setPhoneNumber(a.phoneNumber || a.phone || '');
       setAddressLine(a.addressLine || a.streetAddress || '');
-      setCity(a.city || a.province || 'TP. Hồ Chí Minh');
-      setDistrict(a.district || 'Quận Gò Vấp');
-      setWard(a.ward || 'Phường 4');
       setIsDefault(Boolean(a.isDefault));
       setIsAddingNew(true);
+      prefillLocation(a);
     } else if (activeModal === 'address_modal') {
       setIsAddingNew(false);
       setRecipientName('');
       setPhoneNumber('');
       setAddressLine('');
+      setScheme('NEW');
+      resetLocation();
     }
-  }, [activeModal, modalPayload]);
+  }, [activeModal, modalPayload, prefillLocation, resetLocation]);
+
+  // Mở form thêm mới: tải sẵn danh sách Tỉnh/Thành của mô hình đang chọn
+  useEffect(() => {
+    if (activeModal === 'address_modal' && isAddingNew && !modalPayload?.address && provinces.length === 0) {
+      loadProvinces(scheme);
+    }
+  }, [activeModal, isAddingNew, modalPayload, provinces.length, scheme, loadProvinces]);
 
   if (activeModal !== 'address_modal') return null;
 
@@ -51,14 +186,27 @@ export default function AddressModal() {
       showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
       return;
     }
+    if (!province || (scheme === 'OLD' && !district) || !ward) {
+      showToast(
+        scheme === 'OLD'
+          ? 'Vui lòng chọn Tỉnh/Thành, Quận/Huyện và Phường/Xã từ danh sách'
+          : 'Vui lòng chọn Tỉnh/Thành và Phường/Xã từ danh sách',
+        'error'
+      );
+      return;
+    }
 
     try {
       const payload = {
         recipientName: recipientName.trim(),
         phoneNumber: phoneNumber.trim(),
-        city,
-        district,
-        ward,
+        addressScheme: scheme,
+        city: province.name,
+        district: scheme === 'OLD' ? district.name : null,
+        ward: ward.name,
+        ghnProvinceId: Number(province.id),
+        ghnDistrictId: scheme === 'OLD' ? Number(district.id) : null,
+        ghnWardCode: String(ward.id),
         addressLine: addressLine.trim(),
         isDefault,
       };
@@ -125,9 +273,7 @@ export default function AddressModal() {
                   const isSelected = addr.id === selectedAddressId;
                   const name = addr.recipientName || addr.name;
                   const phone = addr.phoneNumber || addr.phone;
-                  const full = addr.addressLine
-                    ? `${addr.addressLine}, ${addr.ward}, ${addr.district}, ${addr.city}`
-                    : addr.fullAddress;
+                  const full = formatFullAddress(addr) || addr.fullAddress;
 
                   return (
                     <div
@@ -212,41 +358,67 @@ export default function AddressModal() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[11.5px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Tỉnh / Thành phố
+              <div>
+                <div className="flex items-center gap-4 text-[12px] text-slate-700 dark:text-slate-300">
+                  <span className="font-semibold">Kiểu địa chỉ:</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="address-scheme"
+                      checked={scheme === 'NEW'}
+                      onChange={() => handleSchemeChange('NEW')}
+                    />
+                    <span>Địa chỉ mới (Tỉnh, Phường/Xã)</span>
                   </label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full h-8.5 px-2.5 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[12px] focus:outline-none focus:border-accent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11.5px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Quận / Huyện
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="address-scheme"
+                      checked={scheme === 'OLD'}
+                      onChange={() => handleSchemeChange('OLD')}
+                    />
+                    <span>Địa chỉ cũ (Tỉnh, Quận/Huyện, Phường/Xã)</span>
                   </label>
-                  <input
-                    type="text"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    className="w-full h-8.5 px-2.5 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[12px] focus:outline-none focus:border-accent"
-                  />
                 </div>
-                <div>
-                  <label className="block text-[11.5px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Phường / Xã
-                  </label>
-                  <input
-                    type="text"
-                    value={ward}
-                    onChange={(e) => setWard(e.target.value)}
-                    className="w-full h-8.5 px-2.5 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[12px] focus:outline-none focus:border-accent"
-                  />
-                </div>
+                <p className="text-[11px] text-ink-subtle mt-1">
+                  Chọn đúng kiểu địa chỉ bạn đang dùng. Dữ liệu lấy từ danh mục của đơn vị vận chuyển nên vận đơn được tạo chính xác.
+                </p>
               </div>
+
+              <div className={`grid gap-2 ${scheme === 'OLD' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <LocationSelect
+                  label="Tỉnh / Thành phố"
+                  required
+                  value={province?.id ?? ''}
+                  options={provinces}
+                  loading={loadingLoc.province}
+                  placeholder="Gõ để tìm tỉnh/thành"
+                  onChange={handleProvinceChange}
+                />
+                {scheme === 'OLD' && (
+                  <LocationSelect
+                    label="Quận / Huyện"
+                    required
+                    value={district?.id ?? ''}
+                    options={districts}
+                    loading={loadingLoc.district}
+                    disabled={!province}
+                    placeholder="Gõ để tìm quận/huyện"
+                    onChange={handleDistrictChange}
+                  />
+                )}
+                <LocationSelect
+                  label="Phường / Xã"
+                  required
+                  value={ward?.id ?? ''}
+                  options={wards}
+                  loading={loadingLoc.ward}
+                  disabled={scheme === 'OLD' ? !district : !province}
+                  placeholder="Gõ để tìm phường/xã"
+                  onChange={setWard}
+                />
+              </div>
+              {locError && <p className="text-[11.5px] text-red-600">{locError}</p>}
 
               <div>
                 <label className="block text-[12px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -257,7 +429,7 @@ export default function AddressModal() {
                   required
                   value={addressLine}
                   onChange={(e) => setAddressLine(e.target.value)}
-                  placeholder="Ví dụ: 12 Nguyễn Văn Bảo, Phường 4"
+                  placeholder="Số nhà, tên đường (không cần ghi lại Phường, Quận)"
                   className="w-full h-8.5 px-3 rounded-md bg-page dark:bg-surface-2 border border-line dark:border-line text-[12px] focus:outline-none focus:border-accent"
                 />
               </div>

@@ -1,5 +1,6 @@
 package com.sportecommerce.entity;
 
+import com.sportecommerce.enums.AddressScheme;
 import com.sportecommerce.enums.AddressType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -50,6 +51,24 @@ public class UserAddress {
     @Column(name = "city", nullable = false, length = 100)
     private String city;
 
+    /** Mô hình địa chỉ: OLD (3 cấp) hoặc NEW (2 cấp, không có Quận/Huyện). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "address_scheme", nullable = false, length = 10)
+    @Builder.Default
+    private AddressScheme addressScheme = AddressScheme.OLD;
+
+    /** ID Tỉnh/Thành theo danh mục GHN (đúng theo addressScheme). */
+    @Column(name = "ghn_province_id")
+    private Integer ghnProvinceId;
+
+    /** ID Quận/Huyện theo danh mục GHN cũ (null với địa chỉ mới). */
+    @Column(name = "ghn_district_id")
+    private Integer ghnDistrictId;
+
+    /** Mã Phường/Xã theo danh mục GHN (OLD: WardCode, NEW: _id). */
+    @Column(name = "ghn_ward_code", length = 20)
+    private String ghnWardCode;
+
     @Column(name = "country", length = 100)
     @Builder.Default
     private String country = "Vietnam";
@@ -70,6 +89,18 @@ public class UserAddress {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    /** Địa chỉ đầy đủ, bỏ qua các cấp trống (địa chỉ mới không có Quận/Huyện). */
+    public String fullAddress() {
+        StringBuilder sb = new StringBuilder();
+        for (String part : new String[]{addressLine, ward, district, city}) {
+            if (part != null && !part.isBlank()) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(part.trim());
+            }
+        }
+        return sb.toString();
+    }
 
     @Override
     public final boolean equals(Object object) {

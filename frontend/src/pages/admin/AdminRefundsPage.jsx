@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Banknote, CheckCircle2, RefreshCw } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useUI } from '@/context';
 import AdminLayout from '../../layouts/AdminLayout';
 import { refundService } from '../../services/refundService';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 
 const TABS = [
@@ -11,7 +12,7 @@ const TABS = [
 ];
 
 export default function AdminRefundsPage() {
-  const { showToast, showConfirmModal } = useStore();
+  const { showToast, showConfirmModal } = useUI();
   const [refunded, setRefunded] = useState(false);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,9 @@ export default function AdminRefundsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Có đơn hủy/hoàn trả mới cần hoàn tiền: tự tải lại danh sách
+  useLiveRefresh('refunds', load);
 
   const handleMarkRefunded = (item) => {
     showConfirmModal({

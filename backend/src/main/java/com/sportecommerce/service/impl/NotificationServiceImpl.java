@@ -37,8 +37,6 @@ public class    NotificationServiceImpl implements NotificationService {
     private final UserRepository userRepository;
     private final NotificationStreamService notificationStreamService;
 
-    // ===== Nhom 1: thong bao gan voi luong dat hang / thanh toan (PaymentServiceImpl goi) =====
-
     @Override
     @Transactional
     public void notifyPaymentSuccess(Order order) {
@@ -59,6 +57,7 @@ public class    NotificationServiceImpl implements NotificationService {
 
         notificationRepository.save(notification);
         pushAfterCommit(order.getUser().getId());
+        refreshOrdersAfterCommit(order.getUser().getId());
         log.info("Đã tạo thông báo thanh toán thành công cho đơn hàng: {}", order.getOrderCode());
     }
 
@@ -82,6 +81,7 @@ public class    NotificationServiceImpl implements NotificationService {
 
         notificationRepository.save(notification);
         pushAfterCommit(order.getUser().getId());
+        refreshOrdersAfterCommit(order.getUser().getId());
         log.warn("Đã tạo thông báo thanh toán thất bại cho đơn hàng: {}", order.getOrderCode());
     }
 
@@ -96,10 +96,10 @@ public class    NotificationServiceImpl implements NotificationService {
                 .user(order.getUser())
                 .type(NotificationType.ORDER_UPDATE)
                 .title("Đặt hàng thành công")
-                .content(String.format("Đơn hàng %s của bạn đã được xác nhận (COD). Bạn sẽ thanh toán khi nhận hàng.",
+                .content(String.format("Đơn hàng %s đã được ghi nhận. Bạn sẽ thanh toán khi nhận hàng, cửa hàng sẽ sớm xác nhận đơn cho bạn.",
                         order.getOrderCode()))
                 .referenceId(order.getId())
-                .data(Map.of("orderCode", order.getOrderCode(), "status", "CONFIRMED"))
+                .data(Map.of("orderCode", order.getOrderCode(), "status", "PENDING"))
                 .isRead(false)
                 .build();
 
@@ -173,6 +173,36 @@ public class    NotificationServiceImpl implements NotificationService {
         pushAfterCommit(staffUsers.stream().map(User::getId).toList());
     }
 
+    /**
+     * Nội dung thông báo gửi khách theo trạng thái mới của đơn: viết như lời nhắn cho khách,
+     * không lộ tên trạng thái kỹ thuật. Trả về {tiêu đề, nội dung}.
+     */
+    public static String[] describeOrderStatus(String orderCode, OrderStatus newStatus) {
+        String code = orderCode == null ? "của bạn" : orderCode;
+        if (newStatus == null) {
+            return new String[]{"Đơn hàng " + code + " có cập nhật mới",
+                    "Đơn hàng " + code + " vừa có cập nhật mới. Bạn mở chi tiết đơn hàng để xem nhé."};
+        }
+        return switch (newStatus) {
+            case PENDING -> new String[]{"Đơn hàng đang chờ xử lý",
+                    "Đơn hàng " + code + " đang chờ cửa hàng tiếp nhận."};
+            case CONFIRMED -> new String[]{"Đơn hàng đã được xác nhận",
+                    "Đơn hàng " + code + " của bạn đã được xác nhận. Cửa hàng đang chuẩn bị hàng cho bạn."};
+            case PROCESSING -> new String[]{"Đơn hàng đang được đóng gói",
+                    "Đơn hàng " + code + " đang được đóng gói và chuẩn bị bàn giao cho đơn vị vận chuyển."};
+            case SHIPPED -> new String[]{"Đơn hàng đang trên đường giao đến bạn",
+                    "Đơn hàng " + code + " đã được bàn giao cho đơn vị vận chuyển. Bạn chú ý điện thoại để nhận hàng nhé."};
+            case DELIVERED -> new String[]{"Giao hàng thành công",
+                    "Đơn hàng " + code + " đã được giao thành công. Cảm ơn bạn đã mua sắm, hãy để lại đánh giá sản phẩm nhé!"};
+            case CANCELED -> new String[]{"Đơn hàng đã được hủy",
+                    "Đơn hàng " + code + " đã được hủy. Nếu bạn đã thanh toán trước, cửa hàng sẽ xử lý hoàn tiền cho bạn."};
+            case RETURN_REQUESTED -> new String[]{"Đã nhận yêu cầu hoàn trả",
+                    "Yêu cầu hoàn trả đơn hàng " + code + " của bạn đã được ghi nhận. Cửa hàng sẽ xử lý sớm nhất."};
+            case RETURNED -> new String[]{"Đơn hàng đã được hoàn trả",
+                    "Đơn hàng " + code + " đã được hoàn trả thành công. Nếu bạn đã thanh toán trước, cửa hàng sẽ hoàn tiền cho bạn."};
+        };
+    }
+
     // REQUIRES_NEW: xem ghi chu o notifyStaffNewOrder
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -182,16 +212,16 @@ public class    NotificationServiceImpl implements NotificationService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy khách hàng để gửi thông báo cập nhật đơn hàng!"));
 
-        String title = "Đơn hàng " + orderCode + " đã được cập nhật";
-        String content = "Đơn hàng của bạn đã chuyển từ trạng thái " + oldStatus
-                + " sang " + newStatus + ".";
+        String[] text = describeOrderStatus(orderCode, newStatus);
 
         Notification notification = Notification.builder()
                 .user(customer)
                 .type(NotificationType.ORDER_UPDATE)
-                .title(title)
-                .content(content)
+                .title(text[0])
+                .content(text[1])
                 .referenceId(orderId)
+                .data(Map.of("orderCode", orderCode, "status", newStatus.name()))
+                .isRead(false)
                 .build();
 
         notificationRepository.save(notification);
@@ -235,6 +265,28 @@ public class    NotificationServiceImpl implements NotificationService {
         pushAfterCommit(List.of(userId));
     }
 
+    /** Thanh toán đổi trạng thái đơn: báo khách và ADMIN/STAFF tự tải lại danh sách đơn. */
+    private void refreshOrdersAfterCommit(Long customerId) {
+        Runnable refresh = () -> {
+            try {
+                notificationStreamService.publishRefresh(customerId, "orders");
+                notificationStreamService.publishRefreshToBackOffice("orders");
+            } catch (Exception ex) {
+                log.debug("Không đẩy được tín hiệu làm mới đơn hàng: {}", ex.getMessage());
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    refresh.run();
+                }
+            });
+        } else {
+            refresh.run();
+        }
+    }
+
     private void pushAfterCommit(List<Long> userIds) {
         Runnable push = () -> {
             for (Long id : userIds) {
@@ -256,8 +308,6 @@ public class    NotificationServiceImpl implements NotificationService {
             push.run();
         }
     }
-
-    // ===== Nhom 3: API cho man hinh thong bao cua user (NotificationController goi) =====
 
     @Override
     public ApiResponse<PageResponse<NotificationResponse>> getMyNotifications(Long userId, int page, int size) {

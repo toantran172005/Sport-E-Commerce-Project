@@ -55,11 +55,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 userDetails = userDetailsService.loadUserById(userId);
             } catch (UsernameNotFoundException e) {
-                // User đã bị xóa → coi như chưa đăng nhập (401), không để lỗi lọt ra thành 500.
                 filterChain.doFilter(request, response);
                 return;
             }
-            // Token còn hạn nhưng tài khoản đã bị khóa/xóa/chưa kích hoạt → từ chối ngay, không chờ token hết hạn.
             if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
                 filterChain.doFilter(request, response);
                 return;
@@ -70,7 +68,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // Tai khoan do Admin tao con mat khau mac dinh: chi cho xem ho so, doi mat khau, dang xuat.
             if (userDetails instanceof UserPrincipal principal
                     && Boolean.TRUE.equals(principal.getUser().getMustChangePassword())
                     && !isAllowedWhileMustChangePassword(request)) {

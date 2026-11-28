@@ -11,11 +11,16 @@ export default function OrderStatusBadge({ status, awaitingPayment = false, clas
         };
       case 'CONFIRMED':
       case 'DA_XAC_NHAN':
-      case 'PROCESSING':
         return {
           label: 'Đã xác nhận',
           colorClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
         };
+      case 'PROCESSING':
+        return {
+          label: 'Đang đóng gói',
+          colorClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+        };
+      case 'SHIPPED':
       case 'SHIPPING':
       case 'DANG_GIAO':
         return {
@@ -28,6 +33,12 @@ export default function OrderStatusBadge({ status, awaitingPayment = false, clas
         return {
           label: 'Giao thành công',
           colorClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+        };
+      case 'RETURN_REQUESTED':
+      case 'RETURNED':
+        return {
+          label: normalized === 'RETURNED' ? 'Đã hoàn trả' : 'Yêu cầu hoàn trả',
+          colorClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
         };
       case 'CANCELED':
       case 'CANCELLED':

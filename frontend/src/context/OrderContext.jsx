@@ -3,6 +3,8 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, u
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { orderService } from '../services/orderService.js';
+import { useLiveRefresh } from '../hooks/useLiveRefresh.js';
+import { getCookie } from '../utils/cookie.js';
 
 const OrderContext = createContext(null);
 
@@ -19,12 +21,11 @@ export function OrderProvider({ children }) {
   const lastFetchedOrdersRef = useRef(0);
   const lastFetchedAdminRef = useRef(0);
 
-  // Tự động xóa sạch key sport_orders thừa trong localStorage nếu từng tồn tại
   useEffect(() => {
     try {
       localStorage.removeItem('sport_orders');
     } catch {
-      // ignore
+      /* ignore */
     }
   }, []);
 
@@ -33,9 +34,8 @@ export function OrderProvider({ children }) {
     return role.includes('ADMIN') || role.includes('STAFF');
   }, [user]);
 
-  // Fetch đơn hàng của người dùng hiện tại (My Orders)
-  const fetchOrders = useCallback(async (force = false) => {
-    const token = localStorage.getItem('token');
+  const fetchOrders = useCallback(async (force = false, silent = false) => {
+    const token = getCookie('token') || localStorage.getItem('token');
     if (!token) {
       setOrders([]);
       return;
@@ -45,7 +45,7 @@ export function OrderProvider({ children }) {
     if (!force && now - lastFetchedOrdersRef.current < 4000) return;
 
     isFetchingOrdersRef.current = true;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const data = await orderService.getMyOrders();
       setOrders(Array.isArray(data) ? data : []);
@@ -54,13 +54,12 @@ export function OrderProvider({ children }) {
       console.warn('Lỗi tải danh sách đơn hàng của tôi từ database:', err?.response?.data?.message || err.message);
     } finally {
       isFetchingOrdersRef.current = false;
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
-  // Fetch toàn bộ đơn hàng cho Quản trị viên & Nhân viên (Admin Orders)
   const fetchAdminOrders = useCallback(async (force = false) => {
-    const token = localStorage.getItem('token');
+    const token = getCookie('token') || localStorage.getItem('token');
     if (!token || !isAdmin) {
       setAdminOrders([]);
       return;
@@ -87,6 +86,26 @@ export function OrderProvider({ children }) {
       fetchAdminOrders();
     }
   }, [fetchOrders, fetchAdminOrders, isAdmin]);
+
+  // Server báo (SSE) đơn hàng vừa đổi (đặt mới, nhân viên xác nhận, thanh toán, hủy...): tải lại im lặng, không nháy màn hình
+  useLiveRefresh('orders', () => {
+    if (isAdmin) fetchAdminOrders(true);
+    else fetchOrders(true, true);
+  });
+
+  // Lưới an toàn khi kênh SSE bị đứt: quay lại tab sau >30 giây thì tải lại
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const last = isAdmin ? lastFetchedAdminRef.current : lastFetchedOrdersRef.current;
+      if (last && Date.now() - last > 30000) {
+        if (isAdmin) fetchAdminOrders(true);
+        else fetchOrders(true, true);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [isAdmin, fetchOrders, fetchAdminOrders]);
 
   const addOrder = useCallback((newOrder) => {
     setOrders((prev) => [newOrder, ...prev.filter((o) => String(o.id) !== String(newOrder.id))]);
@@ -200,11 +219,37 @@ export function OrderProvider({ children }) {
 
       setOrders(mapOrderUpdater);
       setAdminOrders(mapOrderUpdater);
-      // Đã loại bỏ toast generic tại đây để không bị nhảy 2 toast! AdminOrderModal sẽ hiển thị 1 toast chi tiết.
       return updatedResponse;
     },
     [setOrders, setAdminOrders, showToast, user]
   );
+
+  const markOrderPaid = useCallback((orderCodeOrId, transactionCode) => {
+    const updater = (prev) =>
+      prev.map((o) => {
+        if (
+          String(o.id) === String(orderCodeOrId) ||
+          o.orderCode === String(orderCodeOrId) ||
+          o.code === String(orderCodeOrId)
+        ) {
+          return {
+            ...o,
+            status: 'CONFIRMED',
+            paymentStatus: 'PAID',
+            payment: {
+              ...(o.payment || {}),
+              status: 'PAID',
+              method: 'BANK_TRANSFER',
+              transactionCode: transactionCode || o.payment?.transactionCode || 'VNPAY-ONLINE',
+              paidAt: new Date().toISOString(),
+            },
+          };
+        }
+        return o;
+      });
+    setOrders(updater);
+    setAdminOrders(updater);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -218,8 +263,9 @@ export function OrderProvider({ children }) {
       addOrder,
       cancelOrderById,
       updateOrderStatus,
+      markOrderPaid,
     }),
-    [orders, setOrders, adminOrders, setAdminOrders, loading, fetchOrders, fetchAdminOrders, addOrder, cancelOrderById, updateOrderStatus]
+    [orders, setOrders, adminOrders, setAdminOrders, loading, fetchOrders, fetchAdminOrders, addOrder, cancelOrderById, updateOrderStatus, markOrderPaid]
   );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;

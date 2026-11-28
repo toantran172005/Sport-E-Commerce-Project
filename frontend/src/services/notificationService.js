@@ -1,4 +1,5 @@
 import axiosClient from '../api/axiosClient.js';
+import { getCookie } from '../utils/cookie.js';
 
 export const notificationService = {
   /** GET /api/notifications?page&size → backend trả PageResponse, hàm này trả mảng content (mới nhất trước) */
@@ -20,10 +21,17 @@ export const notificationService = {
 
   /**
    * Mở kênh SSE GET /api/notifications/stream (EventSource không gửi được header Authorization nên dùng fetch + đọc stream).
-   * Chạy tới khi bị đóng/ngắt; gọi onEvent(tenSuKien) mỗi khi server báo (vd "notification"). Ném lỗi (có .status) khi lỗi kết nối.
+   * Chạy tới khi bị đóng/ngắt; gọi onEvent(tenSuKien, duLieu) mỗi khi server báo: "notification" (có thông báo mới)
+   * hoặc "refresh" (duLieu = nhóm dữ liệu vừa đổi, vd "orders"). Ném lỗi (có .status) khi lỗi kết nối.
    */
   async openStream({ signal, onEvent }) {
-    const token = localStorage.getItem('token');
+    // Cùng nguồn token với axiosClient: cookie trước, localStorage sau (token được lưu trong cookie)
+    const token = getCookie('token') || localStorage.getItem('token');
+    if (!token) {
+      const err = new Error('SSE 401');
+      err.status = 401;
+      throw err;
+    }
     const base = axiosClient.defaults.baseURL || '/api';
     const res = await fetch(`${base}/notifications/stream`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
@@ -45,8 +53,10 @@ export const notificationService = {
       while ((sep = buffer.search(/\r?\n\r?\n/)) !== -1) {
         const rawEvent = buffer.slice(0, sep);
         buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
-        const nameLine = rawEvent.split(/\r?\n/).find((l) => l.startsWith('event:'));
-        if (nameLine) onEvent(nameLine.slice(6).trim());
+        const lines = rawEvent.split(/\r?\n/);
+        const nameLine = lines.find((l) => l.startsWith('event:'));
+        const dataLine = lines.find((l) => l.startsWith('data:'));
+        if (nameLine) onEvent(nameLine.slice(6).trim(), dataLine ? dataLine.slice(5).trim() : '');
       }
     }
   },

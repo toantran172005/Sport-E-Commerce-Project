@@ -1,10 +1,6 @@
 import axiosClient from '../api/axiosClient.js';
 
-// ============================================================
-// In-memory cache với TTL 10 phút cho danh mục.
-// Tự động invalidate mỗi khi có CREATE / UPDATE / DELETE.
-// ============================================================
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 phút
+const CACHE_TTL_MS = 10 * 60 * 1000;
 
 let rawCategoriesCache = null;
 let rawCategoriesTimestamp = 0;
@@ -32,10 +28,8 @@ export const categoryService = {
     const { forceRefresh = false } = options;
     const safeList = await fetchRawCategories(forceRefresh);
 
-    // Tìm các danh mục cấp cao nhất (không có parentId)
     const parents = safeList.filter((c) => !c.parentId);
 
-    // Gắn danh mục con tương ứng vào từng cha
     return parents.map((parent) => ({
       ...parent,
       children: safeList.filter((c) => c.parentId === parent.id),

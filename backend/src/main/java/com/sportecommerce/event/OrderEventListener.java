@@ -1,6 +1,8 @@
 package com.sportecommerce.event;
 
+import com.sportecommerce.enums.OrderStatus;
 import com.sportecommerce.service.NotificationService;
+import com.sportecommerce.service.NotificationStreamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,16 +26,16 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class OrderEventListener {
 
     private final NotificationService notificationService;
+    private final NotificationStreamService streamService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onOrderPlaced(OrderPlacedEvent event) {
         try {
             notificationService.notifyStaffNewOrder(event.orderId(), event.orderCode());
         } catch (Exception e) {
-            // Khong duoc de loi gui thong bao lam anh huong nguoc lai luong dat hang
-            // (transaction dat hang da commit xong truoc khi listener nay chay).
             log.error("Loi khi gui thong bao don hang moi cho staff, orderId={}", event.orderId(), e);
         }
+        refreshOrders(event.customerId(), false);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -47,6 +49,27 @@ public class OrderEventListener {
                     event.newStatus());
         } catch (Exception e) {
             log.error("Loi khi gui thong bao cap nhat trang thai don hang, orderId={}", event.orderId(), e);
+        }
+        // Huy/hoan tra co the tao muc cho hoan tien cua staff
+        boolean refundMayChange = event.newStatus() == OrderStatus.CANCELED || event.newStatus() == OrderStatus.RETURNED;
+        refreshOrders(event.customerId(), refundMayChange);
+    }
+
+    /**
+     * Bao cho giao dien (qua SSE) tu tai lai danh sach don: khach so huu don + moi ADMIN/STAFF dang mo trang.
+     * Chi gui ten nhom du lieu; khong anh huong nghiep vu neu day that bai.
+     */
+    private void refreshOrders(Long customerId, boolean refunds) {
+        try {
+            if (customerId != null) {
+                streamService.publishRefresh(customerId, "orders");
+            }
+            streamService.publishRefreshToBackOffice("orders");
+            if (refunds) {
+                streamService.publishRefreshToBackOffice("refunds");
+            }
+        } catch (Exception e) {
+            log.debug("Khong day duoc tin hieu lam moi don hang: {}", e.getMessage());
         }
     }
 }

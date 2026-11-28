@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useMemo, useCallback, useEffect } 
 import { notificationService } from '../services/notificationService.js';
 import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
+import { emitLiveRefresh } from '../utils/liveRefresh.js';
 
 const NotificationContext = createContext(null);
 
@@ -15,7 +16,6 @@ export function NotificationProvider({ children }) {
   const { showToast } = useUI();
   const { user } = useAuth();
   const userId = user?.id;
-  // Đang bị khóa đổi mật khẩu → backend từ chối mọi API khác, nên chưa tải thông báo
   const locked = Boolean(user?.mustChangePassword);
 
   const [notifications, setNotifications] = useState([]);
@@ -25,11 +25,10 @@ export function NotificationProvider({ children }) {
       const list = await notificationService.getNotifications();
       setNotifications(list);
     } catch {
-      // lỗi mạng/401 đã được axiosClient xử lý; giữ nguyên danh sách hiện tại
+      /* ignore */
     }
   }, []);
 
-  // Tải khi đăng nhập, xóa khi đăng xuất, và làm mới định kỳ
   useEffect(() => {
     if (!userId || locked) {
       setNotifications([]);
@@ -55,9 +54,11 @@ export function NotificationProvider({ children }) {
         try {
           await notificationService.openStream({
             signal: controller.signal,
-            onEvent: (name) => {
+            onEvent: (name, data) => {
               attempt = 0;
               if (name === 'notification') refreshNotifications();
+              // Dữ liệu nghiệp vụ vừa đổi (vd đơn hàng): báo cho các nơi liên quan tự tải lại
+              else if (name === 'refresh') emitLiveRefresh(data);
             },
           });
         } catch (err) {

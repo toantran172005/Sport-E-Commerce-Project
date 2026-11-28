@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Ticket, ChevronRight, X, Check, AlertCircle, Clock } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useCart, useCatalog, useUI } from '@/context';
 import { couponService } from '../../services/couponService';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -16,7 +16,10 @@ export default function VoucherDropdown({
   direction = 'down',
   className = '',
 }) {
-  const { coupons = [], appliedCoupon, setAppliedCoupon, showToast, refreshCoupons } = useStore();
+  const { coupons = [], refreshCoupons } = useCatalog();
+  // appliedCoupon nằm trong CartContext (không phải Catalog)
+  const { appliedCoupon, setAppliedCoupon } = useCart();
+  const { showToast } = useUI();
   const [isOpen, setIsOpen] = useState(false);
   const [inputCode, setInputCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');

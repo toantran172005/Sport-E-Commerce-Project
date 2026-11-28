@@ -8,8 +8,9 @@ import {
   Plus,
   ArrowLeft,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth, useCart, useAddress, useOrder, useUI } from '@/context';
 import { formatCurrency } from '../../utils/formatters.js';
+import { formatFullAddress } from '../../utils/address.js';
 import { calculateDiscount } from '../../utils/pricing.js';
 import { orderService } from '../../services/orderService.js';
 import { paymentService } from '../../services/paymentService.js';
@@ -19,19 +20,11 @@ import { VoucherDropdown } from '../../components/promotion';
 import { PaymentMethodSelector } from '../../components/payment';
 
 export default function CheckoutPage() {
-  const {
-    user,
-    cart,
-    selectedCartItems,
-    removeFromCart,
-    selectedAddress,
-    appliedCoupon,
-    setAppliedCoupon,
-    openModal,
-    showToast,
-    showErrorModal,
-    addOrder,
-  } = useStore();
+  const { user } = useAuth();
+  const { cart, selectedCartItems, removeFromCart, appliedCoupon, setAppliedCoupon } = useCart();
+  const { selectedAddress } = useAddress();
+  const { addOrder } = useOrder();
+  const { openModal, showToast, showErrorModal } = useUI();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,7 +38,6 @@ export default function CheckoutPage() {
   const buyNowItem = location.state?.buyNowItem || null;
   const isBuyNow = Boolean(buyNowItem);
 
-  // Cố định (freeze) danh sách sản phẩm trong phiên checkout hiện tại
   const [frozenCheckoutItems] = useState(() => {
     if (buyNowItem) {
       return [{
@@ -77,7 +69,6 @@ export default function CheckoutPage() {
     [checkoutItems]
   );
 
-  // Selected carrier: synchronous selection without mirrored state
   const [selectedProviderCode, setSelectedProviderCode] = useState('GHN');
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
   const [shippingNote, setShippingNote] = useState('Giao giờ hành chính');
@@ -85,14 +76,12 @@ export default function CheckoutPage() {
   // Khóa chống đặt trùng: giữ nguyên khi thử lại cùng một lần thanh toán
   const idempotencyKeyRef = useRef(null);
 
-  // Hook-based shipping quotes with caching & debouncing
   const { providers, quotes, loading: shippingLoading } = useShippingQuotes({
     addressId: selectedAddress?.id,
     city: selectedAddress?.city,
     subTotal: checkoutSubtotal,
   });
 
-  // Derive fee and delivery date directly from quote (0ms carrier toggle)
   const currentQuote = quotes[selectedProviderCode];
   const shippingFee =
     currentQuote?.shippingFee ?? (checkoutSubtotal >= 1000000 ? 0 : 30000);
@@ -129,7 +118,7 @@ export default function CheckoutPage() {
         .map((id) => Number(id));
       const hasRealCartItemIds = validCartItemIds.length > 0 && validCartItemIds.length === checkoutItems.length;
 
-      const fullAddressSnapshot = `${selectedAddress.recipientName || 'Khách hàng'} - ${selectedAddress.phoneNumber || '0901234567'} - ${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`;
+      const fullAddressSnapshot = `${selectedAddress.recipientName || 'Khách hàng'} - ${selectedAddress.phoneNumber || '0901234567'} - ${formatFullAddress(selectedAddress)}`;
 
       const orderPayload = {
         userId: user?.id ? Number(user.id) : null,
@@ -195,9 +184,9 @@ export default function CheckoutPage() {
           trackingNumber: null,
           status: 'PENDING',
         },
-        shippingAddress: `${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`,
+        shippingAddress: `${formatFullAddress(selectedAddress)}`,
         shippingAddressSnapshot: fullAddressSnapshot,
-        address: `${selectedAddress.addressLine}, ${selectedAddress.ward}, ${selectedAddress.district}, ${selectedAddress.city}`,
+        address: `${formatFullAddress(selectedAddress)}`,
         receiverName: selectedAddress.recipientName || 'Khách hàng',
         recipientName: selectedAddress.recipientName || 'Khách hàng',
         customerName: selectedAddress.recipientName || user?.fullName || 'Khách hàng',
@@ -321,8 +310,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 <p className="text-[12.5px] text-ink-muted">
-                  {selectedAddress.addressLine}, {selectedAddress.ward},{' '}
-                  {selectedAddress.district}, {selectedAddress.city}
+                  {formatFullAddress(selectedAddress)}
                 </p>
               </div>
             ) : (

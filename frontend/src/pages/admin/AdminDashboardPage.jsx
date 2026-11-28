@@ -11,13 +11,15 @@ import {
   AlertCircle,
   Download,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useOrder, useCatalog, useUI } from '@/context';
 import AdminLayout from '../../layouts/AdminLayout.jsx';
 import { formatCurrency, formatDateTime } from '../../utils/formatters.js';
 import { isAwaitingPayment } from '../../utils/orderPayment.js';
 
 export default function AdminDashboardPage() {
-  const { orders, products, reviews, openModal, showToast } = useStore();
+  const { orders } = useOrder();
+  const { products, reviews } = useCatalog();
+  const { openModal, showToast } = useUI();
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleExportReport = () => {

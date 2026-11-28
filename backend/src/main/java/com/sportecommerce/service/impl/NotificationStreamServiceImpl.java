@@ -11,6 +11,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,6 +22,8 @@ public class NotificationStreamServiceImpl implements NotificationStreamService 
 
     /** userId -> các kết nối đang mở (mỗi tab trình duyệt một kết nối). */
     private final Map<Long, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
+    /** Các user ADMIN/STAFF đang có kết nối (để gửi tín hiệu làm mới cho màn quản trị mà không quét toàn bộ). */
+    private final Set<Long> backOfficeUsers = ConcurrentHashMap.newKeySet();
     private final AtomicInteger connectionCount = new AtomicInteger();
 
     private final long timeoutMs;
@@ -36,7 +39,10 @@ public class NotificationStreamServiceImpl implements NotificationStreamService 
     }
 
     @Override
-    public SseEmitter subscribe(Long userId) {
+    public SseEmitter subscribe(Long userId, boolean backOffice) {
+        if (backOffice) {
+            backOfficeUsers.add(userId);
+        }
         SseEmitter emitter = new SseEmitter(timeoutMs);
         List<SseEmitter> list = emitters.computeIfAbsent(userId, id -> new CopyOnWriteArrayList<>());
 
@@ -82,6 +88,32 @@ public class NotificationStreamServiceImpl implements NotificationStreamService 
     }
 
     @Override
+    public void publishRefresh(Long userId, String topic) {
+        sendRefresh(userId, topic);
+    }
+
+    @Override
+    public void publishRefreshToBackOffice(String topic) {
+        for (Long userId : backOfficeUsers) {
+            sendRefresh(userId, topic);
+        }
+    }
+
+    private void sendRefresh(Long userId, String topic) {
+        List<SseEmitter> list = emitters.get(userId);
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        for (SseEmitter emitter : list) {
+            try {
+                emitter.send(SseEmitter.event().name("refresh").data(topic));
+            } catch (IOException | IllegalStateException ex) {
+                remove(userId, emitter);
+            }
+        }
+    }
+
+    @Override
     public int activeConnections() {
         return connectionCount.get();
     }
@@ -106,6 +138,7 @@ public class NotificationStreamServiceImpl implements NotificationStreamService 
             connectionCount.decrementAndGet();
             if (list.isEmpty()) {
                 emitters.remove(userId, list);
+                backOfficeUsers.remove(userId);
             }
         }
     }

@@ -39,7 +39,6 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final CustomUserDetailsService userDetailsService;
 
-    // Mat khau mac dinh cho nhan vien moi; co the doi bang thuoc tinh app.staff.default-password
     @Value("${app.staff.default-password:11111}")
     private String defaultStaffPassword;
 

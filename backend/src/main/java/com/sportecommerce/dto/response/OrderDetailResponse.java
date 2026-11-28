@@ -21,6 +21,9 @@ public class OrderDetailResponse {
     private Double totalAmount;
     private String recipientSnapshot;
     private String shippingAddressSnapshot;
+    private String recipientName;
+    private String recipientPhone;
+    private String recipientAddress;
     private String note;
     private String cancelReason;
     private Instant placedAt;
@@ -29,7 +32,6 @@ public class OrderDetailResponse {
     private Instant createdAt;
     private Instant updatedAt;
 
-    // Flat convenience fields
     private String paymentMethod;
     private String paymentStatus;
     /** Hạn thanh toán (chỉ có khi đơn online đang chờ thanh toán). Quá hạn đơn bị tự hủy. */
@@ -41,11 +43,22 @@ public class OrderDetailResponse {
     private String customerPhone;
     private String customerEmail;
 
-    // Nested summaries
     private UserSummary user;
     private ShipmentSummary shipment;
     private PaymentSummary payment;
     private List<OrderItemSummary> orderItems;
+    /** Các mốc đổi trạng thái (cũ → mới) để hiển thị lộ trình đơn hàng cho khách; chỉ có ở API chi tiết đơn. */
+    private List<StatusHistoryEntry> statusHistory;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class StatusHistoryEntry {
+        private OrderStatus status;
+        private Instant createdAt;
+    }
 
     @Getter
     @Setter
@@ -69,6 +82,9 @@ public class OrderDetailResponse {
         private String trackingNumber;
         private String status;
         private Double shippingFee;
+        private Instant shippedAt;
+        private Instant deliveredAt;
+        private java.time.LocalDate estimatedDeliveryDate;
 
         @Getter
         @Setter

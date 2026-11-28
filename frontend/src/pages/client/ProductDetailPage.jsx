@@ -16,18 +16,20 @@ import { ReviewList } from '../../components/review';
 import { Skeleton } from '../../components/common';
 import { productService } from '../../services/productService.js';
 import { reviewService } from '../../services/reviewService.js';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useCatalog, useCart, useWishlist, useUI } from '@/context';
 import { formatCurrency } from '../../utils/formatters.js';
 import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const location = useLocation();
-  const { showToast, addToCart, isInWishlist, toggleWishlist, openModal, products } = useStore();
+  const { products } = useCatalog();
+  const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const { showToast, openModal } = useUI();
   const requireLogin = useRequireLogin();
   const navigate = useNavigate();
 
-  // Tối ưu hiệu năng: Dùng dữ liệu sản phẩm có sẵn trong bộ nhớ (state hoặc context) để render tức thì 0ms
   const initialProduct = useMemo(() => {
     const cachedDetail = productService.peekProductById?.(id);
     if (cachedDetail) return cachedDetail;
@@ -53,12 +55,10 @@ export default function ProductDetailPage() {
 
   const [relatedProducts, setRelatedProducts] = useState([]);
 
-  // Đảm bảo luôn cuộn lên đỉnh trang mỗi khi mở hoặc đổi sản phẩm (0ms)
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [id]);
 
-  // Nếu id thay đổi, cập nhật ngay sản phẩm từ bộ nhớ nếu có
   useEffect(() => {
     if (initialProduct) {
       setProduct(initialProduct);
@@ -74,7 +74,6 @@ export default function ProductDetailPage() {
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Tải ngay các sản phẩm liên quan từ bộ nhớ (0ms không cần gọi thêm API mạng)
     const targetCatId = initialProduct?.categoryId || initialProduct?.category?.id;
     if (products && products.length > 0 && targetCatId) {
       const rel = products
@@ -89,7 +88,6 @@ export default function ProductDetailPage() {
       }
     }
 
-    // 2. Fetch chi tiết đầy đủ (variants, mô tả, ảnh chi tiết) từ cache / backend
     productService
       .getProductById(id)
       .then((data) => {
@@ -102,7 +100,6 @@ export default function ProductDetailPage() {
         }
         setLoading(false);
 
-        // Nếu lúc đầu chưa nạp được sản phẩm liên quan:
         if (data.categoryId && (!products || products.length === 0)) {
           productService
             .getProducts({
@@ -123,7 +120,6 @@ export default function ProductDetailPage() {
         showToast(err.response?.data?.message || 'Không thể tải chi tiết sản phẩm', 'error');
       });
 
-    // 3. Tải đánh giá song song độc lập
     setReviewsLoading(true);
     reviewService
       .getReviewsByProduct(id)
@@ -173,7 +169,7 @@ export default function ProductDetailPage() {
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
 
-  const syncSourceRef = useRef(null); // 'image' | 'variant' | null
+  const syncSourceRef = useRef(null);
 
   const images = useMemo(() => {
     const list = [];
@@ -188,14 +184,12 @@ export default function ProductDetailPage() {
       }
     };
 
-    // Primary & gallery images
     if (product?.primaryImageUrl) {
       addImg(product.primaryImageUrl);
     }
     if (product?.images && product.images.length > 0) {
       product.images.forEach((img) => addImg(img.imageUrl || img));
     }
-    // Variant images
     if (product?.variants && product.variants.length > 0) {
       product.variants.forEach((v) => addImg(v.imageUrl));
     }
@@ -206,7 +200,6 @@ export default function ProductDetailPage() {
     return list;
   }, [product]);
 
-  // Sync Variant -> Gallery Image
   useEffect(() => {
     if (!product || !selectedVariantId) return;
     if (syncSourceRef.current === 'image') {
@@ -224,7 +217,6 @@ export default function ProductDetailPage() {
     }
   }, [selectedVariantId, product, images, activeImageIdx]);
 
-  // Sync Gallery Image -> Variant
   const handleImageSelect = (idx, url) => {
     setActiveImageIdx(idx);
     if (!url || !product?.variants) return;

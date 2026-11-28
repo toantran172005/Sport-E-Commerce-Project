@@ -8,7 +8,7 @@ import {
   ChevronRight,
   MonitorSmartphone,
 } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
+import { useAuth } from '@/context';
 import Avatar from '../components/common/Avatar.jsx';
 
 const NAV_ITEMS = [
@@ -21,7 +21,7 @@ const NAV_ITEMS = [
 ];
 
 export default function AccountLayout() {
-  const { user } = useStore();
+  const { user } = useAuth();
 
   return (
     <div className="max-w-[1360px] mx-auto px-4 md:px-6 py-6 md:py-8">

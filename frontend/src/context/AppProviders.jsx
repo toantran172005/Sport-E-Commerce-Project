@@ -18,7 +18,6 @@ const providers = [
   StaffProvider,
   CatalogProvider,
   CustomerProvider,
-  // Từ đây trở xuống: dữ liệu thuộc về từng người dùng, mount lại khi đổi tài khoản
   UserScope,
   WishlistProvider,
   NotificationProvider,

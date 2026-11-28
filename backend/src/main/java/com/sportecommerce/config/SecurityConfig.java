@@ -102,7 +102,6 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Thứ tự rất quan trọng: rule cụ thể đặt TRƯỚC rule chung (Spring lấy rule khớp đầu tiên).
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // SSE (SseEmitter) hoàn tất bằng ASYNC dispatch không mang JWT; request gốc đã được xác thực ở lượt đầu.
@@ -116,7 +115,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "STAFF")
 
-                        // Cần đăng nhập (thiếu token -> 401 thay vì principal = null gây 500).
                         .requestMatchers("/api/auth/logout-all").authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/api/users/**", "/api/notifications/**").authenticated()
@@ -126,12 +124,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/payments/webhook", "/api/payments/vnpay-ipn").permitAll()
                         .requestMatchers("/api/payments/**").authenticated()
 
-                        // Coupon: xem + áp mã cho cả khách vãng lai; tạo/sửa/xóa chỉ ADMIN/STAFF.
                         .requestMatchers(HttpMethod.GET, "/api/coupons/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/coupons/apply").permitAll()
                         .requestMatchers("/api/coupons/**").hasAnyRole("ADMIN", "STAFF")
 
-                        // Review: xem công khai cho cả khách vãng lai; duyệt/phản hồi/xóa chỉ ADMIN/STAFF.
                         .requestMatchers(HttpMethod.GET, "/api/reviews/**", "/api/products/*/reviews").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/reviews/*/status").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/reviews/*/reply").hasAnyRole("ADMIN", "STAFF")
@@ -153,7 +149,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://*.vercel.app",
+                "https://vercel.app"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

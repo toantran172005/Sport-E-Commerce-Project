@@ -41,7 +41,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @ToString(exclude = {
-        "addresses", "refreshTokens", "cart", "orders", "reviews",
+        "addresses", "refreshTokens", "orders", "reviews",
         "wishlists", "couponUsages", "orderStatusChanges", "reviewReplies"
 })
 @EqualsAndHashCode(of = "id")
@@ -115,8 +115,6 @@ public class User {
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
-    // ---------------- Relationships (trong pham vi module User & Auth) ----------------
-
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<UserAddress> addresses = new ArrayList<>();
@@ -124,13 +122,6 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<RefreshToken> refreshTokens = new ArrayList<>();
-
-    // ---------------- Relationships (cac module khac tham chieu toi User) ----------------
-    // Khong dat cascade cho cac quan he ben duoi: cac entity nay thuoc "aggregate" rieng
-    // (Order, Review...), khong bi xoa theo khi User bi xoa/sua.
-
-    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
-    private Cart cart;
 
     @OneToMany(mappedBy = "user")
     @Builder.Default

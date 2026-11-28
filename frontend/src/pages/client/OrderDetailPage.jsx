@@ -1,24 +1,26 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Package, Truck, MapPin, Copy, ArrowLeft } from "lucide-react";
-import { useStore } from "../../context/StoreContext.jsx";
+import { useOrder, useCart, useUI } from '@/context';
 import { orderService } from "../../services/orderService.js";
 import { formatCurrency, formatDateTime } from "../../utils/formatters.js";
-import { OrderStatusBadge, OrderTimeline } from "../../components/order";
+import { OrderStatusBadge, OrderTrackingTimeline } from "../../components/order";
 import LineNumberBadge from "../../components/common/LineNumberBadge.jsx";
 import { paymentService } from "../../services/paymentService.js";
 import { isAwaitingPayment } from "../../utils/orderPayment.js";
+import { formatFullAddress } from "../../utils/address.js";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
-  const { orders, openModal, showToast, addToCart, showErrorModal } = useStore();
+  const { orders } = useOrder();
+  const { addToCart } = useCart();
+  const { openModal, showToast, showErrorModal } = useUI();
   const navigate = useNavigate();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
 
-  // Helper to normalize items from either items or orderItems structure
   const normalizeItems = (rawItems) => {
     if (!Array.isArray(rawItems)) return [];
     return rawItems.map((it, idx) => ({
@@ -46,7 +48,6 @@ export default function OrderDetailPage() {
         if (!isMounted) return;
         const backendData = res?.data || res;
 
-        // Parse recipientSnapshot: "Name - Phone - Address"
         let parsedReceiver = {};
         if (backendData?.recipientSnapshot) {
           const parts = backendData.recipientSnapshot.split(" - ");
@@ -113,6 +114,7 @@ export default function OrderDetailPage() {
             localOrder?.totalAmount ??
             localOrder?.total ??
             0,
+          createdAtRaw: backendData?.placedAt || backendData?.createdAt || null,
           createdAt: backendData?.placedAt
             ? formatDateTime(backendData.placedAt)
             : localOrder?.createdAt
@@ -133,7 +135,7 @@ export default function OrderDetailPage() {
             localOrder?.shippingAddress ||
             localOrder?.address ||
             (localOrder?.userAddress
-              ? `${localOrder.userAddress.streetAddress}, ${localOrder.userAddress.ward}, ${localOrder.userAddress.district}, ${localOrder.userAddress.province}`
+              ? formatFullAddress(localOrder.userAddress)
               : "Địa chỉ giao hàng"),
           items: normalizeItems(rawItems),
         };
@@ -162,7 +164,6 @@ export default function OrderDetailPage() {
     };
   }, [id, orders, showErrorModal]);
 
-  // Keep order status synchronized with store updates (e.g. after cancellation)
   useEffect(() => {
     if (order && orders) {
       const liveOrder = orders.find(
@@ -173,6 +174,10 @@ export default function OrderDetailPage() {
       }
     }
   }, [orders, id, order]);
+
+  const trackingCode = order?.shippingCode || order?.trackingNumber || order?.shipment?.trackingNumber || "";
+  // Mã dạng PENDING_<hãng>_... chỉ là mã tạm khi hãng vận chuyển chưa tạo vận đơn thật
+  const hasRealTracking = Boolean(trackingCode) && !String(trackingCode).startsWith("PENDING_");
 
   const handleCopy = (text, label) => {
     navigator.clipboard?.writeText(text);
@@ -192,7 +197,11 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Chỉ cho mua lại khi đơn đã giao hoặc đã hủy
+  const canReorder = ["DELIVERED", "COMPLETED", "CANCELED", "CANCELLED"].includes(String(order?.status || "").toUpperCase());
+
   const handleReorder = () => {
+    if (!canReorder) return;
     if (order?.items && order.items.length > 0) {
       order.items.forEach((item) => {
         addToCart(
@@ -302,7 +311,7 @@ export default function OrderDetailPage() {
               >
                 {isPaying ? "Đang chuyển tới VNPay..." : "Tiếp tục thanh toán"}
               </button>
-            ) : (
+            ) : canReorder ? (
               <button
                 type="button"
                 onClick={handleReorder}
@@ -310,7 +319,7 @@ export default function OrderDetailPage() {
               >
                 Mua lại đơn này
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -353,23 +362,24 @@ export default function OrderDetailPage() {
               <span>THÔNG TIN VẬN CHUYỂN &amp; THANH TOÁN</span>
             </div>
             <p className="text-[13px] font-bold text-ink flex items-center gap-2">
-              <span>Đơn vị: {order.shippingProviderCode || order.shippingProvider || "GHN Express"}</span>
-              <span className="px-1.5 py-0.2 rounded bg-surface-2 text-ink-muted text-[11px] font-mono border border-line">
-                {order.shippingCode || order.trackingNumber || "GHN-VN-8829"}
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  handleCopy(
-                    order.shippingCode || order.trackingNumber || "GHN-VN-8829",
-                    "mã vận đơn",
-                  )
-                }
-                className="text-accent hover:opacity-75 transition cursor-pointer"
-                title="Sao chép mã vận đơn"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
+              <span>Đơn vị: {order.shippingProviderName || order.shippingProviderCode || order.shippingProvider || "Chưa chọn"}</span>
+              {hasRealTracking ? (
+                <>
+                  <span className="px-1.5 py-0.2 rounded bg-surface-2 text-ink-muted text-[11px] font-mono border border-line">
+                    {trackingCode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(trackingCode, "mã vận đơn")}
+                    className="text-accent hover:opacity-75 transition cursor-pointer"
+                    title="Sao chép mã vận đơn"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              ) : (
+                <span className="text-[11.5px] font-medium text-ink-muted">Chưa có mã vận đơn</span>
+              )}
             </p>
             <p className="text-[12.5px] text-ink-muted">
               Phương thức:{" "}
@@ -395,15 +405,8 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Timeline History if available */}
-        {order.orderStatusHistories && order.orderStatusHistories.length > 0 && (
-          <div className="p-6 border-b border-line bg-page/30 space-y-3">
-            <h3 className="text-[13px] font-extrabold uppercase text-ink tracking-wider">
-              LỊCH SỬ TRẠNG THÁI ĐƠN HÀNG
-            </h3>
-            <OrderTimeline histories={order.orderStatusHistories} />
-          </div>
-        )}
+        {/* Lộ trình đơn hàng (kiểu sàn thương mại) */}
+        <OrderTrackingTimeline order={order} onCopy={handleCopy} />
 
         {/* Order Items Table */}
         <div className="p-6 space-y-4">

@@ -36,7 +36,7 @@ export const normalizeProduct = normalizeProductItem;
 
 const productDetailCache = new Map();
 const inFlightRequests = new Map();
-const DETAIL_CACHE_TTL = 5 * 60 * 1000; // 5 phút
+const DETAIL_CACHE_TTL = 5 * 60 * 1000;
 
 export const productService = {
   peekProductById(id) {
@@ -49,7 +49,6 @@ export const productService = {
     return null;
   },
 
-  // Xóa cache của 1 sản phẩm cụ thể
   invalidateProductDetail(id) {
     if (id) {
       const numId = Number(id);
@@ -58,7 +57,6 @@ export const productService = {
     }
   },
 
-  // Xóa toàn bộ cache sản phẩm
   clearProductDetailCache() {
     productDetailCache.clear();
     inFlightRequests.clear();
@@ -101,7 +99,6 @@ export const productService = {
     if (rating !== undefined && rating !== '' && !Number.isNaN(Number(rating))) {
       queryParams.rating = Number(rating);
     }
-
 
     if (status && status !== 'ALL') {
       queryParams.status = status;
@@ -151,23 +148,19 @@ export const productService = {
     };
   },
 
-
   async getProductById(id) {
     if (!id) throw new Error('ID sản phẩm không hợp lệ');
     const numId = Number(id);
 
-    // 1. Trả về ngay nếu có trong cache (0ms)
     const cached = productDetailCache.get(numId);
     if (cached && Date.now() - cached.timestamp < DETAIL_CACHE_TTL) {
       return cached.data;
     }
 
-    // 2. Chống gọi trùng lặp (in-flight deduplication)
     if (inFlightRequests.has(numId)) {
       return inFlightRequests.get(numId);
     }
 
-    // 3. Gọi API và lưu cache
     const requestPromise = axiosClient
       .get(`/products/${numId}`)
       .then((data) => {
@@ -204,7 +197,6 @@ export const productService = {
     return res.items || [];
   },
 
-
   async createProduct(data) {
     const payload = {
       ...data,
@@ -222,7 +214,6 @@ export const productService = {
     };
     return axiosClient.post('/products', payload);
   },
-
 
   async updateProduct(id, data) {
     if (id) {
@@ -247,16 +238,13 @@ export const productService = {
     };
     const res = await axiosClient.put(`/products/${id}`, payload);
 
-    // Đảm bảo xóa sạch cache sau khi backend phản hồi thành công
     if (id) {
       productDetailCache.delete(Number(id));
     }
     return res;
   },
 
-
   async updateProductStatus(id, status) {
-    // Xóa cache khi đổi trạng thái (ACTIVE / DRAFT / DISCONTINUED)
     if (id) {
       productDetailCache.delete(Number(id));
       inFlightRequests.delete(Number(id));

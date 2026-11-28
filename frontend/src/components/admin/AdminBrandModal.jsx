@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Upload, Tag, Loader2 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI, useCatalog } from '@/context';
 import { productService } from '../../services/productService.js';
 
 function generateSlug(text) {
@@ -20,10 +20,12 @@ export default function AdminBrandModal() {
     activeModal,
     modalPayload,
     closeModal,
+    showToast,
+  } = useUI();
+  const {
     addBrand,
     updateBrand,
-    showToast,
-  } = useStore();
+  } = useCatalog();
 
   const editBrand = modalPayload?.brand;
   const isEditing = Boolean(editBrand);
