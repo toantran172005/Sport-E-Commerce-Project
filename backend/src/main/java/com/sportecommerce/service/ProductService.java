@@ -8,7 +8,6 @@ import com.sportecommerce.dto.response.ProductSummaryResponse;
 import com.sportecommerce.enums.ProductStatus;
 import org.springframework.data.domain.Pageable;
 
-
 public interface ProductService {
     ProductResponse createProduct(CreateProductRequest request);
     ProductResponse updateProduct(Long id, UpdateProductRequest request);

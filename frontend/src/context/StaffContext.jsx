@@ -46,7 +46,7 @@ export function StaffProvider({ children }) {
           'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop',
         gender: staffData.gender || 'MALE',
         dateOfBirth: staffData.dateOfBirth || '1995-01-01',
-        role: 'STAFF', // Luôn cố định STAFF
+        role: 'STAFF',
         status: staffData.status || 'ACTIVE',
         createdAt: now,
         lastLoginAt: null,

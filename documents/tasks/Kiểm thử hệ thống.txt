@@ -1,0 +1,176 @@
+================================================================================
+       KẾ HOẠCH KIỂM THỬ & TRIỂN KHAI PRODUCTION (BẢN TINH GỌN - FREE STACK)
+                     DỰ ÁN: DELTA SPORT E-COMMERCE (WWW JAVA - IUH)
+================================================================================
+
+Tài liệu này hướng dẫn lộ trình từ sau khi xong kiểm thử từng module cho tới khi 
+đưa ứng dụng lên Production hoàn chỉnh bằng 100% công cụ/nền tảng miễn phí, 
+đảm bảo chạy ổn định khi bảo vệ đồ án.
+
+--------------------------------------------------------------------------------
+BỘ CÔNG CỤ MIỄN PHÍ (100% FREE STACK):
+  - Frontend Host  : Vercel (Free)
+  - Backend Host   : Render.com (Free Web Service chạy bằng Docker)
+  - Database       : Neon.tech (PostgreSQL Free)
+  - Redis Cache    : Upstash (Redis Free)
+  - Lưu trữ ảnh    : Cloudinary (Free - tránh mất ảnh khi restart server)
+  - Chống ngủ đông : cron-job.org hoặc UptimeRobot (Free - ping giữ server thức)
+  - Gửi Mail OTP   : Gmail App Password (dự phòng Brevo/Resend Free nếu bị chặn)
+--------------------------------------------------------------------------------
+
+MỤC LỤC TỔNG QUAN:
+  Giai đoạn 1: Kiểm thử luồng nghiệp vụ khép kín trên Local (E2E Testing)
+  Giai đoạn 2: Rà soát cấu hình & Phòng lỗi Production (Pre-flight Audit)
+  Giai đoạn 3: Đóng gói Docker & Triển khai Backend lên Render (Free)
+  Giai đoạn 4: Triển khai Frontend lên Vercel (Free)
+  Giai đoạn 5: Kiểm thử thực tế & Chuẩn bị Demo bảo vệ đồ án
+--------------------------------------------------------------------------------
+
+================================================================================
+GIAI ĐOẠN 1: KIỂM THỬ LUỒNG NGHIỆP VỤ KHÉP KÍN TRÊN LOCAL (E2E TESTING)
+================================================================================
+Mục tiêu: Đảm bảo luồng dữ liệu Frontend - Backend - Database - Bên thứ 3 khớp 
+nhau trước khi đóng gói mang lên mạng.
+
+1. Chuỗi Mua Hàng Thành Công (Happy Path):
+   [1] Đăng ký tài khoản -> Nhận OTP qua Email -> Kích hoạt -> Đăng nhập.
+   [2] Tìm kiếm, lọc sản phẩm -> Chọn biến thể (Màu/Size) -> Thêm vào Giỏ hàng.
+   [3] Checkout -> Chọn địa chỉ -> Áp mã giảm giá (Coupon) -> Tính phí ship GHN/GHTK.
+   [4] Thanh toán:
+       - COD: Tạo đơn thành công -> Trạng thái đơn PENDING -> Thanh toán PENDING.
+       - VNPay Sandbox: Thanh toán bằng thẻ test NCB của VNPay -> Redirect về trang 
+         kết quả -> Cập nhật thanh toán PAID -> Đơn CONFIRMED.
+         (Lưu ý: Không dùng app ngân hàng thật để quét QR Sandbox. Phần Webhook/IPN 
+         từ VNPay gọi về sẽ test chính thức ở Giai đoạn 3 khi có link HTTPS thật, 
+         hoặc dùng ngrok nếu muốn test ngay trên local).
+   [5] Luồng Admin / Staff:
+       - Xác nhận đơn (CONFIRMED) -> Đang đóng gói (PROCESSING) & gọi API GHN/GHTK 
+         tạo vận đơn lấy Tracking Code -> Đang giao (SHIPPED) -> Đã giao (DELIVERED).
+       - Kiểm tra khi DELIVERED: Đơn COD tự đổi sang PAID, tăng số lượng đã bán (soldCount).
+   [6] Khách hàng đánh giá sản phẩm (Review & Rating) -> Hiển thị ở trang chi tiết.
+
+2. Chuỗi Hủy Đơn & Hoàn Trả (Data Integrity):
+   [1] Hủy đơn (PENDING / CONFIRMED): Kiểm tra tồn kho (stock) có được hoàn lại và 
+       lượt dùng mã giảm giá (couponUsage) có được giải phóng không.
+   [2] Hoàn trả hàng trong 7 ngày (DELIVERED -> RETURNED): Admin duyệt -> Cộng lại 
+       tồn kho -> Trừ lùi soldCount -> Trạng thái thanh toán chuyển REFUND.
+
+3. Kịch Bản Tranh Chấp & Góc Khuất (Edge Cases):
+   [1] Tranh chấp tồn kho: Sản phẩm còn stock = 1. Mở 2 tab/trình duyệt bấm "Đặt hàng" 
+       cùng lúc -> Chỉ 1 đơn thành công, người kia báo hết hàng, tồn kho KHÔNG âm.
+   [2] Bỏ ngang VNPay: Sang cổng VNPay rồi tắt tab -> Đảm bảo đơn có cơ chế tự hủy 
+       khi hết hạn hoặc cho phép "Thanh toán lại", không bị giam tồn kho vĩnh viễn.
+   [3] Chống bấm đúp (Double Submit): Nút "Đặt hàng" / "Thanh toán" phải disable và 
+       hiện trạng thái loading khi đang gửi request.
+
+================================================================================
+GIAI ĐOẠN 2: RÀ SOÁT CẤU HÌNH & PHÒNG LỖI PRODUCTION (PRE-FLIGHT AUDIT)
+================================================================================
+Mục tiêu: Xử lý triệt để các lỗi chỉ xuất hiện khi rời khỏi localhost.
+
+1. Bảo Mật & Sạch Mã Nguồn:
+   [1] Kiểm tra `.gitignore` ở cả `frontend/` và `backend/`. Tuyệt đối không push 
+       file `.env`, mật khẩu DB, `JWT_SECRET`, `VNP_HASHSECRET`, token GHN/GHTK lên Git.
+   [2] Xóa các `console.log()` in ra token hoặc thông tin nhạy cảm ở Frontend.
+
+2. Cấu Hình CORS & Cookie Cho Production (Spring Security):
+   [1] Cho phép các origin: `http://localhost:5173`, `https://*.vercel.app` và domain 
+       chính thức của Frontend.
+   [2] QUAN TRỌNG: Nếu bật `allowCredentials(true)`, bắt buộc dùng `allowedOriginPatterns` 
+       thay vì `allowedOrigins` để Spring Boot không báo lỗi khi khởi động.
+   [3] Nếu lưu Refresh Token trong HttpOnly Cookie: phải cấu hình `SameSite=None; Secure` 
+       để trình duyệt gửi được Cookie giữa 2 domain khác nhau (vercel.app <-> onrender.com).
+
+3. Kiểm Tra Database & Lưu Trữ Ảnh:
+   [1] Đảm bảo cấu hình Hibernate trên Production là `spring.jpa.hibernate.ddl-auto=update` 
+       (tuyệt đối không để `create` hay `create-drop` kẻo mất dữ liệu khi server restart).
+   [2] Đảm bảo toàn bộ ảnh upload (sản phẩm, avatar, đánh giá) được lưu lên Cloudinary 
+       (không lưu vào thư mục ổ cứng cục bộ của container Docker vì sẽ bị xóa khi redeploy).
+
+4. Đồng Bộ Múi Giờ Việt Nam (Bắt Buộc Cho VNPay):
+   [1] Server Cloud và Docker mặc định chạy giờ UTC, dễ làm VNPay báo lỗi giao dịch hết hạn.
+   [2] Đảm bảo thời gian tạo/hết hạn giao dịch VNPay luôn ép theo múi giờ `Asia/Ho_Chi_Minh` (GMT+7).
+
+================================================================================
+GIAI ĐOẠN 3: ĐÓNG GÓI DOCKER & TRIỂN KHAI BACKEND LÊN RENDER (FREE)
+================================================================================
+Mục tiêu: Đưa Spring Boot API lên internet với HTTPS miễn phí trước khi deploy Frontend.
+
+1. Tạo Dockerfile Multi-stage (Đặt tại thư mục gốc `backend/`):
+   - Stage 1 (Build): Dùng `maven:3.9-eclipse-temurin-21` để build ra file `.jar`.
+   - Stage 2 (Run): Dùng `eclipse-temurin:21-jre-alpine` gọn nhẹ để chạy app.
+   - Bổ sung múi giờ Việt Nam ngay trong Stage 2 của Dockerfile:
+       RUN apk add --no-cache tzdata
+       ENV TZ=Asia/Ho_Chi_Minh
+   - Test build và chạy thử container ngay trên máy local bằng `docker build` và `docker run`.
+
+2. Triển Khai Lên Render.com (Gói Free):
+   [1] Tạo "New Web Service" trên Render -> Kết nối GitHub repository.
+   [2] Chọn Root Directory là `backend` (nếu chung repo), Runtime chọn `Docker`, gói `Free`.
+   [3] Khai báo đầy đủ Environment Variables trên Render Dashboard:
+       DB_URL (Neon), DB_USERNAME, DB_PASSWORD, REDIS_HOST/PORT/PASSWORD (Upstash),
+       JWT_SECRET, CLOUDINARY_*, VNPAY_*, GHN_TOKEN, GHTK_TOKEN, MAIL_*.
+   [4] Tạo thêm 1 endpoint công khai nhẹ (ví dụ: `GET /api/health` trả về 200 OK) để 
+       kiểm tra trạng thái server.
+
+3. Kiểm Tra Sau Khi Backend Lên Mạng:
+   [1] Mở trình duyệt/Postman gọi thử `https://<ten-app>.onrender.com/api/products`.
+   [2] Test lại luồng gửi Mail OTP: Nếu Render chặn cổng SMTP của Gmail, chuyển sang 
+       gửi mail qua HTTP API bằng Brevo hoặc Resend (gói Free).
+   [3] Cập nhật lại `vnp_ReturnUrl` và `IPN URL` (nếu có) sang domain HTTPS thật và 
+       test lại 1 giao dịch VNPay thành công (đảm bảo không bị trừ kho/cập nhật 2 lần).
+
+================================================================================
+GIAI ĐOẠN 4: TRIỂN KHAI FRONTEND LÊN VERCEL (FREE)
+================================================================================
+Mục tiêu: Đưa giao diện React/Vite lên Vercel và kết nối với Backend Render.
+
+1. Chống Lỗi 404 Khi F5 Trang Con (SPA Routing):
+   - Tạo file `vercel.json` tại thư mục gốc `frontend/`:
+     {
+       "rewrites": [
+         { "source": "/(.*)", "destination": "/index.html" }
+       ]
+     }
+
+2. Kiểm Tra Build Local:
+   - Chạy lệnh `npm run build` tại máy local, đảm bảo không có lỗi TypeScript/ESLint 
+     hoặc lỗi import khiến Vercel build thất bại.
+
+3. Deploy Lên Vercel:
+   [1] Import GitHub repository vào Vercel -> Framework Preset: `Vite`.
+   [2] Chọn Root Directory là `frontend` (nếu chung repo).
+   [3] Vào Settings -> Environment Variables, thêm biến:
+       `VITE_API_BASE_URL = https://<ten-app>.onrender.com/api`
+   [4] Nhấn Deploy và kiểm tra link website hoạt động.
+
+================================================================================
+GIAI ĐOẠN 5: KIỂM THỬ THỰC TẾ & CHUẨN BỊ DEMO BẢO VỆ ĐỒ ÁN
+================================================================================
+Mục tiêu: Đảm bảo hệ thống chạy mượt mà, không gặp sự cố bất ngờ lúc chấm bài.
+
+1. Xử Lý "Cold Start" Của Render Free:
+   - Render gói miễn phí sẽ tự ngủ đông sau 15 phút không có người truy cập (lần mở 
+     đầu tiên sẽ mất 30-60 giây để khởi động lại).
+   - Giải pháp: Đăng ký tài khoản miễn phí tại `cron-job.org` hoặc `UptimeRobot`, 
+     cài đặt tự động ping vào `https://<ten-app>.onrender.com/api/health` mỗi 10-14 phút 
+     vào ngày bảo vệ đồ án (và tự mở sẵn web trước giờ báo cáo 5 phút).
+
+2. Kiểm Tra Nhanh Trên Điện Thoại Thật:
+   - Mở link Vercel bằng điện thoại (Chrome/Safari) để kiểm tra giao diện không bị 
+     vỡ khung, thanh điều hướng và giỏ hàng bấm được bình thường.
+   - Kiểm tra tải ảnh từ Cloudinary hiển thị đầy đủ, không bị lỗi ảnh vỡ.
+
+3. Chuẩn Bị Kịch Bản & Dữ Liệu Demo:
+   - Chuẩn bị sẵn 15-20 sản phẩm mẫu đầy đủ hình ảnh đẹp, biến thể size/màu và tồn kho.
+   - Tạo sẵn 2-3 tài khoản demo nhớ sẵn mật khẩu: Admin, Staff, Customer.
+   - Chạy diễn tập trọn vẹn 1 vòng trên link Production thật: 
+     Đăng nhập -> Mua hàng (áp Coupon) -> Thanh toán VNPay -> Admin duyệt & tạo mã vận đơn 
+     -> Giao thành công -> Khách đánh giá sản phẩm.
+
+================================================================================
+TÓM TẮT 3 VIỆC CẦN LÀM NGAY:
+1. Chạy xong Giai đoạn 1 trên local và kiểm tra CORS + múi giờ GMT+7 ở Giai đoạn 2.
+2. Viết `Dockerfile` (có `tzdata` GMT+7) và deploy Backend lên Render.com.
+3. Thêm `vercel.json`, deploy Frontend lên Vercel và cài cron-job giữ server thức.
+================================================================================

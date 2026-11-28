@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QrCode, X, Check, Copy, Clock, ExternalLink } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI, useCatalog } from '@/context';
 import { paymentService } from '../../services/paymentService.js';
 import { formatCurrency } from '../../utils/formatters.js';
 
 export default function VnpayQrModal() {
-  const {
-    activeModal,
-    modalPayload,
-    closeModal,
-    showToast,
-    setAppliedCoupon,
-    refreshCoupons,
-  } = useStore();
+  const { activeModal, modalPayload, closeModal, showToast } = useUI();
+  const { setAppliedCoupon, refreshCoupons } = useCatalog();
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(900);
   const [isConfirming, setIsConfirming] = useState(false);

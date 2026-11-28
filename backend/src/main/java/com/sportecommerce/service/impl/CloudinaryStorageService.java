@@ -69,7 +69,6 @@ public class CloudinaryStorageService implements FileStorageService {
         assertConfigured();
         String fullPublicId = fullPublicId(publicId);
 
-        // Các tham số cần ký (TreeMap: đã sắp xếp theo tên). Không gồm file và api_key.
         Map<String, String> params = new TreeMap<>();
         params.put("invalidate", "true");
         params.put("overwrite", "true");
@@ -121,7 +120,6 @@ public class CloudinaryStorageService implements FileStorageService {
         try {
             post("image/destroy", body);
         } catch (AppException e) {
-            // Xóa ảnh cũ thất bại không được làm hỏng thao tác của người dùng (ảnh mồ côi sẽ bị ghi đè lần sau)
             log.warn("Không xóa được ảnh '{}' trên Cloudinary: {}", fullPublicId, e.getMessage());
         }
     }
@@ -134,12 +132,10 @@ public class CloudinaryStorageService implements FileStorageService {
             JsonNode response = restTemplate.postForObject(url, new HttpEntity<>(body, headers), JsonNode.class);
             return response != null ? response : JsonNodeFactory.instance.objectNode();
         } catch (HttpStatusCodeException e) {
-            // Thân phản hồi của Cloudinary chỉ chứa thông báo lỗi (vd "Invalid Signature"), không chứa secret
             String reason = extractError(e.getResponseBodyAsString());
             int status = e.getStatusCode().value();
             log.error("Cloudinary {} trả về {}: {}", path, status, reason);
             if (status == 401 || status == 403 || status == 404) {
-                // Lỗi cấu hình (sai cloud name / API key / API secret) - báo rõ để người triển khai sửa .env
                 log.error("=> Kiểm tra lại CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET trong backend/.env "
                         + "(cloud name đang dùng: '{}', độ dài API key: {}, độ dài API secret: {})",
                         cloudName, apiKey.length(), apiSecret.length());
@@ -166,7 +162,6 @@ public class CloudinaryStorageService implements FileStorageService {
                 return msg.length() > 200 ? msg.substring(0, 200) : msg;
             }
         } catch (Exception ignored) {
-            // không phải JSON -> trả về đoạn đầu của nội dung
         }
         return body.length() > 200 ? body.substring(0, 200) : body;
     }

@@ -8,6 +8,7 @@ const ClientLayout = lazy(() => import('../layouts/ClientLayout'));
 const AccountLayout = lazy(() => import('../layouts/AccountLayout'));
 
 const HomePage = lazy(() => import('../pages/client/HomePage'));
+const HomePageAdvance = lazy(() => import('../pages/client/HomePageAdvance'));
 const CatalogPage = lazy(() => import('../pages/client/CatalogPage'));
 const ProductDetailPage = lazy(() => import('../pages/client/ProductDetailPage'));
 const CartPage = lazy(() => import('../pages/client/CartPage'));
@@ -53,7 +54,6 @@ function LegacyOrderDetailRedirect() {
   return <Navigate to={`/account/orders/${id}`} replace />;
 }
 
-// Tài khoản do Admin tạo (mật khẩu mặc định) bị khóa ở màn hình đổi mật khẩu cho tới khi đổi xong.
 function PasswordChangeGate({ children }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -136,9 +136,7 @@ function LoginGate({ message }) {
         else navigate('/', { replace: true });
       },
     });
-    // chỉ mở lại khi đổi trang đích
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, search]);
+  }, [pathname, search, message, navigate, requireLogin]);
 
   return null;
 }
@@ -162,6 +160,7 @@ export default function AppRoutes() {
         {/* Client Storefront Layout Wrapper */}
         <Route element={<ClientLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/home-advance" element={<HomePageAdvance />} />
           <Route path="/products" element={<CatalogPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />

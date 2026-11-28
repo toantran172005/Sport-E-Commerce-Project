@@ -21,6 +21,9 @@ public class OrderDetailResponse {
     private Double totalAmount;
     private String recipientSnapshot;
     private String shippingAddressSnapshot;
+    private String recipientName;
+    private String recipientPhone;
+    private String recipientAddress;
     private String note;
     private String cancelReason;
     private Instant placedAt;
@@ -29,7 +32,6 @@ public class OrderDetailResponse {
     private Instant createdAt;
     private Instant updatedAt;
 
-    // Flat convenience fields
     private String paymentMethod;
     private String paymentStatus;
     private String shippingProviderCode;
@@ -39,7 +41,6 @@ public class OrderDetailResponse {
     private String customerPhone;
     private String customerEmail;
 
-    // Nested summaries
     private UserSummary user;
     private ShipmentSummary shipment;
     private PaymentSummary payment;

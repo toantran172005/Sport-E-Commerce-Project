@@ -2,9 +2,9 @@
  * Shipping Cache Key builders and TTL constants.
  */
 
-export const SHIPPING_CACHE_TTL_MS = 10 * 60_000; // 10 phút cho kết quả API
-export const FALLBACK_SHIPPING_TTL_MS = 30_000;    // 30 giây cho kết quả fallback
-export const PROVIDERS_CACHE_TTL_MS = 60 * 60_000; // 1 giờ cho danh sách đơn vị vận chuyển
+export const SHIPPING_CACHE_TTL_MS = 10 * 60_000;
+export const FALLBACK_SHIPPING_TTL_MS = 30_000;
+export const PROVIDERS_CACHE_TTL_MS = 60 * 60_000;
 
 /**
  * Chuẩn hóa tên thành phố / tỉnh để tạo cache key ổn định

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Upload, FolderPlus } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI, useCatalog } from '@/context';
 
 function generateSlug(text) {
   return (text || '')
@@ -19,11 +19,13 @@ export default function AdminCategoryModal() {
     activeModal,
     modalPayload,
     closeModal,
+    showToast,
+  } = useUI();
+  const {
     categoriesList,
     addCategory,
     updateCategory,
-    showToast,
-  } = useStore();
+  } = useCatalog();
 
   const editCategory = modalPayload?.category;
   const isEditing = Boolean(editCategory);

@@ -100,7 +100,4 @@ public class Order {
 
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
     private Shipment shipment;
-
-    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
-    private CouponUsage couponUsage;
 }

@@ -9,7 +9,7 @@ import {
   User,
   Phone,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useUI, useOrder } from '@/context';
 import { formatCurrency } from '../../utils/formatters';
 import LineNumberBadge from '../common/LineNumberBadge';
 
@@ -40,12 +40,14 @@ export default function AdminOrderModal() {
     activeModal,
     modalPayload,
     closeModal,
+    showToast,
+    showErrorModal,
+  } = useUI();
+  const {
     orders,
     adminOrders,
     updateOrderStatus,
-    showToast,
-    showErrorModal,
-  } = useStore();
+  } = useOrder();
 
   const [selectedStatus, setSelectedStatus] = useState('PENDING');
   const [adminNote, setAdminNote] = useState('');
@@ -138,9 +140,9 @@ export default function AdminOrderModal() {
   }
 
   const receiverName =
-    snapshotName ||
     order.recipientName ||
     order.receiverName ||
+    snapshotName ||
     order.customerName ||
     order.user?.fullName ||
     order.adminCustomerName ||
@@ -148,6 +150,7 @@ export default function AdminOrderModal() {
     'Khách hàng';
 
   const receiverPhone =
+    order.recipientPhone ||
     snapshotPhone ||
     order.customerPhone ||
     order.receiverPhone ||
@@ -159,6 +162,7 @@ export default function AdminOrderModal() {
     '—';
 
   const receiverAddress =
+    order.recipientAddress ||
     order.shippingAddress ||
     snapshotAddress ||
     rawSnapshot ||

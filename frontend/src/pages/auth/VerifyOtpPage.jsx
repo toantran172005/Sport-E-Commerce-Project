@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldCheck, ArrowRight, RotateCcw } from 'lucide-react';
 import BrandLogo from '../../components/common/BrandLogo.jsx';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth, useUI } from '@/context';
 import { authService } from '../../services/authService.js';
 import AuthBanner from '../../components/auth/AuthBanner.jsx';
 
@@ -14,10 +14,10 @@ export default function VerifyOtpPage() {
   const email = searchParams.get('email') || '';
   const purpose = searchParams.get('purpose') || 'REGISTER';
   const isReset = purpose === 'RESET_PASSWORD';
-  // Từ trang đăng nhập (tài khoản chưa xác thực) sang đây → gửi lại một mã mới cho chắc (mã cũ có thể đã hết hạn)
   const autoResend = searchParams.get('resend') === '1';
 
-  const { setUser, showToast } = useStore();
+  const { setUser } = useAuth();
+  const { showToast } = useUI();
   const navigate = useNavigate();
 
   const [otp, setOtp] = useState(EMPTY_OTP);
@@ -37,16 +37,13 @@ export default function VerifyOtpPage() {
     }
     inputRefs.current[0]?.focus();
     if (autoResend) {
-      // Nếu vừa gửi mã trong vòng 60s, backend trả 429: bỏ qua vì mã trước đó vẫn còn hiệu lực
       authService.resendOtp({ email, purpose }).catch(() => {});
     }
     const timer = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-    // chỉ chạy một lần khi mở trang
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, isReset, navigate]);
+  }, [email, isReset, navigate, autoResend, purpose]);
 
   const handleChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -99,12 +96,10 @@ export default function VerifyOtpPage() {
     setLoading(true);
     try {
       if (isReset) {
-        // Backend xác thực OTP và đổi mật khẩu trong CÙNG một request
         await authService.resetPassword({ email, otp: fullOtp, newPassword });
         showToast('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.', 'success');
         navigate('/login');
       } else {
-        // Xác thực đăng ký thành công → backend kích hoạt tài khoản và trả luôn token (tự đăng nhập)
         const res = await authService.verifyOtp({ email, otp: fullOtp, purpose });
         if (res.user) setUser(res.user);
         showToast('Xác thực thành công! Tài khoản đã được kích hoạt.', 'success');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyRound, ShieldCheck, RefreshCw, Eye, EyeOff } from 'lucide-react';
-import { useStore } from '../../../context/StoreContext';
+import { useUI } from '@/context';
 import { userService } from '../../../services/userService';
 
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).+$/;
@@ -33,7 +33,7 @@ function PasswordField({ label, value, onChange, show, onToggle, placeholder }) 
 }
 
 export default function ChangePasswordPage() {
-  const { showToast } = useStore();
+  const { showToast } = useUI();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

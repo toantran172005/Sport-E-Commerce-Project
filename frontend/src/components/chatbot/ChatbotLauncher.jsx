@@ -3,17 +3,16 @@ import { X } from 'lucide-react';
 import BrandLogo from '../common/BrandLogo.jsx';
 import { useChatbot } from '../../context/ChatbotContext';
 
-const BUTTON_SIZE = 56; // kích thước button tròn = w-14 (px)
-const EDGE_GAP = 12; // khoảng cách tối thiểu từ button đến mép màn hình khi đang kéo (px)
-const SNAP_GAP = 24; // khoảng cách giữ lại so với viền trái/phải sau khi thả chuột (px)
-const SNAP_MS = 220; // thời gian trượt về viền (ms)
+const BUTTON_SIZE = 56;
+const EDGE_GAP = 12;
+const SNAP_GAP = 24;
+const SNAP_MS = 220;
 
 export default function ChatbotLauncher({ onPositionChange }) {
   const { isOpen, toggle, unreadCount } = useChatbot();
   const [position, setPosition] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSnapping, setIsSnapping] = useState(false);
-  // Viền đang bám: 'left' | 'right' (mặc định nút nằm ở viền phải)
   const sideRef = useRef('right');
   const snapTimerRef = useRef(null);
   const dragRef = useRef({
@@ -32,7 +31,6 @@ export default function ChatbotLauncher({ onPositionChange }) {
   const clampTop = (top) =>
     Math.max(EDGE_GAP, Math.min(window.innerHeight - BUTTON_SIZE - EDGE_GAP, top));
 
-  // Đổi kích thước cửa sổ: giữ nút bám đúng viền đang bám, không để tụt ra ngoài màn hình
   useEffect(() => {
     const handleResize = () => {
       setPosition((prev) => {
@@ -79,7 +77,6 @@ export default function ChatbotLauncher({ onPositionChange }) {
       }
 
       if (dragRef.current.hasMoved) {
-        // Đang kéo: đi theo chuột tự do để chọn độ cao
         const maxLeft = window.innerWidth - BUTTON_SIZE - EDGE_GAP;
         const nextLeft = Math.max(EDGE_GAP, Math.min(maxLeft, dragRef.current.initialLeft + dx));
         const nextTop = clampTop(dragRef.current.initialTop + dy);
@@ -100,7 +97,6 @@ export default function ChatbotLauncher({ onPositionChange }) {
 
       const last = dragRef.current.lastPos;
       if (dragRef.current.hasMoved && last) {
-        // Thả chuột: giữ nguyên độ cao (top), hút ngang về viền trái/phải gần nhất
         const centerX = last.left + BUTTON_SIZE / 2;
         sideRef.current = centerX < window.innerWidth / 2 ? 'left' : 'right';
         const snapped = { left: leftForSide(sideRef.current), top: last.top };

@@ -26,7 +26,6 @@ export function CartProvider({ children }) {
   const { showToast } = useUI();
   const { user } = useAuth();
 
-  // Khóa localStorage phân tách theo từng người dùng (sport_cart:<userId> hoặc sport_cart:guest)
   const cartKey = useScopedKey('sport_cart');
   const selectedCartKey = useScopedKey('sport_selected_cart');
 
@@ -34,7 +33,6 @@ export function CartProvider({ children }) {
   const [selectedCartItemKeys, setSelectedCartItemKeys] = usePersistentState(selectedCartKey, []);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
-  // Debounce ref để gom các thao tác click nhanh nút -/+ tránh nghẽn mạng & race condition
   const debounceTimersRef = useRef({});
   const latestCartRef = useRef(cart);
   useEffect(() => {
@@ -42,22 +40,21 @@ export function CartProvider({ children }) {
   }, [cart]);
 
   useEffect(() => {
+    const timers = debounceTimersRef.current;
     return () => {
-      Object.values(debounceTimersRef.current).forEach(clearTimeout);
+      Object.values(timers).forEach(clearTimeout);
     };
   }, []);
 
-  // Xóa sạch key dùng chung cũ nếu còn lưu trong trình duyệt
   useEffect(() => {
     try {
       localStorage.removeItem('sport_cart');
       localStorage.removeItem('sport_selected_cart');
     } catch {
-      // ignore
+      /* ignore */
     }
   }, []);
 
-  // Khi đã đăng nhập: đồng bộ giỏ Guest (nếu có) và tải giỏ từ server database
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -83,8 +80,8 @@ export function CartProvider({ children }) {
             localStorage.removeItem('sport_cart:guest');
             localStorage.removeItem('sport_selected_cart:guest');
           } catch {
-            // ignore
-          }
+      /* ignore */
+    }
         } else {
           res = await cartService.getCart();
         }
@@ -93,8 +90,8 @@ export function CartProvider({ children }) {
           setCart(mapServerCartItems(res.items));
         }
       } catch {
-        // Fallback giữ nguyên local state nếu lỗi mạng
-      }
+      /* ignore */
+    }
     };
 
     loadAndSync();
@@ -135,8 +132,8 @@ export function CartProvider({ children }) {
           }
         }
       } catch {
-        // ignore
-      }
+      /* ignore */
+    }
     }
   }, [cart, getCartItemKey, selectedCartItemKeys, setCart, setSelectedCartItemKeys, user]);
 
@@ -147,8 +144,8 @@ export function CartProvider({ children }) {
       try {
         await cartService.clearCart();
       } catch {
-        // ignore
-      }
+      /* ignore */
+    }
     }
     showToast('Đã làm trống giỏ hàng');
   }, [setCart, setSelectedCartItemKeys, showToast, user]);
@@ -174,7 +171,6 @@ export function CartProvider({ children }) {
           ? `${selectedVariant.size}${selectedVariant.color ? ` • ${selectedVariant.color}` : ''}`
           : 'Tiêu chuẩn';
 
-        // Cập nhật giao diện lập tức (Optimistic UI)
         setCart((prev) => {
           const found = prev.find((item) => item.productId === product.id && item.variantId === variantId);
           if (found) {
@@ -224,7 +220,6 @@ export function CartProvider({ children }) {
         }
       }
 
-      // Khách vãng lai chưa đăng nhập
       const price = selectedVariant.salePrice || selectedVariant.price || product.salePrice || product.basePrice;
       const originalPrice = selectedVariant.price || product.basePrice;
       const variantLabel = selectedVariant.size
@@ -270,7 +265,6 @@ export function CartProvider({ children }) {
       let targetVariantId = variantId;
       let finalQty = 1;
 
-      // 1. Cập nhật state tức thì (0ms) bằng Functional Updater - Không bao giờ bị Stale Closure!
       setCart((prev) => {
         const target = prev.find((item) =>
           variantId !== null && variantId !== undefined
@@ -305,7 +299,6 @@ export function CartProvider({ children }) {
         });
       });
 
-      // 2. Debounce gọi API lên backend - Gom nhiều cú click nhanh thành ĐÚNG 1 REQUEST DUY NHẤT!
       if (user && targetVariantId) {
         if (debounceTimersRef.current[targetVariantId]) {
           clearTimeout(debounceTimersRef.current[targetVariantId]);
@@ -362,8 +355,8 @@ export function CartProvider({ children }) {
       try {
         await cartService.clearCart();
       } catch {
-        // ignore
-      }
+      /* ignore */
+    }
     }
   }, [setCart, user]);
 

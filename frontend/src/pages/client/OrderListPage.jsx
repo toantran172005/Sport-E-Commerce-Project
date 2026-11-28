@@ -10,7 +10,7 @@ import {
   Eye,
 } from 'lucide-react';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useOrder, useCart, useUI } from '@/context';
 import { formatCurrency } from '../../utils/formatters.js';
 
 const STATUS_TABS = [
@@ -24,7 +24,9 @@ const STATUS_TABS = [
 ];
 
 export default function OrderListPage() {
-  const { orders, addToCart, openModal, showToast, fetchOrders } = useStore();
+  const { orders, fetchOrders } = useOrder();
+  const { addToCart } = useCart();
+  const { openModal, showToast } = useUI();
   const [activeTab, setActiveTab] = useState('ALL');
   const navigate = useNavigate();
 

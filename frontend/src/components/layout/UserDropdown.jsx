@@ -9,30 +9,23 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { useStore } from "../../context/StoreContext.jsx";
+import { useAuth, useOrder, useWishlist, useUI, useTheme } from '@/context';
 import { authService } from "../../services/authService.js";
 import Avatar from "../common/Avatar.jsx";
 import { getDefaultAdminPath } from "../../utils/permissions.js";
 
 export default function UserDropdown() {
-  const {
-    user,
-    setUser,
-    orders,
-    wishlistIds,
-    isUserMenuOpen,
-    setIsUserMenuOpen,
-    isDarkMode,
-    toggleDarkMode,
-    showToast,
-  } = useStore();
+  const { user, setUser } = useAuth();
+  const { orders } = useOrder();
+  const { wishlistIds } = useWishlist();
+  const { isUserMenuOpen, setIsUserMenuOpen, showToast } = useUI();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
 
   if (!isUserMenuOpen) return null;
 
   const handleLogout = () => {
     setIsUserMenuOpen(false);
-    // Thu hồi refresh token ở backend và xóa phiên phía client (không chờ để UI phản hồi ngay)
     authService.logout();
     setUser(null);
     showToast("Đã đăng xuất thành công", 'success');

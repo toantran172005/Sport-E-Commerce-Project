@@ -4,17 +4,18 @@ import { ShoppingBag } from 'lucide-react';
 import { ProductCard } from '../../components/product';
 import { EmptyState } from '../../components/common';
 import { CartItemRow, CartSummary } from '../../components/cart';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth, useCart, useCatalog, useAddress, useUI } from '@/context';
 import { useRequireLogin } from '../../hooks/useRequireLogin.js';
 import { buildLineNumberMap, getItemKey } from '../../utils/cartNumbering.js';
 import { getShippingQuotes } from '../../services/shippingService.js';
 
 export default function CartPage() {
+  const { user } = useAuth();
+  const { products } = useCatalog();
+  const { addresses = [] } = useAddress();
+  const { showToast } = useUI();
   const {
-    user,
     cart,
-    products,
-    addresses = [],
     updateCartQuantity,
     removeFromCart,
     selectedCartItemKeys,
@@ -26,8 +27,7 @@ export default function CartPage() {
     selectAllCartItems,
     deselectAllCartItems,
     removeSelectedCartItems,
-    showToast,
-  } = useStore();
+  } = useCart();
 
   const navigate = useNavigate();
   const requireLogin = useRequireLogin();
@@ -56,17 +56,14 @@ export default function CartPage() {
     return groups;
   }, [cart, products]);
 
-  // Compute continuous line numbers across all brand groups
   const lineNumberMap = useMemo(() => {
     return buildLineNumberMap(Object.entries(groupedCart));
   }, [groupedCart]);
 
-  // Mới vào trang giỏ hàng: mặc định không chọn bất kỳ sản phẩm nào
   useEffect(() => {
     deselectAllCartItems();
   }, [deselectAllCartItems]);
 
-  // Pre-warm shipping quotes cache for default address when cart has items
   useEffect(() => {
     if (user && selectedCartSubtotal > 0 && addresses.length > 0) {
       const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0];
@@ -76,7 +73,6 @@ export default function CartPage() {
           city: defaultAddr.city,
           subTotal: selectedCartSubtotal,
         }).catch(() => {
-          // Non-blocking pre-warm error
         });
       }
     }

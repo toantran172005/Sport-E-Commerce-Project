@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Upload, Layers, Check } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI, useCatalog } from '@/context';
 import { productService } from '../../services/productService.js';
 
 function createId() {
@@ -29,16 +29,8 @@ const SPORT_OPTIONS = [
 ];
 
 export default function AdminProductModal() {
-  const {
-    activeModal,
-    modalPayload,
-    closeModal,
-    categoriesList,
-    brandsList,
-    addProduct,
-    updateProduct,
-    showToast,
-  } = useStore();
+  const { activeModal, modalPayload, closeModal, showToast } = useUI();
+  const { categoriesList, brandsList, addProduct, updateProduct } = useCatalog();
 
   const editProduct = modalPayload?.product;
   const isEditing = Boolean(editProduct);
@@ -175,7 +167,6 @@ export default function AdminProductModal() {
           setTags(['Cầu lông', 'Hàng mới']);
         }
 
-        // Tự động đồng bộ chi tiết thật từ DB nếu sản phẩm đã lưu nhưng thiếu variants hoặc description
         if (editProduct.id && (!editProduct.variants || editProduct.variants.length === 0 || !editProduct.description)) {
           setLoadingDetails(true);
           productService.getProductById(editProduct.id)

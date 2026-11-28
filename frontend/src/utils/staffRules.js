@@ -34,7 +34,6 @@ export function canAssignRole(actor, role) {
 export function validateStaffInput(data = {}, existingUsers = []) {
   const errors = {};
 
-  // 1. Họ và tên
   const fullName = typeof data.fullName === 'string' ? data.fullName.trim() : '';
   if (!fullName) {
     errors.fullName = 'Họ và tên không được để trống';
@@ -42,7 +41,6 @@ export function validateStaffInput(data = {}, existingUsers = []) {
     errors.fullName = 'Họ và tên phải có ít nhất 2 ký tự';
   }
 
-  // 2. Email
   const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
   if (!email) {
     errors.email = 'Email không được để trống';
@@ -61,7 +59,6 @@ export function validateStaffInput(data = {}, existingUsers = []) {
     }
   }
 
-  // 3. Số điện thoại
   const phone = typeof data.phoneNumber === 'string' ? data.phoneNumber.trim() : '';
   if (!phone) {
     errors.phoneNumber = 'Số điện thoại không được để trống';
@@ -69,23 +66,19 @@ export function validateStaffInput(data = {}, existingUsers = []) {
     errors.phoneNumber = 'Số điện thoại không hợp lệ (cần 10 số, bắt đầu bằng 0 hoặc +84)';
   }
 
-  // 4. Vai trò (Role) - bắt buộc phải là STAFF
   if (data.role !== 'STAFF') {
     errors.role = 'Vai trò nhân viên chỉ được phép là STAFF';
   }
 
-  // 5. Trạng thái (Status) - ACTIVE hoặc LOCKED
   if (data.status !== 'ACTIVE' && data.status !== 'LOCKED') {
     errors.status = 'Trạng thái tài khoản phải là ACTIVE hoặc LOCKED';
   }
 
-  // 6. Mật khẩu (Chỉ validate nếu có truyền vào, ví dụ khi tạo mới)
   if (data.password !== undefined && data.password !== null && data.password !== '') {
     if (!PASSWORD_REGEX.test(data.password)) {
       errors.password = 'Mật khẩu phải từ 8 ký tự trở lên, gồm ít nhất 1 chữ cái và 1 chữ số';
     }
   } else if (!data.id) {
-    // Tạo mới bắt buộc phải có mật khẩu ban đầu
     errors.password = 'Vui lòng nhập mật khẩu khởi tạo cho nhân viên';
   }
 

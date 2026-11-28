@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Ticket, ChevronRight, X, Check, AlertCircle } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useCatalog, useUI } from '@/context';
 import { couponService } from '../../services/couponService';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -9,14 +9,14 @@ export default function VoucherDropdown({
   direction = 'down',
   className = '',
 }) {
-  const { coupons = [], appliedCoupon, setAppliedCoupon, showToast } = useStore();
+  const { coupons = [], appliedCoupon, setAppliedCoupon } = useCatalog();
+  const { showToast } = useUI();
   const [isOpen, setIsOpen] = useState(false);
   const [inputCode, setInputCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isApplying, setIsApplying] = useState(false);
   const panelRef = useRef(null);
 
-  // Chỉ hiển thị các mã đang active, đã đến ngày bắt đầu, chưa hết hạn và còn lượt dùng cho khách
   const availableCoupons = useMemo(() => {
     const now = new Date();
     return coupons.filter((c) => {

@@ -15,7 +15,7 @@ export default function AddressesPage() {
       await deleteAddress(deleteTarget.id);
       setDeleteTarget(null);
     } catch {
-      // error handled in context
+      /* ignore */
     } finally {
       setIsDeleting(false);
     }

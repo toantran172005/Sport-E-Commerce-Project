@@ -38,7 +38,6 @@ export function ChatbotProvider({ children, renderPanel = null }) {
     });
   }, []);
 
-  // Lắng nghe các Window Custom Events (cho phép code bên ngoài / script điều khiển chatbot)
   useEffect(() => {
     const handleOpenEvent = () => setIsOpen(true);
     const handleCloseEvent = () => setIsOpen(false);
@@ -55,7 +54,6 @@ export function ChatbotProvider({ children, renderPanel = null }) {
     };
   }, []);
 
-  // Lắng nghe postMessage an toàn từ iframe chatbot
   useEffect(() => {
     const chatbotUrl = import.meta.env.VITE_CHATBOT_URL;
     if (!chatbotUrl) return;

@@ -1,16 +1,27 @@
 import axiosClient from '../api/axiosClient.js';
+import { getCookie, setCookie, removeCookie } from '../utils/cookie.js';
+import { cleanMultiUserStorage } from '../utils/storageCleanup.js';
 
-// Backend trả AuthResponse: { accessToken, refreshToken, tokenType, expiresIn, user }
 function saveSession({ accessToken, refreshToken, user }) {
-  localStorage.setItem('token', accessToken);
-  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-  if (user) localStorage.setItem('sport_user', JSON.stringify(user));
+  if (accessToken) setCookie('token', accessToken, 1);
+  if (refreshToken) setCookie('refreshToken', refreshToken, 7);
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('isLogin');
+  if (user) {
+    localStorage.setItem('sport_user', JSON.stringify(user));
+    cleanMultiUserStorage(user.id);
+  }
 }
 
 function clearSession() {
+  removeCookie('token');
+  removeCookie('refreshToken');
   localStorage.removeItem('token');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('sport_user');
+  localStorage.removeItem('isLogin');
+  cleanMultiUserStorage(null);
 }
 
 export const authService = {
@@ -31,7 +42,6 @@ export const authService = {
     await axiosClient.post('/auth/register', {
       fullName: userData.fullName.trim(),
       email,
-      // Backend chỉ nhận 9-15 chữ số, bỏ khoảng trắng người dùng gõ ("0912 345 678")
       phoneNumber: (userData.phoneNumber || '').replace(/\s+/g, ''),
       password: userData.password,
     });
@@ -78,11 +88,11 @@ export const authService = {
 
   /** POST /api/auth/logout → thu hồi refresh token; luôn xóa phiên phía client dù API lỗi */
   async logout() {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = getCookie('refreshToken') || localStorage.getItem('refreshToken');
     try {
       if (refreshToken) await axiosClient.post('/auth/logout', { refreshToken });
     } catch {
-      // bỏ qua: dù API lỗi vẫn phải đăng xuất phía client
+      /* ignore */
     } finally {
       clearSession();
     }

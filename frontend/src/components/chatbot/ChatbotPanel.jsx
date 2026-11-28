@@ -29,7 +29,6 @@ export default function ChatbotPanel({ renderPanel, launcherPosition }) {
     }
   }, []);
 
-  // Tắt đi mở lại: lập tức cuộn đến đoạn chat mới nhất
   useEffect(() => {
     if (isOpen) {
       const raf = requestAnimationFrame(() => {
@@ -45,7 +44,6 @@ export default function ChatbotPanel({ renderPanel, launcherPosition }) {
     }
   }, [isOpen, scrollToBottom]);
 
-  // Khi có tin nhắn mới (người dùng gửi hoặc bot render xong): cuộn mượt đến cuối
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
@@ -79,7 +77,6 @@ export default function ChatbotPanel({ renderPanel, launcherPosition }) {
     ]);
     setInput('');
 
-    // Simulated bot answer
     setTimeout(() => {
       let replyText = 'Cảm ơn bạn đã liên hệ! Hệ thống tư vấn viên sẽ phản hồi bạn trong giây lát.';
       const lower = text.toLowerCase();

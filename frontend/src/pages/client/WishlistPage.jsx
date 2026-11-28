@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { ProductCard } from "../../components/product";
 import { EmptyState, Skeleton } from "../../components/common";
-import { useStore } from "../../context/StoreContext.jsx";
+import { useCatalog } from "../../context/CatalogContext.jsx";
+import { useWishlist } from "../../context/WishlistContext.jsx";
 import { wishlistService } from "../../services/wishlistService.js";
 
 export default function WishlistPage() {
-  const { products, wishlistIds } = useStore();
+  const { products } = useCatalog();
+  const { wishlistIds } = useWishlist();
   const [apiWishlistProducts, setApiWishlistProducts] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -17,7 +19,6 @@ export default function WishlistPage() {
       .getWishlist()
       .then((res) => {
         if (Array.isArray(res)) {
-          // Map WishlistResponse to Product structure compatible with ProductCard
           const mapped = res.map((item) => ({
             id: item.productId || item.id,
             name: item.productName || item.name,

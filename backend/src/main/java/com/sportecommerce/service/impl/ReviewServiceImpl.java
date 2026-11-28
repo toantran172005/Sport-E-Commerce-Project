@@ -172,7 +172,6 @@ public class ReviewServiceImpl implements ReviewService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + request.getProductId()));
 
-        // Tìm OrderItem thích hợp chưa được review
         OrderItem orderItem = null;
         if (request.getOrderItemId() != null) {
             orderItem = orderItemRepository.findById(request.getOrderItemId()).orElse(null);
@@ -264,7 +263,6 @@ public class ReviewServiceImpl implements ReviewService {
         reviewReplyRepository.save(reply);
         review.setReviewReply(reply);
 
-        // Tự động duyệt review khi admin đã phản hồi
         review.setStatus(ReviewStatus.APPROVED);
         review = reviewRepository.save(review);
 

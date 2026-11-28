@@ -161,7 +161,6 @@ export default function AdminStaffPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
-  // Chờ người dùng gõ xong 350ms rồi mới gọi API tìm kiếm
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedKeyword(keyword);

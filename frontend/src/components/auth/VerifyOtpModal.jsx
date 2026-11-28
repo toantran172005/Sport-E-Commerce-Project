@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { ShieldCheck, X, ArrowRight } from 'lucide-react';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useAuth, useUI } from '@/context';
 import { authService } from '../../services/authService.js';
 
 export default function VerifyOtpModal() {
-  const { activeModal, modalPayload, closeModal, showToast, user, setUser } = useStore();
+  const { user, setUser } = useAuth();
+  const { activeModal, modalPayload, closeModal, showToast } = useUI();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(60);
   const [loading, setLoading] = useState(false);

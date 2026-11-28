@@ -36,11 +36,10 @@ export function createTtlCache({
       }
       storage.setItem(storageKey, JSON.stringify(serializable));
     } catch {
-      // Ignore storage errors (quota, disabled, etc.)
+      /* ignore */
     }
   }
 
-  // Khởi tạo từ storage nếu có
   const initialData = safeStorageGet();
   if (initialData && typeof initialData === 'object') {
     const currentTime = now();
@@ -61,7 +60,6 @@ export function createTtlCache({
       return undefined;
     }
 
-    // Refresh LRU order (re-insert at tail)
     cache.delete(key);
     cache.set(key, entry);
     return entry.value;
@@ -74,7 +72,6 @@ export function createTtlCache({
     if (cache.has(key)) {
       cache.delete(key);
     } else if (cache.size >= maxEntries) {
-      // LRU: evict oldest entry (first item)
       const oldestKey = cache.keys().next().value;
       if (oldestKey !== undefined) {
         cache.delete(oldestKey);
@@ -106,8 +103,8 @@ export function createTtlCache({
       try {
         storage.removeItem(storageKey);
       } catch {
-        // Ignore
-      }
+      /* ignore */
+    }
     }
   }
 

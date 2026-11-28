@@ -22,7 +22,6 @@ public class ShipmentServiceImpl implements ShipmentService {
     public Shipment createShipmentForOrder(Order order, UserAddress address, double subTotal, String providerCode) {
 
         ShippingProvider provider;
-        // Lấy đơn vị vận chuyển bằng mã code
         if (providerCode != null && !providerCode.isBlank()) {
             String code = providerCode.trim().toUpperCase();
             if (code.equals("VTP") || code.equals("VTPOST")) {
@@ -31,7 +30,6 @@ public class ShipmentServiceImpl implements ShipmentService {
             provider = shippingProviderRepository.findByCode(code)
                     .orElseThrow(()-> new ResourceNotFoundException("Đơn vị vận chuyển không hợp lệ: " + providerCode));
         } else {
-            // Nếu không có mặc định chọn đơn vị vận chuyển đầu tiên
             provider = shippingProviderRepository.findAll().stream()
                     .filter(ShippingProvider::getIsActive)
                     .findFirst()

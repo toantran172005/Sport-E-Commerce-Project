@@ -7,11 +7,12 @@ import {
   CreditCard,
   Store,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useTheme, useUI } from '@/context';
 import AdminLayout from '../../layouts/AdminLayout';
 
 export default function AdminSettingsPage() {
-  const { isDarkMode, toggleDarkMode, showToast } = useStore();
+  const { isDarkMode, toggleDarkMode } = useTheme();
+  const { showToast } = useUI();
 
   const [storeName, setStoreName] = useState('Delta Sport — Đồ thể thao cho người chơi thật');
   const [hotline, setHotline] = useState('1900 6868');

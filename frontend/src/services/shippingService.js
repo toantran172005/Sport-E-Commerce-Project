@@ -95,7 +95,6 @@ export const shippingService = {
       return cached;
     }
 
-    // Tính toán trực tiếp tức thì 0ms trên client theo quy tắc của hệ thống
     const fee = calculateShippingFee(code, city, subTotal);
     const est = calculateEstimatedDeliveryDate(code, city);
     const result = {

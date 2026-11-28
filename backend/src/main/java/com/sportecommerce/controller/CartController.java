@@ -27,7 +27,7 @@ public class CartController {
         if (fallbackUserId != null) {
             return fallbackUserId;
         }
-        return 4L; // Default customer id fallback
+        return 4L;
     }
 
     @GetMapping

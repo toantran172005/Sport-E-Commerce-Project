@@ -1,0 +1,83 @@
+# NHIỆM VỤ: TÍCH HỢP AI CHATBOT BÁN HÀNG (RAG VECTOR DB + TOOL CALLING) CHO DELTA SPORT
+
+Hãy đọc codebase hiện tại (cả thư mục `backend` Spring Boot 3.3.3 / Java 21 và `frontend` React + Context API) và triển khai hoàn chỉnh tính năng AI Chatbot đáp ứng các yêu cầu sau:
+
+## 1. Kiến trúc AI & Tách biệt Vector Database (PostgreSQL pgvector + Cosine Similarity)
+1. **Cập nhật `pom.xml`:**
+   - Thêm Spring AI BOM phiên bản tương thích với Spring Boot 3.3.3 (ví dụ `1.0.0` hoặc `1.0.0-M6` từ repository `https://repo.spring.io/milestone` nếu cần).
+   - Thêm các dependencies:
+     - `spring-ai-openai-spring-boot-starter` (dùng để gọi DeepSeek API tương thích chuẩn OpenAI).
+     - `spring-ai-pgvector-store-spring-boot-starter` (lưu trữ vector và truy vấn Cosine Similarity).
+     - `spring-ai-transformers-spring-boot-starter` (chạy local ONNX Embedding model đa ngôn ngữ, không tốn thêm API key ngoài).
+2. **Tách riêng Vector DataSource (`VectorDbConfig.java`):**
+   - Giữ nguyên `spring.datasource` hiện tại làm `@Primary` cho nghiệp vụ chính.
+   - Tạo cấu hình `DataSource` và `JdbcTemplate` thứ 2 (`@Qualifier("vectorJdbcTemplate")`) đọc từ biến môi trường:
+     - `VECTOR_DB_URL` (trỏ sang database Neon riêng biệt cho Vector)
+     - `VECTOR_DB_USERNAME` (mặc định dùng chung `DB_USERNAME` nếu không khai báo)
+     - `VECTOR_DB_PASSWORD` (mặc định dùng chung `DB_PASSWORD` nếu không khai báo)
+   - Khởi tạo bean `PgVectorStore` sử dụng `vectorJdbcTemplate` này với:
+     - `distanceType = PgVectorStore.PgDistanceType.COSINE_DISTANCE`
+     - `initializeSchema = true` (tự động tạo `CREATE EXTENSION IF NOT EXISTS vector` và bảng `vector_store`).
+3. **Cấu hình `application.properties`:**
+   - Cấu hình DeepSeek cho Spring AI OpenAI client:
+     - `spring.ai.openai.base-url=https://api.deepseek.com`
+     - `spring.ai.openai.api-key=${DEEPSEEK_API_KEY}`
+     - `spring.ai.openai.chat.options.model=deepseek-chat`
+     - `spring.ai.openai.chat.options.temperature=0.3`
+   - Cấu hình Local ONNX Embedding model hỗ trợ tiếng Việt:
+     - `spring.ai.model.embedding=transformers`
+     - `spring.ai.transformers.embedding.onnx.model-uri=https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx`
+     - `spring.ai.transformers.embedding.tokenizer.uri=https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/tokenizer.json`
+
+## 2. Đồng bộ dữ liệu sản phẩm sang Vector DB (`ProductVectorSyncService.java`)
+- Tạo service chuyển đổi mỗi `Product` (đang `ACTIVE` và `deletedAt == null`) kèm thông tin `Category`, `Brand` và danh sách `ProductVariant` (ID biến thể, SKU, Màu sắc, Kích cỡ, Giá bán/Giá sale, Tồn kho) thành một `Document` chứa nội dung mô tả tự nhiên bằng tiếng Việt để embedding.
+- Gắn `metadata` gồm: `productId`, `productName`, `category`, `sportType`, `minPrice`.
+- Tự động đồng bộ:
+  1. Chạy kiểm tra lúc khởi động app (`ApplicationReadyEvent`): nếu bảng `vector_store` đang trống thì tự động đồng bộ toàn bộ sản phẩm hiện có.
+  2. Tạo API `POST /api/admin/ai/sync-products` (yêu cầu quyền ADMIN) để đồng bộ lại thủ công khi cần.
+  3. Lắng nghe sự kiện khi Admin thêm/sửa/xóa sản phẩm để tự động cập nhật/xóa vector tương ứng.
+
+## 3. Xây dựng Bộ Công Cụ Nghiệp Vụ (`EcommerceAiTools.java`)
+Đọc kỹ `JwtAuthenticationFilter.java`, `UserPrincipal.java`, `WishlistService`, `CartService`, `OrderServiceImpl.java`, `UserAddressRepository` và `CouponRepository` để gọi đúng chữ ký hàm hiện có.
+Tạo các hàm `@Tool` cho AI gọi:
+1. `searchProducts(String query)`: Truy vấn `VectorStore` bằng `SearchRequest.builder().query(query).topK(5).similarityThreshold(0.5).build()` (Cosine Similarity) để lấy thông tin chi tiết sản phẩm, giá, màu, size và `variantId` còn hàng.
+2. `getMyAddresses()`: Lấy danh sách địa chỉ giao hàng (`UserAddress`) của user đang đăng nhập (kèm `addressId`, người nhận, SĐT, địa chỉ đầy đủ, mặc định).
+3. `addToWishlist(Long productId)`: Kiểm tra đăng nhập -> gọi `wishlistService.addToWishlist(userId, productId)`.
+4. `addToCart(Long variantId, int quantity)`: Kiểm tra đăng nhập -> tạo `CartItemRequest` -> gọi `cartService.addToCart(userId, request)`.
+5. `placeOrder(Long variantId, int quantity, Long shippingAddressId, String paymentMethod, String shippingProviderCode, String couponCode, String note)`:
+   - Kiểm tra đăng nhập.
+   - Build `PlaceOrderRequest` (sử dụng nhánh `OrderItemRequest` cho đặt trực tiếp hoặc lấy từ giỏ nếu khách yêu cầu đặt toàn bộ giỏ hàng; tự tìm `couponId` nếu khách có nhập `couponCode`; mặc định `shippingProviderCode` nếu khách không chọn).
+   - Gọi `orderService.placeOrder(userId, request)`.
+   - Đọc cách hệ thống đang tạo link VNPay (kiểm tra `PaymentController` / `VnPayService` trong repo): nếu `paymentMethod` là `VNPAY`, lấy luôn `paymentUrl` trả về trong kết quả tool để AI gửi link cho khách thanh toán.
+
+**Quy tắc bảo mật bắt buộc cho Tools:**
+- **TUYỆT ĐỐI KHÔNG** nhận `userId` làm tham số từ AI. Mọi tool thao tác dữ liệu cá nhân (`getMyAddresses`, `addToWishlist`, `addToCart`, `placeOrder`) phải tự trích xuất `userId` từ `SecurityContextHolder.getContext().getAuthentication().getPrincipal()` (`UserPrincipal`).
+- Nếu người dùng chưa đăng nhập (`AnonymousAuthenticationToken` hoặc `principal == null`), tool trả về chuỗi thông báo rõ ràng để AI hướng dẫn khách đăng nhập.
+
+## 4. API Chat & System Prompt (`ChatController.java`, `ChatService.java`)
+- Tạo endpoint `POST /api/chat` (cho phép cả khách vãng lai hỏi đáp sản phẩm, nếu có JWT header thì `JwtAuthenticationFilter` sẽ tự nạp `UserPrincipal` để dùng các tool cá nhân).
+- Sử dụng `ChatClient` với:
+  - `MessageChatMemoryAdvisor` (lưu lịch sử hội thoại theo `conversationId` trong RAM hoặc Redis để bot nhớ ngữ cảnh các câu trước).
+  - System Prompt tiếng Việt đóng vai nhân viên tư vấn của **Delta Sport**:
+    - Tư vấn nhiệt tình, ngắn gọn, format giá tiền theo chuẩn `vi-VN` (VNĐ), hiển thị rõ màu sắc/kích cỡ còn hàng.
+    - **Luật Human-in-the-loop (Bắt buộc):** Trước khi gọi hàm `placeOrder`, AI **phải** gọi `getMyAddresses` để kiểm tra địa chỉ, sau đó liệt kê bảng tóm tắt đơn hàng (Tên sản phẩm, Màu/Size, Số lượng, Địa chỉ nhận, Phương thức thanh toán COD/VNPay, Mã giảm giá) và hỏi khách xác nhận *"Bạn xác nhận đặt đơn hàng này chứ?"*. Chỉ gọi `placeOrder` sau khi khách trả lời đồng ý.
+- Response trả về bọc trong `ApiResponse<ChatResponse>` gồm:
+  - `reply` (String): Câu trả lời của bot.
+  - `conversationId` (String): Mã phiên chat.
+  - `actionsPerformed` (List<String>): Danh sách cờ hành động đã thực thi trong lượt chat này (ví dụ: `"WISHLIST_UPDATED"`, `"CART_UPDATED"`, `"ORDER_PLACED"`).
+  - `paymentUrl` (String, nullable): Link thanh toán VNPay nếu đơn vừa đặt chọn VNPay.
+
+## 5. Tích hợp Giao diện Frontend (React + Context API)
+1. Kiểm tra các Context quản lý trạng thái hiện có trong `frontend/src` (như `CartContext`, `WishlistContext`, `AuthContext`).
+2. Tạo component `ChatWidget.tsx` (nút bong bóng chat góc dưới bên phải, mở ra khung chat hiện đại đồng bộ giao diện Delta Sport):
+   - Lưu `conversationId` vào `sessionStorage`.
+   - Hỗ trợ hiển thị Markdown gọn đẹp (in đậm, danh sách sản phẩm, nút bấm thanh toán VNPay nổi bật nếu response có `paymentUrl`).
+   - Có các nút gợi ý nhanh (Quick Prompts) như: *"Tư vấn giày chạy bộ"*, *"Xem giỏ hàng & Đặt hàng"*.
+   - **Đồng bộ State tự động:** Ngay khi API `/api/chat` trả về `actionsPerformed`:
+     - Nếu có `"CART_UPDATED"` hoặc `"ORDER_PLACED"` -> gọi hàm fetch/refresh giỏ hàng từ `CartContext` để số lượng trên icon Giỏ hàng ở Header cập nhật ngay lập tức.
+     - Nếu có `"WISHLIST_UPDATED"` -> gọi hàm fetch/refresh danh sách yêu thích từ `WishlistContext`.
+
+## 6. Kiểm thử & Xác minh trước khi hoàn tất
+- Cập nhật `.env.example` bổ sung `DEEPSEEK_API_KEY` và `VECTOR_DB_URL`.
+- Đảm bảo `mvn compile` (Backend) và `npm run build` (Frontend) thành công với exit code 0.
+- Tóm tắt lại các file đã tạo/sửa và hướng dẫn cách chạy thử luồng sync vector.

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowRight, ArrowLeft } from 'lucide-react';
 import BrandLogo from '../../components/common/BrandLogo.jsx';
-import { useStore } from '../../context/StoreContext.jsx';
+import { useUI } from '@/context';
 import { authService } from '../../services/authService.js';
 import AuthBanner from '../../components/auth/AuthBanner.jsx';
 
 export default function ForgotPasswordPage() {
-  const { showToast } = useStore();
+  const { showToast } = useUI();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');

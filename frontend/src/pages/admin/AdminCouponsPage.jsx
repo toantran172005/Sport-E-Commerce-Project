@@ -10,7 +10,7 @@ import {
   Edit2,
   Trash2,
 } from 'lucide-react';
-import { useStore } from '../../context/StoreContext';
+import { useCatalog, useUI } from '@/context';
 import AdminLayout from '../../layouts/AdminLayout';
 import { Pagination } from '../../components/common';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -18,14 +18,8 @@ import { formatCurrency, formatDate } from '../../utils/formatters';
 const PAGE_SIZE = 10;
 
 export default function AdminCouponsPage() {
-  const {
-    coupons = [],
-    toggleCouponActive,
-    deleteCoupon,
-    openModal,
-    showConfirmModal,
-    showToast,
-  } = useStore();
+  const { coupons = [], toggleCouponActive, deleteCoupon } = useCatalog();
+  const { openModal, showConfirmModal, showToast } = useUI();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(0);
@@ -82,7 +76,6 @@ export default function AdminCouponsPage() {
     return coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
   }, [coupons]);
 
-  // Strip thống kê: Đang diễn ra, Sắp diễn ra, Đã hết hạn
   const { activeCampaignsCount, upcomingCampaignsCount, expiredCampaignsCount } = useMemo(() => {
     const now = new Date();
     let active = 0;
