@@ -1,4 +1,4 @@
-import { CreditCard, QrCode, Banknote } from 'lucide-react';
+import { CreditCard, Banknote } from 'lucide-react';
 
 export default function PaymentMethodSelector({
   paymentMethod = 'BANK_TRANSFER',
@@ -34,11 +34,11 @@ export default function PaymentMethodSelector({
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <QrCode className="w-4 h-4 text-accent" />
-              <p className="text-[13px] font-bold text-ink">Chuyển Khoản VNPay QR</p>
+              <CreditCard className="w-4 h-4 text-accent" />
+              <p className="text-[13px] font-bold text-ink">Thanh Toán VNPay (NCB)</p>
             </div>
             <p className="text-[11px] text-ink-muted mt-0.5">
-              Quét mã QR qua ứng dụng ngân hàng
+              Chuyển thẳng sang cổng thanh toán thẻ ngân hàng VNPay
             </p>
           </div>
         </div>

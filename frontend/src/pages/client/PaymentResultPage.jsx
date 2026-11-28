@@ -168,6 +168,7 @@ export default function PaymentResultPage() {
       const res = await paymentService.createPayment({
         orderId: effectiveOrderId,
         method: 'BANK_TRANSFER',
+        bankCode: 'NCB',
       });
       const paymentUrl = res?.paymentUrl || res?.data?.paymentUrl;
       if (paymentUrl) {

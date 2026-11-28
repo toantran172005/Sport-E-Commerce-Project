@@ -218,13 +218,17 @@ export default function CheckoutPage() {
         const paymentRes = await paymentService.createPayment({
           orderId,
           method: 'BANK_TRANSFER',
+          bankCode: 'NCB',
         });
-        openModal('vnpay_qr_modal', {
-          amount: newOrder?.totalAmount || totalAmount,
-          orderCode,
-          orderId,
-          paymentUrl: paymentRes?.paymentUrl || paymentRes?.data?.paymentUrl,
-        });
+        const paymentUrl = paymentRes?.paymentUrl || paymentRes?.data?.paymentUrl;
+        if (!paymentUrl) {
+          throw new Error('Không nhận được liên kết cổng thanh toán VNPay.');
+        }
+        if (typeof setAppliedCoupon === 'function') {
+          setAppliedCoupon(null);
+        }
+        window.location.assign(paymentUrl);
+        return;
       } else {
         await paymentService.createPayment({
           orderId,
